@@ -3,9 +3,11 @@ Provides :class:`ParallelBeam2DRayTrafo`, as well as getters
 for its matrix representation and a :class:`MatmulRayTrafo` implementation.
 """
 
+from itertools import product
 import numpy as np
 from odl.contrib.torch import OperatorModule
 import odl
+from tqdm import tqdm
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.data.trafo.matmul_ray_trafo import MatmulRayTrafo
 
@@ -155,9 +157,22 @@ def get_odl_ray_trafo_parallel_beam_2d_matrix(
     odl_ray_trafo_full = get_odl_ray_trafo_parallel_beam_2d(
                 im_shape, num_angles, first_angle_zero=first_angle_zero,
                 impl=impl)
+    odl_ray_trafo = odl.tomo.RayTransform(
+            odl_ray_trafo_full.domain,
+            odl_ray_trafo_full.geometry[::angular_sub_sampling], impl=impl)
+    obs_shape = odl_ray_trafo.range.shape
 
-    matrix = odl.operator.oputils.matrix_representation(
-            odl_ray_trafo_full)
+    matrix = np.zeros(obs_shape + im_shape, dtype=np.float32)
+    x = np.zeros(im_shape, dtype=np.float32)
+    for i0, i1 in tqdm(product(range(im_shape[0]), range(im_shape[1])),
+            total=im_shape[0] * im_shape[1],
+            desc='generating ray transform matrix'):
+        x[i0, i1] = 1.
+        matrix[:, :, i0, i1] = odl_ray_trafo_full(x)
+        x[i0, i1] = 0.
+
+    # matrix = odl.operator.oputils.matrix_representation(
+    #         odl_ray_trafo_full)
 
     if angular_sub_sampling != 1:
         matrix = matrix[::angular_sub_sampling]
