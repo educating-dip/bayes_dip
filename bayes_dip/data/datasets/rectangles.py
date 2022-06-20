@@ -124,7 +124,7 @@ class RectanglesDataset(torch.utils.data.IterableDataset):
         # normalize the foreground (all non-zero pixels) to [0., 1.]
         image[np.array(image) != 0.] -= np.min(image)
         image /= np.max(image)
-        return torch.from_numpy(image[None])
+        return torch.from_numpy(image[None])  # add channel dim
 
     def __iter__(self) -> Iterator[Tensor]:
         it = repeat(None, self.length) if self.length is not None else repeat(None)

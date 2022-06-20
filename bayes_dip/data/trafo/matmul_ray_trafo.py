@@ -69,7 +69,7 @@ class MatmulRayTrafo(BaseRayTrafo):
         if matrix.is_sparse:
             # cannot call .T on sparse torch tensor, so create new tensor and
             # register it for automatic moving to device (access: self.matrix_t)
-            indices_t = matrix.indices()[::-1, :]  # 2 x ??
+            indices_t = matrix.indices()[[1, 0], :]  # 2 x ??
             values = matrix.values()
             shape_t = matrix.shape[::-1]
             matrix_t = torch.sparse_coo_tensor(indices_t, values, shape_t)

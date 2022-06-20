@@ -112,7 +112,7 @@ class SimulatedDataset(torch.utils.data.Dataset):
                 ray_trafo=self.ray_trafo,
                 white_noise_rel_stddev=self.white_noise_rel_stddev,
                 rng=rng)[0]
-        filtbackproj = self.ray_trafo.fbp(noisy_observation)
+        filtbackproj = self.ray_trafo.fbp(noisy_observation[None])[0]
 
         return noisy_observation, x, filtbackproj
 

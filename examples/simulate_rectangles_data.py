@@ -32,7 +32,7 @@ for i in range(3):
     observation, x, filtbackproj = dataset[i]
 # for i, (observation, x, filtbackproj) in zip(range(3), dataset):
     plt.subplot(1, 3, 1)
-    plt.imshow(observation.T.squeeze(0), cmap='gray')
+    plt.imshow(observation.squeeze(0).T, cmap='gray')
     plt.subplot(1, 3, 2)
     plt.imshow(x.squeeze(0), cmap='gray')
     plt.subplot(1, 3, 3)
