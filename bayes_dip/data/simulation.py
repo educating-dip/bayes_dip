@@ -50,8 +50,11 @@ class SimulatedDataset(torch.utils.data.Dataset):
     Each item of this dataset is a tuple ``noisy_observation, x, filtbackproj``,
     where
         * `noisy_observation = ray_trafo(x) + noise``
+          (shape: ``(1,) + obs_shape``)
         * `x` is the ground truth (label)
+          (shape: ``(1,) + im_shape``)
         * ``filtbackproj = FBP(noisy_observation)``
+          (shape: ``(1,) + im_shape``)
     """
 
     def __init__(self,

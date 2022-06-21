@@ -3,14 +3,29 @@ Generate rectangles images, observations, and filtered back-projections using
 :class:`bayes_dip.data.SimulatedDataset`.
 """
 
+from multiprocessing.sharedctypes import Value
 import matplotlib.pyplot as plt
 from bayes_dip.data import (
-        RectanglesDataset, SimulatedDataset,
+        RectanglesDataset, get_mnist_testset, get_kmnist_testset,
+        SimulatedDataset,
         ParallelBeam2DRayTrafo, get_parallel_beam_2d_matmul_ray_trafo)
 
+DATA = 'rectangles'
+# DATA = 'mnist'
+# DATA = 'kmnist'
+
 # images
-im_shape = (128, 128)
-image_dataset = RectanglesDataset(shape=im_shape)
+if DATA == 'rectangles':
+    im_shape = (128, 128)
+    image_dataset = RectanglesDataset(shape=im_shape)
+elif DATA == 'mnist':
+    im_shape = (28, 28)
+    image_dataset = get_mnist_testset()
+elif DATA == 'kmnist':
+    im_shape = (28, 28)
+    image_dataset = get_kmnist_testset()
+else:
+    raise ValueError
 
 # for i in range(3):
 #     x = image_dataset[i]
@@ -33,8 +48,11 @@ for i in range(3):
 # for i, (observation, x, filtbackproj) in zip(range(3), dataset):
     plt.subplot(1, 3, 1)
     plt.imshow(observation.squeeze(0).T, cmap='gray')
+    plt.colorbar()
     plt.subplot(1, 3, 2)
     plt.imshow(x.squeeze(0), cmap='gray')
+    plt.colorbar()
     plt.subplot(1, 3, 3)
     plt.imshow(filtbackproj.squeeze(0), cmap='gray')
+    plt.colorbar()
     plt.show()

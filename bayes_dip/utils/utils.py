@@ -1,4 +1,23 @@
-import torch 
+import os
+import torch
+try:
+    import hydra.utils
+    HYDRA_AVAILABLE = True
+except ImportError:
+    HYDRA_AVAILABLE = False
+
+
+def get_original_cwd():
+    cwd = None
+    if HYDRA_AVAILABLE:
+        try:
+            cwd = hydra.utils.get_original_cwd()
+        except ValueError:  # raised if hydra is not initialized
+            pass
+    if cwd is None:
+        cwd = os.getcwd()
+    return cwd
+
 
 def list_norm_layers(model):
 
@@ -11,6 +30,7 @@ def list_norm_layers(model):
             norm_layers.append(name + '.weight')
             norm_layers.append(name + '.bias')
     return norm_layers
+
 
 def count_parameters(model, norm_layers, include_biases):
     len_w = 0

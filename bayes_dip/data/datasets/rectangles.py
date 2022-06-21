@@ -50,7 +50,7 @@ class RectanglesDataset(torch.utils.data.IterableDataset):
     """
     Dataset with images of multiple random rectangles.
     The images are normalized to have a value range of ``[0., 1.]`` with a
-    background value of ``0.``.
+    background value of ``0.``. Each image has shape ``(1,) + shape``.
     """
     def __init__(self,
             shape: tuple[int, int] = (128, 128),
