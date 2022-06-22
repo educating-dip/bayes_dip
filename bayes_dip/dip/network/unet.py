@@ -29,7 +29,7 @@ class UNet(nn.Module):
         self.outc = OutBlock(in_ch=channels[0],
                              out_ch=out_ch)
 
-    def forward(self, x0, saturation_safety=True):
+    def forward(self, x0, saturation_safety=True, return_pre_sigmoid=False):
         xs = [self.inc(x0)]
         for i in range(self.scales - 1):
             xs.append(self.down[i](xs[-1]))
@@ -42,8 +42,9 @@ class UNet(nn.Module):
                 out = out.clamp(
                         min=-self.sigmoid_saturation_thresh,
                         max=self.sigmoid_saturation_thresh)
-            out = torch.sigmoid(out)
-        return out
+            if not return_pre_sigmoid: 
+                out = torch.sigmoid(out)
+        return out 
 
 
 class DownBlock(nn.Module):

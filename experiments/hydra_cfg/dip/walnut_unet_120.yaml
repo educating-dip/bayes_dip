@@ -1,0 +1,19 @@
+net:
+  scales: 6
+  channels: [128, 128, 128, 128, 128, 128]
+  skip_channels: [0, 0, 0, 0, 4, 4]
+  use_norm: True
+  use_sigmoid: False
+  sigmoid_saturation_thresh: 15
+optim:
+  lr: 1e-4
+  iterations: 2500
+  loss_function: mse
+  gamma: 4e-6
+show_pbar: True
+torch_manual_seed: 10
+log_path: ./
+load_pretrain_model: True
+learned_params_path: outputs/2021-12-02/17-23-12/params/model_walnut.pt # from pretraining 
+finetuned_params_path: multirun/2022-04-07/15-37-52/0/dip_model_0.pt # spec. to obs.
+recon_from_randn: False
