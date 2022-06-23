@@ -2,7 +2,7 @@ import torch
 
 def flatten_grad_functorch(model, norm_layers, grads, include_biases=False):
     jacs = []
-    for (name, param), grad in zip(model.named_parameters(), grads):
+    for (name, _), grad in zip(model.named_parameters(), grads):
         name = name.replace('module.', '')
         if "weight" in name and name not in norm_layers:
             jacs.append(grad.detach().reshape(-1))

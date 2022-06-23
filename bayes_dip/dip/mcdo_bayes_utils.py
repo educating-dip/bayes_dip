@@ -1,12 +1,12 @@
 import torch
 import torch.nn.functional as F
-import torch.nn as nn
-from tqdm import tqdm
+from torch import nn
 from torch.nn.modules.dropout import _DropoutNd
+from tqdm import tqdm
 
 class mc_dropout2d(_DropoutNd):
-    def forward(self, input):
-        return F.dropout2d(input, self.p, True, self.inplace)
+    def forward(self, inp):
+        return F.dropout2d(inp, self.p, True, self.inplace)
 
 class conv2d_dropout(nn.Module):
     def __init__(self, sub_module, p):
@@ -19,9 +19,9 @@ class conv2d_dropout(nn.Module):
 
 def bayesianize_architecture(model, p=0.05):
     for _, module in model.named_modules():
-        if isinstance(module, torch.nn.Sequential):
+        if isinstance(module, nn.Sequential):
             for name_sub_module, sub_module in module.named_children(): 
-                if isinstance(sub_module, torch.nn.Conv2d):
+                if isinstance(sub_module, nn.Conv2d):
                     if sub_module.kernel_size == (3, 3):
                         setattr(module, name_sub_module, conv2d_dropout(sub_module, p))
 

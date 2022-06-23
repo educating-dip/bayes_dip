@@ -1,7 +1,7 @@
+from typing import Callable, Sequence
 import torch
-import torch.nn as nn
+from torch import nn
 import functorch as ftch
-from typing import Callable, List
 from bayes_dip.utils import list_norm_layers, count_parameters
 from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
 
@@ -11,7 +11,7 @@ class NeuralBasisExpansion:
             model: nn.Module, 
             nn_input: torch.Tensor, 
             include_biases: bool, 
-            exclude_nn_layers: List = [] ) -> None:
+            exclude_nn_layers: Sequence = () ) -> None:
 
         """
         Wrapper class for Jacobian vector products and vector Jacobian products.
@@ -20,7 +20,7 @@ class NeuralBasisExpansion:
         """
         
         self.torch_model = model 
-        self.exclude_layers = list_norm_layers(self.torch_model) + exclude_nn_layers
+        self.exclude_layers = list_norm_layers(self.torch_model) + list(exclude_nn_layers)
         self.include_biases = include_biases
         self.nn_input = nn_input
         self._func_model_with_input, self.func_params = ftch.make_functional(self.torch_model)
@@ -68,10 +68,7 @@ class NeuralBasisExpansion:
             single_out, single_jvp = ftch.jvp(
                 self._func_model, (self.func_params,), (unflat_v,))
 
-            if return_out:
-                return single_out, single_jvp
-            else:
-                return single_jvp
+            return (single_out, single_jvp) if return_out else single_jvp
 
         return f
 
@@ -91,9 +88,6 @@ class NeuralBasisExpansion:
                 unflat_w_grad[0],  # we index 0th element, as vjp return tuple
                 include_biases=self.include_biases)  # (D,)
 
-            if return_out:
-                return single_out, single_w_grad
-            else:
-                return single_w_grad
+            return (single_out, single_w_grad) if return_out else single_w_grad
 
         return f

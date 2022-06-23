@@ -1,6 +1,9 @@
 import os
 import socket
 import datetime
+from warnings import warn 
+from copy import deepcopy
+from contextlib import nullcontext
 import torch
 import numpy as np
 import tensorboardX
@@ -8,12 +11,9 @@ from torch import Tensor
 from torch.nn import MSELoss
 from tqdm import tqdm
 from bayes_dip.utils import get_original_cwd
-from warnings import warn 
-from .network import UNet
 from bayes_dip.utils import tv_loss, PSNR, normalize
-from copy import deepcopy
-from contextlib import nullcontext
 from bayes_dip.data import BaseRayTrafo
+from .network import UNet
 
 class DeepImagePriorReconstructor():
     """
@@ -38,6 +38,8 @@ class DeepImagePriorReconstructor():
         self.ray_trafo = ray_trafo.to(self.device)
         self.net_kwargs = net_kwargs
         self.init_model(torch_manual_seed)
+        self.net_input = None
+        self.optimizer = None
 
     def init_model(self,
             torch_manual_seed: int):
@@ -80,14 +82,14 @@ class DeepImagePriorReconstructor():
         logdir = os.path.join(
             log_path,
             current_time + '_' + socket.gethostname() + comment)
-        self.writer = tensorboardX.SummaryWriter(logdir=logdir)
+        writer = tensorboardX.SummaryWriter(logdir=logdir)
         
         self.model.to(self.device)
         self.model.train()
 
         if recon_from_randn:
             self.net_input = 0.1 * \
-                torch.randn(1, *self.ray_trafo.im_shape)[None].to(self.device)
+                torch.randn(1, 1, *self.ray_trafo.im_shape, device=self.device)
         else:
             self.net_input = fbp.to(self.device)
 
@@ -107,7 +109,7 @@ class DeepImagePriorReconstructor():
             for i in pbar:
                 self.optimizer.zero_grad()
                 output = self.model(self.net_input)
-                loss = criterion(self.ray_trafo_module(output), y_delta) 
+                loss = criterion(self.ray_trafo(output), y_delta) 
                 if use_tv_loss: 
                     loss = loss + optim_kwargs['gamma'] * tv_loss(output)
                 loss.backward()
@@ -126,15 +128,15 @@ class DeepImagePriorReconstructor():
                 if ground_truth is not None:
                     best_output_psnr = PSNR(best_output.detach().cpu(), ground_truth.cpu())
                     output_psnr = PSNR(output.detach().cpu(), ground_truth.cpu())
-                    pbar.set_description('DIP output_psnr={:.1f}'.format(output_psnr), refresh=False)
-                    self.writer.add_scalar('best_output_psnr', best_output_psnr, i)
-                    self.writer.add_scalar('output_psnr', output_psnr, i)
+                    pbar.set_description(f'DIP output_psnr={output_psnr:.1f}', refresh=False)
+                    writer.add_scalar('best_output_psnr', best_output_psnr, i)
+                    writer.add_scalar('output_psnr', output_psnr, i)
 
-                self.writer.add_scalar('loss', loss.item(),  i)
+                writer.add_scalar('loss', loss.item(),  i)
                 if i % 1000 == 0:
-                    self.writer.add_image('reco', normalize(best_output[0, ...]).cpu().numpy(), i)
+                    writer.add_image('reco', normalize(best_output[0, ...]).cpu().numpy(), i)
 
         self.model.load_state_dict(best_params_state_dict)
-        self.writer.close()
+        writer.close()
 
         return best_output

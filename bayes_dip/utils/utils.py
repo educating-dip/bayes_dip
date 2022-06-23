@@ -27,8 +27,9 @@ def list_norm_layers(model):
     norm_layers = []
     for (name, module) in model.named_modules():
         name = name.replace('module.', '')
-        if isinstance(module, torch.nn.GroupNorm) or isinstance(module,
-                torch.nn.BatchNorm2d) or isinstance(module, torch.nn.InstanceNorm2d):
+        if isinstance(module,
+                (torch.nn.GroupNorm, torch.nn.BatchNorm2d,
+                torch.nn.InstanceNorm2d)):
             norm_layers.append(name + '.weight')
             norm_layers.append(name + '.bias')
     return norm_layers
@@ -50,19 +51,15 @@ def PSNR(reconstruction, ground_truth, data_range=None):
     mse = np.mean((np.asarray(reconstruction) - gt)**2)
     if mse == 0.:
         return float('inf')
-    if data_range is not None:
-        return 20*np.log10(data_range) - 10*np.log10(mse)
-    else:
+    if data_range is None:
         data_range = np.max(gt) - np.min(gt)
-        return 20*np.log10(data_range) - 10*np.log10(mse)
+    return 20*np.log10(data_range) - 10*np.log10(mse)
 
 def SSIM(reconstruction, ground_truth, data_range=None):
     gt = np.asarray(ground_truth)
-    if data_range is not None:
-        return structural_similarity(reconstruction, gt, data_range=data_range)
-    else:
+    if data_range is None:
         data_range = np.max(gt) - np.min(gt)
-        return structural_similarity(reconstruction, gt, data_range=data_range)
+    return structural_similarity(reconstruction, gt, data_range=data_range)
 
 def normalize(x, inplace=False):
     if inplace:

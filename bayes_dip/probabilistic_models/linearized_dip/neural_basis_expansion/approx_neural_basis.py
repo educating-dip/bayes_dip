@@ -1,9 +1,9 @@
-import torch
-import torch.nn as nn
-from tqdm import tqdm
+from typing import Sequence, Tuple
 from math import ceil
-from typing import List, Tuple
+import torch
+from torch import nn
 from torch import Tensor
+from tqdm import tqdm
 from .neural_basis_expansion import NeuralBasisExpansion
 
 class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
@@ -16,7 +16,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             oversampling_param: int,
             low_rank_rank_dim: int,
             device: None,
-            exclude_nn_layers: List = [],
+            exclude_nn_layers: Sequence = (),
             load_approx_basis_from: str = None,
             return_on_cpu: bool = False,
             use_cpu: bool = False) -> None:
