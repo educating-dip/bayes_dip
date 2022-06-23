@@ -2,7 +2,7 @@
 Provides :class:`RectanglesDataset`.
 """
 
-from typing import Iterable, Iterator, Union
+from typing import Iterable, Iterator, Union, Tuple 
 from itertools import repeat
 import numpy as np
 import torch
@@ -26,8 +26,8 @@ def _rect_coords(shape, a1, a2, x, y, rot):
 
 
 def _rect_phantom(
-        shape: tuple[int, int],
-        rects: Iterable[tuple[float, float, float, float, float, float]],
+        shape: Tuple[int, int],
+        rects: Iterable[Tuple[float, float, float, float, float, float]],
         smooth_sr_fact: int = 8,
         blend_mode: str = 'add') -> np.ndarray:
 
@@ -53,7 +53,7 @@ class RectanglesDataset(torch.utils.data.IterableDataset):
     background value of ``0.``. Each image has shape ``(1,) + shape``.
     """
     def __init__(self,
-            shape: tuple[int, int] = (128, 128),
+            shape: Tuple[int, int] = (128, 128),
             num_rects: int = 3,
             num_angle_modes: int = 1,
             angle_modes_sigma: float = 0.05,

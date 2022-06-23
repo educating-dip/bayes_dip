@@ -2,7 +2,7 @@
 Utilities for testing.
 """
 
-from typing import Generator
+from typing import Generator, Tuple
 import torch
 import numpy as np
 from odl import uniform_discr
@@ -11,7 +11,7 @@ from odl.phantom import ellipsoid_phantom
 
 def get_random_ellipses_images(
         num_images: int = 3,
-        im_shape: tuple[int, int] = (128, 128)
+        im_shape: Tuple[int, int] = (128, 128)
         ) -> Generator[np.ndarray, None, None]:
     """
     num_images : int, optional

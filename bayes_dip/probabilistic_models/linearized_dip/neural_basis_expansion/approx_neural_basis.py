@@ -11,6 +11,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
     def __init__(self,
             model: nn.Module,
             nn_input: Tensor,
+            nn_out_shape: tuple, 
             include_biases: bool,
             vec_batch_size: int,
             oversampling_param: int,
@@ -28,6 +29,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             )
 
         self.vec_batch_size = vec_batch_size
+        self.nn_out_shape = nn_out_shape
         self.oversampling_param = oversampling_param
         self.low_rank_rank_dim = low_rank_rank_dim
         self.device = device 
@@ -69,7 +71,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             low_rank_jac_v_mat_row.detach()
             low_rank_jac_v_mat.append( low_rank_jac_v_mat_row.cpu() if self.use_cpu else low_rank_jac_v_mat_row )
         low_rank_jac_v_mat = torch.cat(low_rank_jac_v_mat)
-        low_rank_jac_v_mat = low_rank_jac_v_mat.view(*low_rank_jac_v_mat.shape[:1], -1).T
+        low_rank_jac_v_mat = low_rank_jac_v_mat.view(low_rank_jac_v_mat.shape[0], -1).T
         Q, _ = torch.linalg.qr(low_rank_jac_v_mat)
         if not self.return_on_cpu:
             Q = Q.to(self.device)
@@ -79,7 +81,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
 
         for i in tqdm(range(num_batches), miniters=num_batches//100, desc='get_batched_jac_low_rank backward'):
             qT_i = Q[:, i * self.vec_batch_size:(i * self.vec_batch_size) + self.vec_batch_size].T
-            qT_low_rank_jac_mat_row = self.vjp(qT_i.to(self.device))
+            qT_low_rank_jac_mat_row = self.vjp(qT_i.view(qT_i.shape[0], *self.nn_out_shape).to(self.device))
             qT_low_rank_jac_mat_row.detach()
             qT_low_rank_jac_mat.append( qT_low_rank_jac_mat_row.cpu() if self.use_cpu else qT_low_rank_jac_mat_row )
         B = torch.cat(qT_low_rank_jac_mat)
@@ -92,7 +94,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
         return  Q[:, :self.low_rank_rank_dim] @ U[:self.low_rank_rank_dim, :self.low_rank_rank_dim], S[:self.low_rank_rank_dim], Vh[:self.low_rank_rank_dim, :]
     
     def vjp_approx(self, v) -> Tensor:
-        return (( v @ self.jac_U) * self.jac_S[None, :]) @ self.jac_Vh 
+        return (( v.view(v.shape[0], -1) @ self.jac_U) * self.jac_S[None, :]) @ self.jac_Vh 
 
     def jvp_approx(self, v) -> Tensor:
-        return (self.jac_U @ (self.jac_S[:, None] * (self.jac_Vh @ v.T))).T 
+        return ( (self.jac_U @ (self.jac_S[:, None] * (self.jac_Vh @ v.T))).T ).view(-1, *self.nn_out_shape)

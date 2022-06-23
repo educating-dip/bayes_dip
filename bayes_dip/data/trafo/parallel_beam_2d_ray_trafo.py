@@ -4,6 +4,7 @@ for its matrix representation and a :class:`MatmulRayTrafo` implementation.
 """
 
 from itertools import product
+from typing import Tuple
 import numpy as np
 from odl.contrib.torch import OperatorModule
 import odl
@@ -13,7 +14,7 @@ from bayes_dip.data.trafo.matmul_ray_trafo import MatmulRayTrafo
 
 
 def get_odl_ray_trafo_parallel_beam_2d(
-        im_shape: tuple[int, int],
+        im_shape: Tuple[int, int],
         num_angles: int,
         first_angle_zero: bool = True,
         impl: str = 'astra_cuda') -> odl.tomo.RayTransform:
@@ -72,7 +73,7 @@ class ParallelBeam2DRayTrafo(BaseRayTrafo):
     """
 
     def __init__(self,
-            im_shape: tuple[int, int],
+            im_shape: Tuple[int, int],
             num_angles: int,
             first_angle_zero: bool = True,
             angular_sub_sampling: int = 1,
@@ -133,7 +134,7 @@ class ParallelBeam2DRayTrafo(BaseRayTrafo):
         return self.fbp_module(observation)
 
 def get_odl_ray_trafo_parallel_beam_2d_matrix(
-        im_shape: tuple[int, int],
+        im_shape: Tuple[int, int],
         num_angles: int,
         first_angle_zero: bool = True,
         angular_sub_sampling: int = 1,
@@ -184,7 +185,7 @@ def get_odl_ray_trafo_parallel_beam_2d_matrix(
 
 
 def get_parallel_beam_2d_matmul_ray_trafo(
-        im_shape: tuple[int, int],
+        im_shape: Tuple[int, int],
         num_angles: int,
         first_angle_zero: bool = True,
         angular_sub_sampling: int = 1,

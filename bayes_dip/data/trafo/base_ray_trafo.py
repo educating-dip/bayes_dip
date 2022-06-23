@@ -2,7 +2,7 @@
 Provides :class:`BaseRayTrafo`.
 """
 
-from typing import Union
+from typing import Union, Tuple
 from abc import ABC, abstractmethod
 from torch import nn
 from torch import Tensor
@@ -26,8 +26,8 @@ class BaseRayTrafo(nn.Module, ABC):
     """
 
     def __init__(self,
-            im_shape: Union[tuple[int, int], tuple[int, int, int]],
-            obs_shape: Union[tuple[int, int], tuple[int, int, int]]):
+            im_shape: Union[Tuple[int, int], Tuple[int, int, int]],
+            obs_shape: Union[Tuple[int, int], Tuple[int, int, int]]):
         """
         Parameters
         ----------

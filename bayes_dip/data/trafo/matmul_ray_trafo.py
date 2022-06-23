@@ -2,8 +2,11 @@
 Provides :class:`MatmulRayTrafo`.
 """
 
-from typing import Union, Optional, Callable
-from numpy.typing import ArrayLike
+from typing import Union, Optional, Callable, Tuple, Any
+try:
+    from numpy.typing import ArrayLike
+except ImportError:
+    ArrayLike = Any
 import torch
 from torch import Tensor
 import numpy as np
@@ -37,8 +40,8 @@ class MatmulRayTrafo(BaseRayTrafo):
     """
 
     def __init__(self,
-            im_shape: Union[tuple[int, int], tuple[int, int, int]],
-            obs_shape: Union[tuple[int, int], tuple[int, int, int]],
+            im_shape: Union[Tuple[int, int], Tuple[int, int, int]],
+            obs_shape: Union[Tuple[int, int], Tuple[int, int, int]],
             matrix: Union[Tensor, scipy.sparse.spmatrix, np.ndarray],
             fbp_fun: Optional[Callable[[Tensor], Tensor]] = None,
             angles: Optional[ArrayLike] = None):

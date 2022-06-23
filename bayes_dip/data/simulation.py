@@ -2,7 +2,7 @@
 Provides simulation by applying a ray transform and white noise.
 """
 
-from typing import Iterable, Optional, Sequence, Union, Iterator, Any
+from typing import Iterable, Optional, Sequence, Union, Iterator, Any, Tuple
 import numpy as np
 import torch
 from torch import Tensor
@@ -107,7 +107,7 @@ class SimulatedDataset(torch.utils.data.Dataset):
     def __len__(self) -> Union[int, float]:
         return len(self.image_dataset)
 
-    def _generate_item(self, idx: int, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+    def _generate_item(self, idx: int, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
 
         if self.rng is None:
             seed = (self.use_fixed_seeds_starting_from + idx
@@ -126,9 +126,9 @@ class SimulatedDataset(torch.utils.data.Dataset):
 
         return noisy_observation, x, filtbackproj
 
-    def __iter__(self) -> Iterator[tuple[Tensor, Tensor, Tensor]]:
+    def __iter__(self) -> Iterator[Tuple[Tensor, Tensor, Tensor]]:
         for idx, x in enumerate(self.image_dataset):
             yield self._generate_item(idx, x)
 
-    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor, Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         return self._generate_item(idx, self.image_dataset[idx])
