@@ -14,3 +14,4 @@ from .trafo import (
         get_parallel_beam_2d_matmul_ray_trafo,
         get_walnut_2d_ray_trafo)
 from .simulation import simulate, SimulatedDataset
+from .utils import get_ray_trafo

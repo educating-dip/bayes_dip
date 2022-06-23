@@ -1,0 +1,13 @@
+name: walnut
+im_size: 501
+data_path: 'walnuts'  # insert "/path/to/Walnuts/", which should contain a sub-folder "Walnut1/" extracted from Walnut1.zip, download from: https://zenodo.org/record/2686726/files/Walnut1.zip?download=1
+walnut_id: 1
+scaling_factor: 14.  # scale values to approximately [0., 1.]
+pretraining:
+  torch_manual_seed_init_model: 20
+  train_len: 32000
+  validation_len: 3200
+  test_len: 3200
+  disk_diameter: 0.4745
+  seed: 1
+  noise_stddev: 0.05

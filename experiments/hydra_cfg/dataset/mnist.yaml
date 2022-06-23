@@ -1,4 +1,3 @@
 name: mnist
 im_size: 28
-angular_sub_sampling: 1
 noise_stddev: 0.05

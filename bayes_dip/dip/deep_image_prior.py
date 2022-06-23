@@ -69,7 +69,7 @@ class DeepImagePriorReconstructor():
 
     def reconstruct(self, 
             noisy_observation: Tensor, 
-            fbp: Tensor = None, 
+            filtbackproj: Tensor = None, 
             ground_truth: Tensor = None, 
             recon_from_randn: bool = False,
             use_tv_loss: bool = True,
@@ -83,15 +83,14 @@ class DeepImagePriorReconstructor():
             log_path,
             current_time + '_' + socket.gethostname() + comment)
         writer = tensorboardX.SummaryWriter(logdir=logdir)
-        
-        self.model.to(self.device)
+
         self.model.train()
 
         if recon_from_randn:
             self.net_input = 0.1 * \
                 torch.randn(1, 1, *self.ray_trafo.im_shape, device=self.device)
         else:
-            self.net_input = fbp.to(self.device)
+            self.net_input = filtbackproj.to(self.device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=optim_kwargs['lr'])        
         y_delta = noisy_observation.to(self.device)

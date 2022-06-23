@@ -69,7 +69,7 @@ def get_walnut_2d_ray_trafo(
             data_path=data_path, **walnut_kwargs)
 
     im_shape = walnut_ray_trafo.vol_shape[1:]
-    obs_shape = (1, np.prod(walnut_ray_trafo.proj_shape))
+    obs_shape = (1, np.sum(walnut_ray_trafo.proj_mask))
 
     fbp_fun = partial(_walnut_2d_fdk, walnut_ray_trafo=walnut_ray_trafo)
 

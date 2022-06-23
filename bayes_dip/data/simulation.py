@@ -2,7 +2,7 @@
 Provides simulation by applying a ray transform and white noise.
 """
 
-from typing import Iterable, Optional, Sequence, Union, Iterator
+from typing import Iterable, Optional, Sequence, Union, Iterator, Any
 import numpy as np
 import torch
 from torch import Tensor
@@ -34,7 +34,7 @@ def simulate(x: Tensor, ray_trafo: BaseRayTrafo, white_noise_rel_stddev: float,
     if rng is None:
         rng = np.random.default_rng()
     noise = torch.from_numpy(rng.normal(
-            scale=white_noise_rel_stddev * torch.mean(torch.abs(observation)),
+            scale=white_noise_rel_stddev * torch.mean(torch.abs(observation)).item(),
             size=observation.shape)).to(
                     dtype=observation.dtype, device=observation.device)
 
@@ -62,7 +62,8 @@ class SimulatedDataset(torch.utils.data.Dataset):
             ray_trafo: BaseRayTrafo,
             white_noise_rel_stddev: float,
             use_fixed_seeds_starting_from: Optional[int] = 1,
-            rng: Optional[np.random.Generator] = None):
+            rng: Optional[np.random.Generator] = None,
+            device: Optional[Any] = None):
         """
         Parameters
         ----------
@@ -87,6 +88,9 @@ class SimulatedDataset(torch.utils.data.Dataset):
             Cannot be combined with `use_fixed_seeds_starting_from`.
             If both `rng` and `use_fixed_seeds_starting_from` are `None`,
             a new generator ``np.random.default_rng()`` is used.
+        device : str or torch.device, optional
+            If specified, data will be moved to the device. `ray_trafo`
+            (including `ray_trafo.fbp`) must support tensors on the device.
         """
         super().__init__()
 
@@ -98,6 +102,7 @@ class SimulatedDataset(torch.utils.data.Dataset):
                     'must not use fixed seeds when passing a custom rng')
         self.rng = rng
         self.use_fixed_seeds_starting_from = use_fixed_seeds_starting_from
+        self.device = device
 
     def __len__(self) -> Union[int, float]:
         return len(self.image_dataset)
@@ -111,11 +116,13 @@ class SimulatedDataset(torch.utils.data.Dataset):
         else:
             rng = self.rng
 
+        x = x.to(device=self.device)
         noisy_observation = simulate(x[None],
                 ray_trafo=self.ray_trafo,
                 white_noise_rel_stddev=self.white_noise_rel_stddev,
-                rng=rng)[0]
-        filtbackproj = self.ray_trafo.fbp(noisy_observation[None])[0]
+                rng=rng)[0].to(device=self.device)
+        filtbackproj = self.ray_trafo.fbp(noisy_observation[None])[0].to(
+                device=self.device)
 
         return noisy_observation, x, filtbackproj
 
