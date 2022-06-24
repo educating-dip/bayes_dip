@@ -19,12 +19,12 @@ class NeuralBasisExpansion:
         and exposes just the JvP and vJP methods.
         """
         
-        self.torch_model = model 
-        self.exclude_layers = list_norm_layers(self.torch_model) + list(exclude_nn_layers)
+        self.nn_model = model 
+        self.exclude_layers = list_norm_layers(self.nn_model) + list(exclude_nn_layers)
         self.include_biases = include_biases
         self.nn_input = nn_input
-        self._func_model_with_input, self.func_params = ftch.make_functional(self.torch_model)
-        self.num_params = count_parameters(self.torch_model, self.exclude_layers, self.include_biases)
+        self._func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
+        self.num_params = count_parameters(self.nn_model, self.exclude_layers, self.include_biases)
 
         self._single_jvp_fun = self._get_single_jvp_fun(return_out=True)
         self._single_vjp_fun = self._get_single_vjp_fun(return_out=False)
@@ -60,7 +60,7 @@ class NeuralBasisExpansion:
         def f(v):
             
             unflat_v = unflatten_nn_functorch(
-                self.torch_model,
+                self.nn_model,
                 self.exclude_layers,
                 v.detach(),
                 include_biases=self.include_biases)
@@ -83,7 +83,7 @@ class NeuralBasisExpansion:
             unflat_w_grad = vjp_fn(v)
 
             single_w_grad = flatten_grad_functorch(
-                self.torch_model,
+                self.nn_model,
                 self.exclude_layers,
                 unflat_w_grad[0],  # we index 0th element, as vjp return tuple
                 include_biases=self.include_biases)  # (D,)

@@ -51,7 +51,7 @@ n_params = np.sum([param.data.numel() for param in nn.parameters()])
 input = torch.randn((1, 1, 28, 28), device=device)
 
 neural_basis_expansion = NeuralBasisExpansion(
-    model=nn,
+    nn_model=nn,
     nn_input=input,
     include_biases=include_biases
 )
@@ -67,7 +67,7 @@ _, out = neural_basis_expansion.jvp(v_params)
 print(out.shape)
 
 approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
-    model=nn,
+    nn_model=nn,
     nn_input=input,
     nn_out_shape=(1, 1, 28, 28), 
     include_biases=include_biases, 

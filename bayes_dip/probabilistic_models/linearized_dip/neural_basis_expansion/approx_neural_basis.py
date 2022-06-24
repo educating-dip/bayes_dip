@@ -9,7 +9,7 @@ from .neural_basis_expansion import NeuralBasisExpansion
 class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
 
     def __init__(self,
-            model: nn.Module,
+            nn_model: nn.Module,
             nn_input: Tensor,
             nn_out_shape: tuple, 
             include_biases: bool,
@@ -22,7 +22,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             return_on_cpu: bool = False,
             use_cpu: bool = False) -> None:
             
-        super().__init__(model=model,
+        super().__init__(nn_model=nn_model,
                     nn_input=nn_input,
                     include_biases=include_biases,
                     exclude_nn_layers=exclude_nn_layers
