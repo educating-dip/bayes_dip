@@ -6,5 +6,7 @@ from .neural_basis_expansion import NeuralBasisExpansion
 from .approx_neural_basis import ApproxNeuralBasisExpansion 
 from .functorch_utils import (
         flatten_grad_functorch, 
-        unflatten_nn_functorch
+        unflatten_nn_functorch,
+        get_inds_from_ordered_params,
+        get_slices_from_ordered_params
     )

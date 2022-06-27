@@ -1,14 +1,6 @@
-import torch
 import torch.nn as nn
-import numpy as np
-import torch.linalg as linalg
 from typing import Dict, Tuple, List, Callable
 from functools import reduce
-
-from collections.abc import Iterable
-from copy import deepcopy
-from itertools import chain
-from .priors import GPprior, RadialBasisFuncCov, NormalPrior
 
 class ParamaterCov(nn.Module):
 
@@ -30,6 +22,15 @@ class ParamaterCov(nn.Module):
             self.prior_assignment_dict,
             self.hyperparams_init_dict
         )
+        self.params_per_prior_type = self._ordered_params_under_prior()
+    
+    @property
+    def ordered_nn_params(self, ):
+        ordered_params_list = []
+        for params in self.params_per_prior_type.values():
+            ordered_params_list.extend(params)
+
+        return ordered_params_list
     
     def _get_modules_by_names(self, 
             layer_names: List[str]
@@ -46,3 +47,16 @@ class ParamaterCov(nn.Module):
             priors[prior_name] = prior_type(init_hyperparams=init_hyperparams, modules=modules, device=self.device) 
             
         return nn.ModuleDict(priors)
+    
+    def _ordered_params_under_prior(self, ):
+
+        params_per_prior_type = {}
+        for _, prior in self.priors.items():
+            params_per_prior_type.setdefault([type(prior)], [])
+            params_per_prior_type[type(prior)].extend(prior.get_params_under_prior())
+        
+        return params_per_prior_type
+
+
+            
+    

@@ -20,31 +20,32 @@ def get_original_cwd():
         cwd = os.getcwd()
     return cwd
 
-
-def list_norm_layers(model):
+def list_norm_layer_params(model):
 
     """ compute list of names of all GroupNorm (or BatchNorm2d) layers in the model """
-    norm_layers = []
+    norm_layer_params = []
     for (name, module) in model.named_modules():
         name = name.replace('module.', '')
         if isinstance(module,
                 (torch.nn.GroupNorm, torch.nn.BatchNorm2d,
                 torch.nn.InstanceNorm2d)):
-            norm_layers.append(name + '.weight')
-            norm_layers.append(name + '.bias')
-    return norm_layers
+            norm_layer_params.append(name + '.weight')
+            norm_layer_params.append(name + '.bias')
+    return norm_layer_params
 
+def get_params_from_nn_module(model, exclude_norm_layers=True, include_bias=False):
 
-def count_parameters(model, norm_layers, include_biases):
-    len_w = 0
-    for name, param in model.named_parameters():
-        name = name.replace('module.', '')
-        if 'weight' in name and name not in norm_layers:
-            len_w += param.data.numel()
-        if include_biases and 'bias' in name and name not in norm_layers:
-            len_w += param.data.numel()
-    return len_w
+    norm_layer_params = []
+    if exclude_norm_layers:
+        norm_layer_params = list_norm_layer_params(model)
 
+    params = []
+    for (name, param) in model.named_parameters():
+        if name not in norm_layer_params:
+            if name.endswith('.weight') or (name.endswith('.bias') and include_bias):
+                params.append(param)
+
+    return params
 
 def PSNR(reconstruction, ground_truth, data_range=None):
     gt = np.asarray(ground_truth)

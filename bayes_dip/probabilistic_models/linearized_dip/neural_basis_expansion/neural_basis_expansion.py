@@ -1,17 +1,17 @@
+from this import s
 from typing import Callable, Sequence
 import torch
 from torch import nn
 import functorch as ftch
-from bayes_dip.utils import list_norm_layers, count_parameters
-from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
+from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch, get_inds_from_ordered_params, get_slices_from_ordered_params
 
 class NeuralBasisExpansion:
 
     def __init__(self, 
             model: nn.Module, 
             nn_input: torch.Tensor, 
-            include_biases: bool, 
-            exclude_nn_layers: Sequence = () ) -> None:
+            ordered_nn_params: Sequence, 
+            ) -> None:
 
         """
         Wrapper class for Jacobian vector products and vector Jacobian products.
@@ -20,11 +20,17 @@ class NeuralBasisExpansion:
         """
         
         self.nn_model = model 
-        self.exclude_layers = list_norm_layers(self.nn_model) + list(exclude_nn_layers)
-        self.include_biases = include_biases
         self.nn_input = nn_input
         self._func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
-        self.num_params = count_parameters(self.nn_model, self.exclude_layers, self.include_biases)
+
+        self.ordered_nn_params = ordered_nn_params
+        self.inds_from_ordered_params = get_inds_from_ordered_params(
+                self.nn_model, self.ordered_nn_params
+            )
+        self.slices_from_ordered_params = get_slices_from_ordered_params(
+                self.ordered_nn_params
+            )
+        self.num_params = sum([param.data.numel() for param in self.ordered_nn_params])
 
         self._single_jvp_fun = self._get_single_jvp_fun(return_out=True)
         self._single_vjp_fun = self._get_single_vjp_fun(return_out=False)
@@ -60,10 +66,11 @@ class NeuralBasisExpansion:
         def f(v):
             
             unflat_v = unflatten_nn_functorch(
-                self.nn_model,
-                self.exclude_layers,
+                self.nn_model, 
+                self.inds_from_ordered_params, 
+                self.slices_from_ordered_params,
                 v.detach(),
-                include_biases=self.include_biases)
+               )
             
             single_out, single_jvp = ftch.jvp(
                 self._func_model, (self.func_params,), (unflat_v,))
@@ -80,13 +87,12 @@ class NeuralBasisExpansion:
         def f(v):
             # Calculate v.J using vJP
             # v is vector of size N_outputs
-            unflat_w_grad = vjp_fn(v)
+            unflat_w_grad = vjp_fn(v)[0] # we index 0th element, as vjp return tuple
 
             single_w_grad = flatten_grad_functorch(
-                self.nn_model,
-                self.exclude_layers,
-                unflat_w_grad[0],  # we index 0th element, as vjp return tuple
-                include_biases=self.include_biases)  # (D,)
+                self.inds_from_ordered_params,
+                unflat_w_grad,  
+               )  # (D,)
 
             return (single_out, single_w_grad) if return_out else single_w_grad
 

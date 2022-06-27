@@ -18,8 +18,13 @@ class BaseGaussPrior(nn.Module, ABC):
     def __init__(self, init_hyperparams, modules, device):
         super().__init__()
         self.device = device
-        self._setup(modules)
+        self.modules = modules
+        self._setup(self.modules)
         self._init_parameters(init_hyperparams)
+    
+    def get_params_under_prior(self, 
+            ):
+        return [module.weight for module in self.modules]
 
     @abstractmethod
     def _setup(self, 

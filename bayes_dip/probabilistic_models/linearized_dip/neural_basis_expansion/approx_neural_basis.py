@@ -9,23 +9,21 @@ from .neural_basis_expansion import NeuralBasisExpansion
 class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
 
     def __init__(self,
-            nn_model: nn.Module,
+            model: nn.Module,
             nn_input: Tensor,
+            ordered_nn_params: Sequence,
             nn_out_shape: tuple, 
-            include_biases: bool,
             vec_batch_size: int,
             oversampling_param: int,
             low_rank_rank_dim: int,
             device: None,
-            exclude_nn_layers: Sequence = (),
             load_approx_basis_from: str = None,
             return_on_cpu: bool = False,
             use_cpu: bool = False) -> None:
             
-        super().__init__(nn_model=nn_model,
+        super().__init__(model=model,
                     nn_input=nn_input,
-                    include_biases=include_biases,
-                    exclude_nn_layers=exclude_nn_layers
+                    ordered_nn_params=ordered_nn_params
             )
 
         self.vec_batch_size = vec_batch_size

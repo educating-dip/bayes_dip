@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from bayes_dip.utils import get_params_from_nn_module
 from bayes_dip.dip import UNet
 from bayes_dip.probabilistic_models import NeuralBasisExpansion, ApproxNeuralBasisExpansion
  
@@ -41,25 +42,25 @@ nn = UNet(
     channels=[32, 32, 32], 
     skip_channels=[0, 0, 1],
     use_sigmoid=True, 
-    use_norm=False, 
+    use_norm=True, 
     sigmoid_saturation_thresh=9
     ).to(device)
 
-include_biases = True
+include_bias = True
 # n_params = 2140 if not include_biases else 2158
-n_params = np.sum([param.data.numel() for param in nn.parameters()])
-input = torch.randn((1, 1, 28, 28), device=device)
+# n_params = np.sum([param.data.numel() for param in nn.parameters()])
 
+input = torch.randn((1, 1, 28, 28), device=device)
+ordered_nn_params = get_params_from_nn_module(nn, include_bias=include_bias)
 neural_basis_expansion = NeuralBasisExpansion(
-    nn_model=nn,
+    model=nn,
     nn_input=input,
-    include_biases=include_biases
+    ordered_nn_params=ordered_nn_params
 )
 
 # v_out = torch.randn((3, 10), device=device)
 v_out = torch.randn((3, 1, 1, 28, 28), device=device)
-v_params = torch.randn((3, n_params), device=device)
-
+v_params = torch.randn((3, neural_basis_expansion.num_params), device=device)
 out = neural_basis_expansion.vjp(v_out)
 print(out.shape)
 
@@ -67,10 +68,10 @@ _, out = neural_basis_expansion.jvp(v_params)
 print(out.shape)
 
 approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
-    nn_model=nn,
+    model=nn,
     nn_input=input,
+    ordered_nn_params=ordered_nn_params,
     nn_out_shape=(1, 1, 28, 28), 
-    include_biases=include_biases, 
     vec_batch_size=1,
     oversampling_param=5, 
     low_rank_rank_dim=5,
