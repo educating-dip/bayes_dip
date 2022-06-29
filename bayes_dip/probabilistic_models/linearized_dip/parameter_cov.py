@@ -1,3 +1,5 @@
+import torch
+from torch import Tensor
 import torch.nn as nn
 from typing import Dict, Tuple, List, Callable
 from functools import reduce
@@ -23,6 +25,8 @@ class ParamaterCov(nn.Module):
             self.hyperparams_init_dict
         )
         self.params_per_prior_type = self._ordered_params_under_prior()
+        self.priors_per_prior_type = self._ordered_priors_per_prior_type()
+        self.params_numel_per_prior_type = self._params_numel_per_prior_type()
     
     @property
     def ordered_nn_params(self, ):
@@ -56,7 +60,45 @@ class ParamaterCov(nn.Module):
             params_per_prior_type[type(prior)].extend(prior.get_params_under_prior())
         
         return params_per_prior_type
-
-
-            
     
+    def _ordered_priors_per_prior_type(self, ):
+        
+        priors_per_prior_type = {}
+        for _, prior in self.priors.items():
+            priors_per_prior_type.setdefault([type(prior)], [])
+            priors_per_prior_type[type(prior)].append(prior)
+        
+        return priors_per_prior_type
+    
+    def _params_numel_per_prior_type(self, ):
+
+        params_numel_per_prior_type = {}
+        for prior_type, params in self.params_per_prior_type.items():
+            params_numel_per_prior_type[prior_type] = sum(p.data.numel() for p in params)
+        
+        return params_numel_per_prior_type
+    
+    def forward(self,
+            v: Tensor, 
+            use_cholesky: bool = False,
+            use_inverse: bool = False, 
+            eps: float = 1e-6
+        ) -> Tensor:
+
+        v_parameter_cov_mul = []
+        params_cnt = 0
+        for (prior_type, priors), len_params in zip(
+                self.priors_per_prior_type.items(), self.params_numel_per_prior_type.values()
+            ):
+           
+            v_parameter_cov_mul.append(prior_type.batched_cov_mul(
+                    priors=priors,
+                    v=v[:, params_cnt:params_cnt+len_params],
+                    use_cholesky=use_cholesky,
+                    use_inverse=use_inverse, 
+                    eps=eps
+                )
+            )
+            params_cnt += len_params
+        
+        return torch.cat(v_parameter_cov_mul, dim=-1)

@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.linalg as linalg
+from opt_einsum import contract
 from abc import ABC, abstractmethod
 from torch import Tensor
-from typing import Callable, Tuple, Dict, List
+from typing import Callable, Sequence, Tuple, Dict, List
 from functools import partial
 try:
     from torch.linalg import cholesky
@@ -26,11 +27,17 @@ class BaseGaussPrior(nn.Module, ABC):
             ):
         return [module.weight for module in self.modules]
 
-    @abstractmethod
     def _setup(self, 
         modules: List[nn.Conv2d]):
 
-        raise NotImplementedError
+        self.kernel_size = modules[0].kernel_size[0]
+        for layer in modules:
+            assert isinstance(layer, nn.Conv2d)
+            assert layer.kernel_size[0] == layer.kernel_size[1]
+            assert layer.kernel_size[0] == self.kernel_size 
+
+        self.kernel_size = modules[0].kernel_size[0]
+        self.num_total_filters = sum(layer.in_channels * layer.out_channels for layer in modules)
 
     @abstractmethod
     def _init_parameters(self, 
@@ -64,7 +71,40 @@ class BaseGaussPrior(nn.Module, ABC):
             ) -> Tensor:
         
         raise NotImplementedError
+
+    @staticmethod
+    def _fast_prior_cov_mul(cls, 
+            v: Tensor, 
+            cov: Tensor
+        ) -> Tensor:
     
+        N = v.shape[0]
+        v = v.view(-1, cov.shape[0], cov.shape[-1])
+        v = v.permute(1, 0, 2)
+        v_cov_mul = contract('nxk,nkc->ncx', v, cov)
+        v_cov_mul = v_cov_mul.reshape([cov.shape[0] * cov.shape[-1], N]).T
+        return v_cov_mul
+
+    @staticmethod
+    def batched_cov_mul(cls, 
+            priors: Sequence, 
+            v: Tensor, 
+            use_cholesky: bool,
+            use_inverse: bool, 
+            eps: float
+        ) -> Tensor:
+
+        assert not (use_cholesky and use_inverse)
+
+        cov = []
+        for prior in priors:
+            cov_mat = prior.cov_mat(return_cholesky=use_cholesky, eps=eps)
+            if use_inverse:
+                cov_mat = torch.inverse(cov_mat) 
+            cov.append(cov_mat.expand(prior.num_total_filters, prior.kernel_size**2, prior.kernel_size**2))
+        cov = torch.cat(cov)
+        return cls._fast_prior_cov_mul(v, cov)
+        
 class RadialBasisFuncCov(nn.Module):
 
     def __init__(
@@ -159,13 +199,7 @@ class GPprior(BaseGaussPrior):
 
     def _setup(self, modules):
 
-        self.kernel_size = modules[0].kernel_size[0]
-        for layer in modules:
-            assert isinstance(layer, nn.Conv2d)
-            assert layer.kernel_size[0] == layer.kernel_size[1]
-            assert layer.kernel_size[0] == self.kernel_size 
-
-        self.kernel_size = modules[0].kernel_size[0]
+        super()._setup(modules=modules)
         self.cov = self.covariance_constructor(kernel_size=self.kernel_size,
                 device=self.device)
 
@@ -203,7 +237,7 @@ class GPprior(BaseGaussPrior):
     def cov_log_variance_grad(self) -> Tensor:
         # we multiply by the variance value (chain rule)
         return self.cov.log_variance_cov_mat_grad()
-
+    
 def get_GPprior_RadialBasisFuncCov(init_hyperparams, modules, device, dist_func=None):
     dist_func = dist_func or ( lambda x: linalg.norm(x, ord=2) )
     covariance_constructor = partial(RadialBasisFuncCov, dist_func)
@@ -228,13 +262,7 @@ class NormalPrior(BaseGaussPrior):
 
     def _setup(self, modules):
 
-        self.kernel_size = modules[0].kernel_size[0]
-        for layer in modules:
-            assert isinstance(layer, nn.Conv2d)
-            assert layer.kernel_size[0] == layer.kernel_size[1]
-            assert layer.kernel_size[0] == self.kernel_size 
-
-        self.kernel_size = modules[0].kernel_size[0]
+        super()._setup(modules=modules)
         self.log_variance = nn.Parameter(
                 torch.ones(1, device=self.device)
             )

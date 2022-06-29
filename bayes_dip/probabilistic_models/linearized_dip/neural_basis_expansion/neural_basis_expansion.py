@@ -3,7 +3,8 @@ from typing import Callable, Sequence
 import torch
 from torch import nn
 import functorch as ftch
-from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch, get_inds_from_ordered_params, get_slices_from_ordered_params
+from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
+from ..utils import get_inds_from_ordered_params, get_slices_from_ordered_params
 
 class NeuralBasisExpansion:
 
