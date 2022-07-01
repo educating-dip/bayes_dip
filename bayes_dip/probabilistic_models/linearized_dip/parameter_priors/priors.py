@@ -72,7 +72,7 @@ class BaseGaussPrior(nn.Module, ABC):
         
         raise NotImplementedError
 
-    @staticmethod
+    @classmethod
     def _fast_prior_cov_mul(cls, 
             v: Tensor, 
             cov: Tensor
@@ -85,13 +85,13 @@ class BaseGaussPrior(nn.Module, ABC):
         v_cov_mul = v_cov_mul.reshape([cov.shape[0] * cov.shape[-1], N]).T
         return v_cov_mul
 
-    @staticmethod
+    @classmethod
     def batched_cov_mul(cls, 
             priors: Sequence, 
             v: Tensor, 
             use_cholesky: bool,
             use_inverse: bool, 
-            eps: float
+            eps: float = 1e-6,
         ) -> Tensor:
 
         assert not (use_cholesky and use_inverse)
@@ -240,7 +240,7 @@ class GPprior(BaseGaussPrior):
     
 def get_GPprior_RadialBasisFuncCov(init_hyperparams, modules, device, dist_func=None):
     dist_func = dist_func or ( lambda x: linalg.norm(x, ord=2) )
-    covariance_constructor = partial(RadialBasisFuncCov, dist_func)
+    covariance_constructor = partial(RadialBasisFuncCov, dist_func=dist_func)
     return GPprior(
             init_hyperparams=init_hyperparams,
             modules=modules, 
@@ -287,11 +287,12 @@ class NormalPrior(BaseGaussPrior):
         return m.log_prob(x)
 
     def cov_mat(self, 
-            return_cholesky: bool = True
+            return_cholesky: bool = True,
+            eps: float = 1e-6,
             ) -> Tensor:
         eye = torch.eye(self.kernel_size).to(self.device)
         fct = torch.exp(0.5 * self.log_variance) if return_cholesky else torch.exp(self.log_variance)
-        cov_mat = fct * eye
+        cov_mat = fct * (eye + eps)
         return cov_mat
 
     def cov_log_det(self) -> Tensor:

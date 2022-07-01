@@ -2,6 +2,9 @@ import os
 import numpy as np
 from skimage.metrics import structural_similarity
 import torch
+from torch import nn
+from functools import reduce
+from typing import List
 try:
     import hydra.utils
     HYDRA_AVAILABLE = True
@@ -46,6 +49,15 @@ def get_params_from_nn_module(model, exclude_norm_layers=True, include_bias=Fals
                 params.append(param)
 
     return params
+
+def get_modules_by_names(
+        model: nn.Module, 
+        layer_names: List[str]
+        ) -> List[nn.Module]:
+    layers = [
+        reduce(getattr, layer_name.split(sep='.'), model)
+        for layer_name in layer_names]
+    return layers
 
 def PSNR(reconstruction, ground_truth, data_range=None):
     gt = np.asarray(ground_truth)
