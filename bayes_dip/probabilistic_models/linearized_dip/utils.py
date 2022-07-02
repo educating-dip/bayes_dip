@@ -1,10 +1,11 @@
 
 def get_inds_from_ordered_params(model, ordered_nn_params):
+    params = list(model.parameters())
 
     inds_in_full_model = []
-    for ind, (_, param) in enumerate(model.named_parameters()):
-        if any(param is ordered_nn_param for ordered_nn_param in ordered_nn_params):
-            inds_in_full_model.append(ind)
+    for param in ordered_nn_params:
+        inds_in_full_model.append(
+                next(i for i, p in enumerate(params) if p is param))
 
     return inds_in_full_model
 
