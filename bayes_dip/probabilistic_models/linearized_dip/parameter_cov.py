@@ -17,7 +17,7 @@ class ParameterCov(nn.Module):
         super().__init__()
         self.prior_assignment_dict = prior_assignment_dict
         self.hyperparams_init_dict = hyperparams_init_dict
-        self.device = device 
+        self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.priors = self._create_prior_dict(nn_model)
         self.params_per_prior_type = self._ordered_params_under_prior()
         self.priors_per_prior_type = self._ordered_priors_per_prior_type()
@@ -69,9 +69,7 @@ class ParameterCov(nn.Module):
     
     def forward(self,
             v: Tensor, 
-            use_cholesky: bool = False,
-            use_inverse: bool = False, 
-            eps: float = 1e-6
+            **kwargs
         ) -> Tensor:
 
         v_parameter_cov_mul = []
@@ -83,9 +81,7 @@ class ParameterCov(nn.Module):
             v_parameter_cov_mul.append(prior_type.batched_cov_mul(
                     priors=priors,
                     v=v[:, params_cnt:params_cnt+len_params],
-                    use_cholesky=use_cholesky,
-                    use_inverse=use_inverse, 
-                    eps=eps
+                    **kwargs
                 )
             )
             params_cnt += len_params

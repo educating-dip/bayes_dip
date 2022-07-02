@@ -7,7 +7,7 @@ from bayes_dip.utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
-from bayes_dip.probabilistic_models.linearized_dip import ParameterCov
+from bayes_dip.probabilistic_models import NeuralBasisExpansion, ApproxNeuralBasisExpansion, ParameterCov, ImageCov, ObservationCov
 
 @hydra.main(config_path='hydra_cfg', config_name='config')
 def coordinator(cfg : DictConfig) -> None:
@@ -78,12 +78,72 @@ def coordinator(cfg : DictConfig) -> None:
                 reconstructor.model)
         print(prior_assignment_dict)
         print(hyperparams_init_dict)
-
         parameter_cov = ParameterCov(reconstructor.model, prior_assignment_dict, hyperparams_init_dict, device=device)
+        
         v = torch.randn(3, sum(n for n in parameter_cov.params_numel_per_prior_type.values())).to(device)
+        out = parameter_cov(v)
+        print(out.shape)
+        nn_input = torch.randn((1, 1, 28, 28), device=device)
+
+        neural_basis_expansion = NeuralBasisExpansion(
+                model=reconstructor.model,
+                nn_input=nn_input,
+                ordered_nn_params=parameter_cov.ordered_nn_params
+        )
+
+        approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
+                model=reconstructor.model,
+                nn_input=nn_input,
+                ordered_nn_params=parameter_cov.ordered_nn_params,
+                nn_out_shape=(1, 1, 28, 28), 
+                vec_batch_size=1,
+                oversampling_param=5, 
+                low_rank_rank_dim=10,
+                device=device,
+                use_cpu=True
+        )
+        
+        image_cov = ImageCov(
+                parameter_cov=parameter_cov, 
+                neural_basis_expansion=neural_basis_expansion
+        )
+
+        image_cov_approx = ImageCov(
+                parameter_cov=parameter_cov, 
+                neural_basis_expansion=approx_neural_basis_expansion
+        )
+
+        # tests separate clousers
+
+        v = torch.randn((3, 1, 1, 28, 28), device=device)
+        out = neural_basis_expansion.vjp(v)
+        print(out.shape)
+
+        v = torch.randn((3, neural_basis_expansion.num_params), device=device)
+        _, out = neural_basis_expansion.jvp(v)
+        print(out.shape)
+
+        v = torch.randn((3, 1, 28, 28), device=device)
+        out = image_cov(v)
+        print(out.shape)
+
+        v = torch.randn((3, 1, 28, 28), device=device)
+        out = image_cov_approx(v)
+        print(out.shape)
+
+        observation_cov = ObservationCov(
+                trafo=ray_trafo,
+                image_cov=image_cov, 
+                device=device
+        )
+
+        v = torch.randn( (3, 1, ) + ray_trafo.obs_shape, device=device)
+        v = observation_cov(v)
         print(v.shape)
-        v2 = parameter_cov(v)
-        print(v2.shape)
+
+        v = observation_cov(v)
+        observation_cov_mat = observation_cov.assemble_observation_cov()
+        print(observation_cov_mat.shape)
 
 if __name__ == '__main__':
     coordinator()

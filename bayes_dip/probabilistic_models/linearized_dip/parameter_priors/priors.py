@@ -89,8 +89,8 @@ class BaseGaussPrior(nn.Module, ABC):
     def batched_cov_mul(cls, 
             priors: Sequence, 
             v: Tensor, 
-            use_cholesky: bool,
-            use_inverse: bool, 
+            use_cholesky: bool = False,
+            use_inverse: bool = False, 
             eps: float = 1e-6,
         ) -> Tensor:
 

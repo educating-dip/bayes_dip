@@ -79,8 +79,6 @@ class MatmulRayTrafo(BaseRayTrafo):
             matrix_t = matrix_t.coalesce()
 
             self.register_buffer('matrix_t', matrix_t, persistent=False)
-        else:
-            self.matrix_t = matrix.T
 
         self.fbp_fun = fbp_fun
         self._angles = angles
@@ -103,7 +101,7 @@ class MatmulRayTrafo(BaseRayTrafo):
         if self.matrix.is_sparse:
             x = torch.sparse.mm(self.matrix_t, observation)
         else:
-            x = torch.matmul(self.matrix_t, observation)
+            x = torch.matmul(self.matrix.T, observation)
         return x
 
     def fbp(self, observation: Tensor) -> Tensor:

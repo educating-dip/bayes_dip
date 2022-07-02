@@ -30,7 +30,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
         self.nn_out_shape = nn_out_shape
         self.oversampling_param = oversampling_param
         self.low_rank_rank_dim = low_rank_rank_dim
-        self.device = device 
+        self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.return_on_cpu = return_on_cpu
         self.use_cpu = use_cpu
         
