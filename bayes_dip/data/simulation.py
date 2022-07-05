@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from bayes_dip.data import BaseRayTrafo
+from .trafo import BaseRayTrafo
 
 
 def simulate(x: Tensor, ray_trafo: BaseRayTrafo, white_noise_rel_stddev: float,

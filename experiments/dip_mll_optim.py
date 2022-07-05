@@ -3,7 +3,7 @@ import hydra
 from omegaconf import DictConfig
 import torch
 from torch.utils.data import DataLoader
-from bayes_dip.utils import get_standard_ray_trafo, get_standard_dataset
+from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
@@ -79,7 +79,7 @@ def coordinator(cfg : DictConfig) -> None:
         print(prior_assignment_dict)
         print(hyperparams_init_dict)
         parameter_cov = ParameterCov(reconstructor.model, prior_assignment_dict, hyperparams_init_dict, device=device)
-        
+
         v = torch.randn(3, sum(n for n in parameter_cov.params_numel_per_prior_type.values())).to(device)
         out = parameter_cov(v)
         print(out.shape)
@@ -95,21 +95,21 @@ def coordinator(cfg : DictConfig) -> None:
                 model=reconstructor.model,
                 nn_input=nn_input,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
-                nn_out_shape=(1, 1, 28, 28), 
+                nn_out_shape=(1, 1, 28, 28),
                 vec_batch_size=1,
-                oversampling_param=5, 
+                oversampling_param=5,
                 low_rank_rank_dim=10,
                 device=device,
                 use_cpu=True
         )
-        
+
         image_cov = ImageCov(
-                parameter_cov=parameter_cov, 
+                parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion
         )
 
         image_cov_approx = ImageCov(
-                parameter_cov=parameter_cov, 
+                parameter_cov=parameter_cov,
                 neural_basis_expansion=approx_neural_basis_expansion
         )
 
@@ -133,7 +133,7 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation_cov = ObservationCov(
                 trafo=ray_trafo,
-                image_cov=image_cov, 
+                image_cov=image_cov,
                 device=device
         )
 

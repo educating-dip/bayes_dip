@@ -1,7 +1,11 @@
+"""
+Provides :class:`DeepImagePriorReconstructor`.
+"""
 import os
 import socket
+from typing import Union
 import datetime
-from warnings import warn 
+from warnings import warn
 from copy import deepcopy
 from contextlib import nullcontext
 import torch
@@ -28,11 +32,23 @@ class DeepImagePriorReconstructor():
            https://doi.org/10.1088/1361-6420/aba415
     """
 
-    def __init__(self, 
+    def __init__(self,
             ray_trafo: BaseRayTrafo,
-            torch_manual_seed: int = 1, 
-            device=None, 
+            torch_manual_seed: Union[int, None] = 1,
+            device=None,
             net_kwargs=None):
+        """
+        ray_trafo : :class:`bayes_dip.data.BaseRayTrafo`
+            Ray transform.
+        torch_manual_seed : int or None, optional
+            Random number generator seed, used for initializing the network.
+            If `None`, no seed is set and the global random generator is advanced;
+            otherwise, the manual seed is set on a forked generator used for the initialization.
+            The default is `1`.
+        device : str or torch.device, optional
+            Device for the reconstruction.
+            If `None` (the default), `cuda:0` is chosen if available or `cpu` otherwise.
+        """
 
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.ray_trafo = ray_trafo.to(self.device)
@@ -42,10 +58,21 @@ class DeepImagePriorReconstructor():
         self.optimizer = None
 
     def init_model(self,
-            torch_manual_seed: int):
+            torch_manual_seed: Union[int, None]):
+        """
+        Initialize the network :attr:`model`.
 
-        with torch.random.fork_rng([self.device]) if torch_manual_seed else nullcontext():
-            if torch_manual_seed:
+        Parameters
+        ----------
+        torch_manual_seed : int or None
+            Random number generator seed.
+            If `None`, no seed is set and the global random generator is advanced;
+            otherwise, the manual seed is set on a forked generator used for the initialization.
+        """
+
+        with (torch.random.fork_rng([self.device]) if torch_manual_seed is not None
+                else nullcontext()):
+            if torch_manual_seed is not None:
                 torch.random.manual_seed(torch_manual_seed)
 
             self.model = UNet(
@@ -58,8 +85,17 @@ class DeepImagePriorReconstructor():
                 sigmoid_saturation_thresh= self.net_kwargs['sigmoid_saturation_thresh']
                 ).to(self.device)
 
-    def load_pretrain_model(self, 
+    def load_pretrain_model(self,
             learned_params_path: str):
+        """
+        Load model state dict from file.
+
+        Parameters
+        ----------
+        learned_params_path : str
+            Path to the parameters, either absolute or relative to the original
+            current working directory.
+        """
 
         path = os.path.join(
             get_original_cwd(),
@@ -67,75 +103,131 @@ class DeepImagePriorReconstructor():
                 else learned_params_path + '.pt')
         self.model.load_state_dict(torch.load(path, map_location=self.device))
 
-    def reconstruct(self, 
-            noisy_observation: Tensor, 
-            filtbackproj: Tensor = None, 
-            ground_truth: Tensor = None, 
+    def reconstruct(self,
+            noisy_observation: Tensor,
+            filtbackproj: Tensor = None,
+            ground_truth: Tensor = None,
             recon_from_randn: bool = False,
             use_tv_loss: bool = True,
             log_path: str = '.',
             show_pbar: bool = True,
             optim_kwargs=None) -> Tensor:
+        """
+        Reconstruct (by "training" the DIP network).
 
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        comment = 'DIP' if not use_tv_loss else 'DIP+TV'
-        logdir = os.path.join(
-            log_path,
-            current_time + '_' + socket.gethostname() + comment)
-        writer = tensorboardX.SummaryWriter(logdir=logdir)
+        Parameters
+        ----------
+        noisy_observation : Tensor
+            Noisy observation. Shape: ``(1, 1, *self.ray_trafo.obs_shape)``.
+        filtbackproj : Tensor, optional
+            Filtered back-projection. Used as the network input if `recon_from_randn` is not `True`.
+            Shape: ``(1, 1, *self.ray_trafo.im_shape)``
+        ground_truth : Tensor, optional
+            Ground truth. Used to print and log PSNR values.
+            Shape: ``(1, 1, *self.ray_trafo.im_shape)``
+        recon_from_randn : bool, optional
+            If `True`, normal distributed noise with std-dev 0.1 is used as the network input;
+            if `False` (the default), `filtbackproj` is used as the network input.
+        use_tv_loss : bool, optional
+            Whether to include the TV loss term.
+            The default is `True`.
+        log_path : str, optional
+            Path for saving tensorboard logs. Each call to reconstruct creates a sub-folder
+            in `log_path`, starting with the time of the reconstruction call.
+            The default is `'.'`.
+        show_pbar : bool, optional
+            Whether to show a progress bar.
+            The default is `True`.
+        optim_kwargs : dict, optional
+            Keyword arguments for optimization.
+            The following arguments are supported:
+
+            * `gamma` (float)
+                Weighting factor of the TV loss term, the default is ``1e-4``.
+            * `lr` (float)
+                Learning rate, the default is ``1e-4``.
+            * `iterations` (int)
+                Number of iterations, the default is ``10000``.
+            * `loss_function` (str)
+                Discrepancy loss function, the default is ``'mse'``.
+
+        Returns
+        -------
+        best_output : Tensor
+            Model output with the minimum loss achieved during the training.
+            Shape: ``(1, 1, *self.ray_trafo.im_shape)``.
+        """
+
+        writer = tensorboardX.SummaryWriter(
+                logdir=os.path.join(log_path, '_'.join((
+                        datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                        socket.gethostname(),
+                        'DIP' if not use_tv_loss else 'DIP+TV'))))
+
+        optim_kwargs = optim_kwargs or {}
+        optim_kwargs.setdefault('gamma', 1e-4)
+        optim_kwargs.setdefault('lr', 1e-4)
+        optim_kwargs.setdefault('iterations', 10000)
+        optim_kwargs.setdefault('loss_function', 'mse')
 
         self.model.train()
 
-        if recon_from_randn:
-            self.net_input = 0.1 * \
-                torch.randn(1, 1, *self.ray_trafo.im_shape, device=self.device)
-        else:
-            self.net_input = filtbackproj.to(self.device)
+        self.net_input = (
+            0.1 * torch.randn(1, 1, *self.ray_trafo.im_shape, device=self.device)
+            if recon_from_randn else
+            filtbackproj.to(self.device))
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=optim_kwargs['lr'])        
-        y_delta = noisy_observation.to(self.device)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=optim_kwargs['lr'])
+        noisy_observation = noisy_observation.to(self.device)
         if optim_kwargs['loss_function'] == 'mse':
             criterion = MSELoss()
         else:
             warn('Unknown loss function, falling back to MSE')
             criterion = MSELoss()
 
-        best_loss = np.inf
-        best_output = self.model(self.net_input).detach()
-        best_params_state_dict = deepcopy(self.model.state_dict())
+        min_loss_state = {
+            'loss': np.inf,
+            'output': self.model(self.net_input).detach(),  # pylint: disable=not-callable
+            'params_state_dict': deepcopy(self.model.state_dict()),
+        }
 
-        with tqdm(range(optim_kwargs['iterations']), desc='DIP', disable= not show_pbar, miniters=optim_kwargs['iterations']//100) as pbar:
+        with tqdm(range(optim_kwargs['iterations']), desc='DIP', disable=not show_pbar,
+                miniters=optim_kwargs['iterations']//100) as pbar:
+
             for i in pbar:
                 self.optimizer.zero_grad()
-                output = self.model(self.net_input)
-                loss = criterion(self.ray_trafo(output), y_delta) 
-                if use_tv_loss: 
+                output = self.model(self.net_input)  # pylint: disable=not-callable
+                loss = criterion(self.ray_trafo(output), noisy_observation)
+                if use_tv_loss:
                     loss = loss + optim_kwargs['gamma'] * tv_loss(output)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
-                if loss.item() < best_loss:
-                    best_params_state_dict = deepcopy(self.model.state_dict())
+
+                if loss.item() < min_loss_state['loss']:
+                    min_loss_state['loss'] = loss.item()
+                    min_loss_state['output'] = output.detach()
+                    min_loss_state['params_state_dict'] = deepcopy(self.model.state_dict())
+
                 self.optimizer.step()
 
                 for p in self.model.parameters():
                     p.data.clamp_(-1000, 1000) # MIN,MAX
 
-                if loss.item() < best_loss:
-                    best_loss = loss.item()
-                    best_output = output.detach()
-
                 if ground_truth is not None:
-                    best_output_psnr = PSNR(best_output.detach().cpu(), ground_truth.cpu())
-                    output_psnr = PSNR(output.detach().cpu(), ground_truth.cpu())
+                    min_loss_output_psnr = PSNR(
+                            min_loss_state['output'].detach().cpu(), ground_truth.cpu())
+                    output_psnr = PSNR(
+                            output.detach().cpu(), ground_truth.cpu())
                     pbar.set_description(f'DIP output_psnr={output_psnr:.1f}', refresh=False)
-                    writer.add_scalar('best_output_psnr', best_output_psnr, i)
+                    writer.add_scalar('min_loss_output_psnr', min_loss_output_psnr, i)
                     writer.add_scalar('output_psnr', output_psnr, i)
 
                 writer.add_scalar('loss', loss.item(),  i)
                 if i % 1000 == 0:
-                    writer.add_image('reco', normalize(best_output[0, ...]).cpu().numpy(), i)
+                    writer.add_image('reco', normalize(
+                            min_loss_state['output'][0, ...]).cpu().numpy(), i)
 
-        self.model.load_state_dict(best_params_state_dict)
+        self.model.load_state_dict(min_loss_state['params_state_dict'])
         writer.close()
 
-        return best_output
+        return min_loss_state['output']

@@ -51,7 +51,7 @@ def get_params_from_nn_module(model, exclude_norm_layers=True, include_bias=Fals
     return params
 
 def get_modules_by_names(
-        model: nn.Module, 
+        model: nn.Module,
         layer_names: List[str]
         ) -> List[nn.Module]:
     layers = [

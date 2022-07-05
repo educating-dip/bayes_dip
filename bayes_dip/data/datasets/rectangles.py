@@ -2,7 +2,7 @@
 Provides :class:`RectanglesDataset`.
 """
 
-from typing import Iterable, Iterator, Union, Tuple 
+from typing import Iterable, Iterator, Union, Tuple
 from itertools import repeat
 import numpy as np
 import torch

@@ -1,3 +1,4 @@
 from .utils import *
-from .experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from .tv import tv_loss
+# should not import `experiment_utils` or `test_utils` because it may cause circular dependencies:
+# e.g., the utils imported above are used by `data``, which in turn is used by `experiment_utils`

@@ -1,4 +1,4 @@
-import torch 
+import torch
 
 def flatten_grad_functorch(inds_from_ordered_params, grads):
     jacs = []

@@ -13,7 +13,7 @@ class ParameterCov(nn.Module):
         hyperparams_init_dict: Dict[str, Dict],
         device=None
         ):
-        
+
         super().__init__()
         self.prior_assignment_dict = prior_assignment_dict
         self.hyperparams_init_dict = hyperparams_init_dict
@@ -22,7 +22,7 @@ class ParameterCov(nn.Module):
         self.params_per_prior_type = self._ordered_params_under_prior()
         self.priors_per_prior_type = self._ordered_priors_per_prior_type()
         self.params_numel_per_prior_type = self._params_numel_per_prior_type()
-    
+
     @property
     def ordered_nn_params(self, ):
         ordered_params_list = []
@@ -32,43 +32,43 @@ class ParameterCov(nn.Module):
         return ordered_params_list
 
     def _create_prior_dict(self, nn_model: nn.Module):
-        
+
         priors = {}
         for prior_name, (prior_type, layer_names) in self.prior_assignment_dict.items():
             init_hyperparams = self.hyperparams_init_dict[prior_name]
             modules = get_modules_by_names(nn_model, layer_names)
-            priors[prior_name] = prior_type(init_hyperparams=init_hyperparams, modules=modules, device=self.device) 
-            
+            priors[prior_name] = prior_type(init_hyperparams=init_hyperparams, modules=modules, device=self.device)
+
         return nn.ModuleDict(priors)
-    
+
     def _ordered_params_under_prior(self, ):
 
         params_per_prior_type = {}
         for _, prior in self.priors.items():
             params_per_prior_type.setdefault(type(prior), [])
             params_per_prior_type[type(prior)].extend(prior.get_params_under_prior())
-        
+
         return params_per_prior_type
-    
+
     def _ordered_priors_per_prior_type(self, ):
-        
+
         priors_per_prior_type = {}
         for _, prior in self.priors.items():
             priors_per_prior_type.setdefault(type(prior), [])
             priors_per_prior_type[type(prior)].append(prior)
-        
+
         return priors_per_prior_type
-    
+
     def _params_numel_per_prior_type(self, ):
 
         params_numel_per_prior_type = {}
         for prior_type, params in self.params_per_prior_type.items():
             params_numel_per_prior_type[prior_type] = sum(p.data.numel() for p in params)
-        
+
         return params_numel_per_prior_type
-    
+
     def forward(self,
-            v: Tensor, 
+            v: Tensor,
             **kwargs
         ) -> Tensor:
 
@@ -77,7 +77,7 @@ class ParameterCov(nn.Module):
         for (prior_type, priors), len_params in zip(
                 self.priors_per_prior_type.items(), self.params_numel_per_prior_type.values()
             ):
-           
+
             v_parameter_cov_mul.append(prior_type.batched_cov_mul(
                     priors=priors,
                     v=v[:, params_cnt:params_cnt+len_params],
@@ -85,5 +85,5 @@ class ParameterCov(nn.Module):
                 )
             )
             params_cnt += len_params
-        
+
         return torch.cat(v_parameter_cov_mul, dim=-1)

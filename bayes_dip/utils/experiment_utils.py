@@ -4,7 +4,7 @@ from bayes_dip.data import get_ray_trafo, SimulatedDataset
 from bayes_dip.data import (
         RectanglesDataset, get_mnist_testset, get_kmnist_testset,
         get_walnut_2d_observation, get_walnut_2d_ground_truth)
-from bayes_dip.utils import get_original_cwd
+from .utils import get_original_cwd
 
 def get_standard_ray_trafo(cfg):
     kwargs = {}

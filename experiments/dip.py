@@ -3,7 +3,7 @@ import hydra
 from omegaconf import DictConfig
 import torch
 from torch.utils.data import DataLoader
-from bayes_dip.utils import get_standard_ray_trafo, get_standard_dataset
+from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
 

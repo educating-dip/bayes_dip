@@ -18,5 +18,5 @@ def get_slices_from_ordered_params(ordered_nn_params):
             slice(w_pointer, w_pointer + param.data.numel())
             )
         w_pointer += param.data.numel()
-    
+
     return slices

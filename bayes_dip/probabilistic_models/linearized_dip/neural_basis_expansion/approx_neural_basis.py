@@ -12,7 +12,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             model: nn.Module,
             nn_input: Tensor,
             ordered_nn_params: Sequence,
-            nn_out_shape: tuple, 
+            nn_out_shape: tuple,
             vec_batch_size: int,
             oversampling_param: int,
             low_rank_rank_dim: int,
@@ -20,7 +20,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             load_approx_basis_from: str = None,
             return_on_cpu: bool = False,
             use_cpu: bool = False) -> None:
-            
+
         super().__init__(model=model,
                     nn_input=nn_input,
                     ordered_nn_params=ordered_nn_params
@@ -33,14 +33,14 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.return_on_cpu = return_on_cpu
         self.use_cpu = use_cpu
-        
+
         if not load_approx_basis_from:
             self.jac_U, self.jac_S, self.jac_Vh = self.get_batched_jac_low_rank()
         else:
             #TODO: load U, S and Vh
             self.load_approx_basis(load_approx_basis_from)
             raise NotImplementedError
-        
+
     def load_approx_basis(self, path):
         pass
 
@@ -52,7 +52,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
         low_rank_rank_dim = self.low_rank_rank_dim + self.oversampling_param
         random_matrix = torch.randn(
             (self.num_params,
-                    low_rank_rank_dim, 
+                    low_rank_rank_dim,
                 ),
             device=self.device
             )
@@ -74,7 +74,7 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
         if not self.return_on_cpu:
             Q = Q.to(self.device)
         qT_low_rank_jac_mat = []
-    
+
         assert self.low_rank_rank_dim + self.oversampling_param <= low_rank_jac_v_mat.shape[0], 'low rank dim must not be larger than network output dimension'
 
         for i in tqdm(range(num_batches), miniters=num_batches//100, desc='get_batched_jac_low_rank backward'):
@@ -90,9 +90,9 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
             S = S.to(self.device)
             Vh = Vh.to(self.device)
         return  Q[:, :self.low_rank_rank_dim] @ U[:self.low_rank_rank_dim, :self.low_rank_rank_dim], S[:self.low_rank_rank_dim], Vh[:self.low_rank_rank_dim, :]
-    
+
     def vjp_approx(self, v) -> Tensor:
-        return (( v.view(v.shape[0], -1) @ self.jac_U) * self.jac_S[None, :]) @ self.jac_Vh 
+        return (( v.view(v.shape[0], -1) @ self.jac_U) * self.jac_S[None, :]) @ self.jac_Vh
 
     def jvp_approx(self, v) -> Tensor:
         return ( (self.jac_U @ (self.jac_S[:, None] * (self.jac_Vh @ v.T))).T ).view(-1, *self.nn_out_shape)
