@@ -46,6 +46,7 @@ class ObservationCov(nn.Module):
     def forward(self,
                 v: Tensor,
                 use_noise_variance: bool = True,
+                use_cholesky: bool = False,
                 **kwargs
             ) -> Tensor:
         """
@@ -53,16 +54,28 @@ class ObservationCov(nn.Module):
         ----------
         v : Tensor
             Input. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
+        use_noise_variance : bool, optional
+            Whether to include the noise variance diagonal term.
+            The default is `True`.
+        use_cholesky : bool, optional
+            Whether to multiply with one cholesky factor instead of the full matrix.
+            If `True`, :meth:`self.image_cov.forward` must support and implement the argument
+            ``use_cholesky=True`` analogously.
+            The default is `False`.
 
         Returns
         -------
         Tensor
             Output. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
         """
+        assert not (use_noise_variance and use_cholesky)
 
         v_ = self.trafo.trafo_adjoint(v)
-        v_ = self.image_cov(v_, **kwargs)
-        v_ = self.trafo(v_)
+        if use_cholesky:
+            v_ = self.image_cov(v_, use_cholesky=True, **kwargs)
+        else:
+            v_ = self.image_cov(v_, **kwargs)
+            v_ = self.trafo(v_)
 
         v = v_ + v * self.log_noise_variance.exp() if use_noise_variance else v_
 
