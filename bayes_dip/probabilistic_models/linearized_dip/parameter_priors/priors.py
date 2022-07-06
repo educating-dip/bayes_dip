@@ -1,16 +1,11 @@
-import torch
-import torch.nn as nn
-import numpy as np
-import torch.linalg as linalg
-from opt_einsum import contract
-from abc import ABC, abstractmethod
-from torch import Tensor
 from typing import Callable, Sequence, Tuple, Dict, List
+from abc import ABC, abstractmethod
 from functools import partial
-try:
-    from torch.linalg import cholesky
-except:
-    from torch import cholesky
+import numpy as np
+from opt_einsum import contract
+import torch
+from torch import nn, linalg, Tensor
+from torch.linalg import cholesky
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.distributions.normal import Normal
 
@@ -37,7 +32,8 @@ class BaseGaussPrior(nn.Module, ABC):
             assert layer.kernel_size[0] == self.kernel_size
 
         self.kernel_size = modules[0].kernel_size[0]
-        self.num_total_filters = sum(layer.in_channels * layer.out_channels for layer in modules)
+        self.num_total_filters = sum(
+                layer.in_channels * layer.out_channels for layer in modules)
 
     @abstractmethod
     def _init_parameters(self,
@@ -101,11 +97,15 @@ class BaseGaussPrior(nn.Module, ABC):
             cov_mat = prior.cov_mat(return_cholesky=use_cholesky, eps=eps)
             if use_inverse:
                 cov_mat = torch.inverse(cov_mat)
-            cov.append(cov_mat.expand(prior.num_total_filters, prior.kernel_size**2, prior.kernel_size**2))
+            cov.append(cov_mat.expand(
+                    prior.num_total_filters, prior.kernel_size**2, prior.kernel_size**2))
         cov = torch.cat(cov)
         return cls._fast_prior_cov_mul(v, cov)
 
 class RadialBasisFuncCov(nn.Module):
+
+    # forward is not used, but we still use the nn.Module base to contain the nn.Parameters
+    # pylint: disable=abstract-method
 
     def __init__(
         self,
@@ -123,7 +123,7 @@ class RadialBasisFuncCov(nn.Module):
         self.kernel_size = kernel_size
         self.dist_mat = self._compute_dist_matrix(dist_func)
 
-    def _init_parameters(self,
+    def init_parameters(self,
             lengthscale_init: float,
             variance_init: float
             ):
@@ -142,8 +142,7 @@ class RadialBasisFuncCov(nn.Module):
         combs = [[el_1, el_2] for el_1 in coords for el_2 in coords]
         dist_mat = torch.as_tensor([dist_func(el1 - el2) for (el1,
                                    el2) in combs], dtype=torch.float32, device=self.device)
-        return dist_mat.view(self.kernel_size ** 2, self.kernel_size
-                             ** 2)
+        return dist_mat.view(self.kernel_size ** 2, self.kernel_size ** 2)
 
     def unscaled_cov_mat(self,
             eps=1e-6
@@ -151,11 +150,12 @@ class RadialBasisFuncCov(nn.Module):
 
         lengthscale = torch.exp(self.log_lengthscale)
         assert not torch.isnan(lengthscale)
-        cov_mat = torch.exp(-self.dist_mat / lengthscale) + eps * torch.eye(*self.dist_mat.shape, device=self.device)
+        cov_mat = torch.exp(-self.dist_mat / lengthscale) + eps * torch.eye(
+                *self.dist_mat.shape, device=self.device)
         return cov_mat
 
     def cov_mat(self,
-            return_cholesky=True,
+            return_cholesky=False,
             eps=1e-6
             ) -> Tensor:
 
@@ -170,7 +170,7 @@ class RadialBasisFuncCov(nn.Module):
 
     def log_lengthscale_cov_mat_grad(self) -> Tensor:
         # we multiply by the lengthscale value (chain rule)
-        return self.dist_mat * self.cov_mat(return_cholesky=False) / torch.exp(self.log_lengthscale) # we do this by removing the 2
+        return self.dist_mat * self.cov_mat(return_cholesky=False) / torch.exp(self.log_lengthscale)
 
     def log_variance_cov_mat_grad(self) -> Tensor:
         # we multiply by the variance value (chain rule)
@@ -193,7 +193,7 @@ class GPprior(BaseGaussPrior):
             init_hyperparams: Dict
             ):
 
-        self.cov._init_parameters(lengthscale_init=init_hyperparams['lengthscale'],
+        self.cov.init_parameters(lengthscale_init=init_hyperparams['lengthscale'],
                     variance_init=init_hyperparams['variance']
                 )
 
@@ -221,10 +221,10 @@ class GPprior(BaseGaussPrior):
         m = MultivariateNormal(loc=mean, scale_tril=cov)
         return m.log_prob(x)
 
-    def cov_mat(self,
+    def cov_mat(self,  # pylint: disable=arguments-differ
             return_cholesky: bool = False,
             eps: float = 1e-6
-            ) -> Tensor :
+            ) -> Tensor:
         return self.cov.cov_mat(return_cholesky=return_cholesky, eps=eps)
 
     def cov_log_det(self, ) -> Tensor:
@@ -249,16 +249,6 @@ def get_GPprior_RadialBasisFuncCov(init_hyperparams, modules, device, dist_func=
         )
 
 class NormalPrior(BaseGaussPrior):
-
-    def __init__(
-        self,
-        init_hyperparams: Dict,
-        modules: List[nn.Conv2d],
-        device
-        ):
-
-        super().__init__(init_hyperparams, modules, device)
-
 
     def _setup(self, modules):
 
@@ -286,12 +276,14 @@ class NormalPrior(BaseGaussPrior):
         m = Normal(loc=mean, scale=torch.exp(self.log_variance)**.5)
         return m.log_prob(x)
 
-    def cov_mat(self,
-            return_cholesky: bool = True,
+    def cov_mat(self,  # pylint: disable=arguments-differ
+            return_cholesky: bool = False,
             eps: float = 1e-6,
             ) -> Tensor:
         eye = torch.eye(self.kernel_size).to(self.device)
-        fct = torch.exp(0.5 * self.log_variance) if return_cholesky else torch.exp(self.log_variance)
+        fct = (
+                torch.exp(0.5 * self.log_variance) if return_cholesky else
+                torch.exp(self.log_variance))
         cov_mat = fct * (eye + eps)
         return cov_mat
 

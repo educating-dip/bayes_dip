@@ -34,9 +34,9 @@ class DummyNetwork(nn.Module):
         return x.squeeze()
 
 device = torch.device('cuda')
-# nn = DummyNetwork(device)
+# nn_model = DummyNetwork(device)
 
-nn = UNet(
+nn_model = UNet(
     in_ch=1,
     out_ch=1,
     channels=[32, 32, 32],
@@ -48,15 +48,15 @@ nn = UNet(
 
 include_bias = True
 # n_params = 2140 if not include_biases else 2158
-# n_params = np.sum([param.data.numel() for param in nn.parameters()])
+# n_params = np.sum([param.data.numel() for param in nn_model.parameters()])
 
-input = torch.randn((1, 1, 28, 28), device=device)
-ordered_nn_params = get_params_from_nn_module(nn, include_bias=include_bias)
+nn_input = torch.randn((1, 1, 28, 28), device=device)
+ordered_nn_params = get_params_from_nn_module(nn_model, include_bias=include_bias)
 neural_basis_expansion = NeuralBasisExpansion(
-    nn_model=nn,
-    nn_input=input,
+    nn_model=nn_model,
+    nn_input=nn_input,
     ordered_nn_params=ordered_nn_params,
-    nn_out_shape=input.shape,
+    nn_out_shape=nn_input.shape,  # optional
 )
 
 print('jac shape', neural_basis_expansion.jac_shape)
@@ -71,8 +71,8 @@ _, out = neural_basis_expansion.jvp(v_params)
 print(out.shape)
 
 approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
-    nn_model=nn,
-    nn_input=input,
+    nn_model=nn_model,
+    nn_input=nn_input,
     ordered_nn_params=ordered_nn_params,
     nn_out_shape=(1, 1, 28, 28),
     vec_batch_size=1,

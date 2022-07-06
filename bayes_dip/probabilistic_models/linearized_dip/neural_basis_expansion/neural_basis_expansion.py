@@ -10,6 +10,9 @@ from ..utils import get_inds_from_ordered_params, get_slices_from_ordered_params
 
 class NeuralBasisExpansion:
 
+    # pylint: disable=too-few-public-methods
+    # self.jvp and self.vjp act as main public "methods"
+
     def __init__(self,
             nn_model: nn.Module,
             nn_input: torch.Tensor,
@@ -41,14 +44,16 @@ class NeuralBasisExpansion:
             with torch.no_grad(), eval_mode(self.nn_model):
                 self.nn_out_shape = self.nn_model(nn_input).shape
 
-        self._single_jvp_fun = self._get_single_jvp_fun(return_out=True)
-        self._single_vjp_fun = self._get_single_vjp_fun(return_out=False)
+        _single_jvp_fun = self._get_single_jvp_fun(return_out=True)
+        _single_vjp_fun = self._get_single_vjp_fun(return_out=False)
 
-        # jvp takes inputs of size (K, 1, D) where K is number of vectors to perform jvp with and D is size of those vectors which should match number of non-normed parameters
-        self.jvp = ftch.vmap(self._single_jvp_fun, in_dims=0)
+        # jvp takes inputs of size (K, 1, D) where K is number of vectors to perform jvp with and
+        # D is size of those vectors which should match number of non-normed parameters
+        self.jvp = ftch.vmap(_single_jvp_fun, in_dims=0)
 
-        # vjp takes inputs of size (K, 1, O) where K is number of vectors to perform jvp with and O is size of the NN outputs
-        self.vjp = ftch.vmap(self._single_vjp_fun, in_dims=(0))
+        # vjp takes inputs of size (K, 1, O) where K is number of vectors to perform jvp with and
+        # O is size of the NN outputs
+        self.vjp = ftch.vmap(_single_vjp_fun, in_dims=(0))
 
     @property
     def jac_shape(self) -> Tuple[int, int]:
@@ -56,25 +61,27 @@ class NeuralBasisExpansion:
 
     def _func_model(self,
             func_params):
-
         """
-        Closure that hardcodes the input "nn_input", leaving only a function of the NN weights.
-        Args:
-            func_params: functorch wrapped NN weights, exposed as to comply with signature of ftch.jvp
+        Closure that hardcodes the input `nn_input`, leaving only a function of the NN weights.
+
+        Parameters
+        ----------
+        func_params
+            functorch wrapped NN weights, exposed as to comply with signature of ``ftch.jvp``
         """
         return self._func_model_with_input(func_params, self.nn_input)
 
     def _get_single_jvp_fun(self,
                     return_out: bool = False) -> Callable:
-
         """
-            Generate closure that performs J_{params}(x) .
+        Generate closure that performs ``J_{params}(x)``.
 
-        Args:
-            laplace_model: instance of Laplace class from which to extract metadata.
-            params: weights at which to evaluate Jacobian, in functorch format.
-            params_model: NN model in wrapped in functorch func_model.
-            include_biases: whether to give a Bayesian treatment to model biases."""
+        Parameters
+        ----------
+        return_out : bool, optional
+            If `True`, let the closure return ``(out, jvp)``, i.e., also the output, not just `jvp`.
+            The default is `False`.
+        """
 
         def f(v):
 
@@ -85,7 +92,7 @@ class NeuralBasisExpansion:
                 v.detach(),
                )
 
-            single_out, single_jvp = ftch.jvp(
+            single_out, single_jvp = ftch.jvp(  # pylint: disable=unbalanced-tuple-unpacking
                 self._func_model, (self.func_params,), (unflat_v,))
 
             return (single_out, single_jvp) if return_out else single_jvp
@@ -95,7 +102,8 @@ class NeuralBasisExpansion:
     def _get_single_vjp_fun(self,
                     return_out: bool = False) -> Callable:
 
-        single_out, vjp_fn = ftch.vjp(self._func_model, self.func_params)
+        single_out, vjp_fn = ftch.vjp(  # pylint: disable=unbalanced-tuple-unpacking
+                self._func_model, self.func_params)
 
         def f(v):
             # Calculate v.J using vJP

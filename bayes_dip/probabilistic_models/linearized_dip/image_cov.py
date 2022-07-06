@@ -1,5 +1,5 @@
 from typing import Tuple
-from torch import Tensor, nn
+from torch import Tensor
 from ..base_image_cov import BaseImageCov
 from .neural_basis_expansion import NeuralBasisExpansion
 from .parameter_cov import ParameterCov

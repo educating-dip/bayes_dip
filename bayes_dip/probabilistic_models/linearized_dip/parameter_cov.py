@@ -1,7 +1,6 @@
-import torch
-from torch import Tensor
-import torch.nn as nn
 from typing import Dict, Tuple, List, Callable
+import torch
+from torch import nn, Tensor
 from bayes_dip.utils import get_modules_by_names
 
 class ParameterCov(nn.Module):
@@ -37,7 +36,8 @@ class ParameterCov(nn.Module):
         for prior_name, (prior_type, layer_names) in self.prior_assignment_dict.items():
             init_hyperparams = self.hyperparams_init_dict[prior_name]
             modules = get_modules_by_names(nn_model, layer_names)
-            priors[prior_name] = prior_type(init_hyperparams=init_hyperparams, modules=modules, device=self.device)
+            priors[prior_name] = prior_type(
+                    init_hyperparams=init_hyperparams, modules=modules, device=self.device)
 
         return nn.ModuleDict(priors)
 

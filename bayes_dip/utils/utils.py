@@ -1,10 +1,10 @@
+from typing import List
 import os
+from functools import reduce
 import numpy as np
 from skimage.metrics import structural_similarity
 import torch
 from torch import nn
-from functools import reduce
-from typing import List
 try:
     import hydra.utils
     HYDRA_AVAILABLE = True
@@ -116,13 +116,14 @@ def bisect_left(a, x, lo=0, hi=None, *, key=None):
     return lo
 
 
-class eval_mode(object):
+class eval_mode:
     def __init__(self, nn_model):
         self.nn_model = nn_model
+        self.training = None  # will be set in __enter__
 
     def __enter__(self):
         self.training = self.nn_model.training
         self.nn_model.eval()
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *exc):
         self.nn_model.train(self.training)
