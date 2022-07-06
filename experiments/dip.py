@@ -63,7 +63,7 @@ def coordinator(cfg : DictConfig) -> None:
                 log_path=cfg.dip.log_path,
                 optim_kwargs=optim_kwargs)
 
-        torch.save(reconstructor.model.state_dict(),
+        torch.save(reconstructor.nn_model.state_dict(),
                 './dip_model_{}.pt'.format(i))
 
         print('DIP reconstruction of sample {:d}'.format(i))

@@ -67,7 +67,7 @@ def coordinator(cfg : DictConfig) -> None:
         #         log_path=cfg.dip.log_path,
         #         optim_kwargs=optim_kwargs)
 
-        # torch.save(reconstructor.model.state_dict(),
+        # torch.save(reconstructor.nn_model.state_dict(),
         #         './dip_model_{}.pt'.format(i))
 
         # print('DIP reconstruction of sample {:d}'.format(i))
@@ -75,10 +75,11 @@ def coordinator(cfg : DictConfig) -> None:
         # print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.model)
+                reconstructor.nn_model)
         print(prior_assignment_dict)
         print(hyperparams_init_dict)
-        parameter_cov = ParameterCov(reconstructor.model, prior_assignment_dict, hyperparams_init_dict, device=device)
+        parameter_cov = ParameterCov(reconstructor.nn_model, prior_assignment_dict, hyperparams_init_dict, device=device)
+        print('parameter_cov shape:', parameter_cov.shape)
 
         v = torch.randn(3, sum(n for n in parameter_cov.params_numel_per_prior_type.values())).to(device)
         out = parameter_cov(v)
@@ -86,16 +87,17 @@ def coordinator(cfg : DictConfig) -> None:
         nn_input = torch.randn((1, 1, 28, 28), device=device)
 
         neural_basis_expansion = NeuralBasisExpansion(
-                model=reconstructor.model,
+                nn_model=reconstructor.nn_model,
                 nn_input=nn_input,
-                ordered_nn_params=parameter_cov.ordered_nn_params
+                ordered_nn_params=parameter_cov.ordered_nn_params,
+                nn_out_shape=nn_input.shape,
         )
 
         approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
-                model=reconstructor.model,
+                nn_model=reconstructor.nn_model,
                 nn_input=nn_input,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
-                nn_out_shape=(1, 1, 28, 28),
+                nn_out_shape=nn_input.shape,
                 vec_batch_size=1,
                 oversampling_param=5,
                 low_rank_rank_dim=10,
@@ -107,6 +109,7 @@ def coordinator(cfg : DictConfig) -> None:
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion
         )
+        print('image_cov shape:', image_cov.shape)
 
         image_cov_approx = ImageCov(
                 parameter_cov=parameter_cov,
@@ -136,6 +139,7 @@ def coordinator(cfg : DictConfig) -> None:
                 image_cov=image_cov,
                 device=device
         )
+        print('observation_cov shape:', observation_cov.shape)
 
         v = torch.randn( (3, 1, ) + ray_trafo.obs_shape, device=device)
         v = observation_cov(v)

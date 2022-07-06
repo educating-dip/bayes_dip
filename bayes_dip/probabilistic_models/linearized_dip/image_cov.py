@@ -1,3 +1,4 @@
+from typing import Tuple
 from torch import Tensor, nn
 from ..base_image_cov import BaseImageCov
 from .neural_basis_expansion import NeuralBasisExpansion
@@ -25,3 +26,7 @@ class ImageCov(BaseImageCov):
         _, v = self.neural_basis_expansion.jvp(v)
 
         return v.squeeze(dim=1)
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        return (self.neural_basis_expansion.jac_shape[0],) * 2

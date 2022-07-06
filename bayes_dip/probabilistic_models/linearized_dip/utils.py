@@ -1,6 +1,6 @@
 
-def get_inds_from_ordered_params(model, ordered_nn_params):
-    params = list(model.parameters())
+def get_inds_from_ordered_params(nn_model, ordered_nn_params):
+    params = list(nn_model.parameters())
 
     inds_in_full_model = []
     for param in ordered_nn_params:

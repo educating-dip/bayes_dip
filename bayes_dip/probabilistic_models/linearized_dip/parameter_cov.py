@@ -87,3 +87,7 @@ class ParameterCov(nn.Module):
             params_cnt += len_params
 
         return torch.cat(v_parameter_cov_mul, dim=-1)
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        return (sum(self.params_numel_per_prior_type.values()),) * 2

@@ -1,4 +1,5 @@
 """Provides :class:`ObservationCov`"""
+from typing import Tuple
 from functools import lru_cache
 import torch
 import numpy as np
@@ -81,10 +82,13 @@ class ObservationCov(nn.Module):
 
         return v
 
+    @property
+    def shape(self) -> Tuple[int, int]:
+        return (np.prod(self.trafo.obs_shape),) * 2
+
     def assemble_observation_cov(self,
         vec_batch_size: int = 1,
         use_noise_variance: bool = True,
-        return_on_cpu: bool = False,
         sub_slice_batches = None,
         ) -> Tensor:
         """
@@ -94,8 +98,6 @@ class ObservationCov(nn.Module):
             Batch size. The default is `1`.
         use_noise_variance : bool, optional
             Whether to include the noise variance diagonal term. The default is `True`.
-        return_on_cpu : bool, optional
-            Whether to return the matrix on CPU. The default is `False`.
         sub_slice_batches : slice, optional
             If specified, only assemble the specified subset (slice) of batches.
             Note that the slicing indices apply to the *batches* of rows (not the rows themselves).
@@ -136,7 +138,7 @@ class ObservationCov(nn.Module):
 
         observation_cov_mat = torch.cat(rows, dim=0)
 
-        return observation_cov_mat if return_on_cpu else observation_cov_mat.to(self.device)
+        return observation_cov_mat.to(self.device)
 
     @classmethod
     def get_stabilizing_eps(cls,

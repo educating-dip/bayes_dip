@@ -1,17 +1,20 @@
-from this import s
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Tuple
 import torch
 from torch import nn
+import numpy as np
 import functorch as ftch
+
+from bayes_dip.utils.utils import eval_mode
 from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
 from ..utils import get_inds_from_ordered_params, get_slices_from_ordered_params
 
 class NeuralBasisExpansion:
 
     def __init__(self,
-            model: nn.Module,
+            nn_model: nn.Module,
             nn_input: torch.Tensor,
             ordered_nn_params: Sequence,
+            nn_out_shape: Tuple[int, int] = None,
             ) -> None:
 
         """
@@ -20,7 +23,7 @@ class NeuralBasisExpansion:
         and exposes just the JvP and vJP methods.
         """
 
-        self.nn_model = model
+        self.nn_model = nn_model
         self.nn_input = nn_input
         self._func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
 
@@ -33,6 +36,11 @@ class NeuralBasisExpansion:
             )
         self.num_params = sum([param.data.numel() for param in self.ordered_nn_params])
 
+        self.nn_out_shape = nn_out_shape
+        if self.nn_out_shape is None:
+            with torch.no_grad(), eval_mode(self.nn_model):
+                self.nn_out_shape = self.nn_model(nn_input).shape
+
         self._single_jvp_fun = self._get_single_jvp_fun(return_out=True)
         self._single_vjp_fun = self._get_single_vjp_fun(return_out=False)
 
@@ -41,6 +49,10 @@ class NeuralBasisExpansion:
 
         # vjp takes inputs of size (K, 1, O) where K is number of vectors to perform jvp with and O is size of the NN outputs
         self.vjp = ftch.vmap(self._single_vjp_fun, in_dims=(0))
+
+    @property
+    def jac_shape(self) -> Tuple[int, int]:
+        return (np.prod(self.nn_out_shape), self.num_params)
 
     def _func_model(self,
             func_params):

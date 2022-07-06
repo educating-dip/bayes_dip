@@ -8,8 +8,8 @@ def flatten_grad_functorch(inds_from_ordered_params, grads):
     jacs = torch.cat(jacs, dim=0)
     return jacs
 
-def unflatten_nn_functorch(model, inds_from_ordered_params, slices_from_ordered_params, weights):
-    params = list(model.parameters())
+def unflatten_nn_functorch(nn_model, inds_from_ordered_params, slices_from_ordered_params, weights):
+    params = list(nn_model.parameters())
     weight_list = [None] * len(params)
 
     for ind, slice_param in zip(inds_from_ordered_params, slices_from_ordered_params):

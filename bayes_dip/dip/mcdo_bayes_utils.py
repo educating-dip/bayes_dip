@@ -25,32 +25,32 @@ class conv2d_dropout(nn.Module):
         x = self.layer(x)
         return self.dropout(x)
 
-def bayesianize_unet_architecture(model: UNet, p: float = 0.05) -> None:
+def bayesianize_unet_architecture(nn_model: UNet, p: float = 0.05) -> None:
     """
     Replace all 3x3 :class:`nn.Conv2d` layers that are contained in an
     :class:`nn.Sequential` module with wrapping :class:`conv2d_dropout` layers.
 
     Parameters
     ----------
-    model : :class:`bayes_dip.dip.network.UNet`
+    nn_model : :class:`bayes_dip.dip.network.UNet`
         U-Net model (or other supported model).
     p : float, optional
         Dropout rate. The default is ``0.05``.
     """
-    for _, module in model.named_modules():
+    for _, module in nn_model.named_modules():
         if isinstance(module, nn.Sequential):
             for name_sub_module, sub_module in module.named_children():
                 if isinstance(sub_module, nn.Conv2d):
                     if sub_module.kernel_size == (3, 3):
                         setattr(module, name_sub_module, conv2d_dropout(sub_module, p))
 
-def sample_from_bayesianized_model(model, filtbackproj, mc_samples, device=None):
+def sample_from_bayesianized_model(nn_model, filtbackproj, mc_samples, device=None):
     """
     Sample from MCDO model.
 
     Parameters
     ----------
-    model : :class:`bayes_dip.dip.network.UNet`
+    nn_model : :class:`bayes_dip.dip.network.UNet`
         Model returned from :func:`bayesianize_unet_architecture`.
     filtbackproj : Tensor
         Filtered back-projection.
@@ -63,5 +63,5 @@ def sample_from_bayesianized_model(model, filtbackproj, mc_samples, device=None)
     if device is None:
         device = filtbackproj.device
     for _ in tqdm(range(mc_samples), desc='sampling'):
-        sampled_recons.append(model.forward(filtbackproj).detach().to(device))
+        sampled_recons.append(nn_model.forward(filtbackproj).detach().to(device))
     return torch.cat(sampled_recons, dim=0)

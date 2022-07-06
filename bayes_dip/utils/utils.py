@@ -23,11 +23,11 @@ def get_original_cwd():
         cwd = os.getcwd()
     return cwd
 
-def list_norm_layer_params(model):
+def list_norm_layer_params(nn_model):
 
     """ compute list of names of all GroupNorm (or BatchNorm2d) layers in the model """
     norm_layer_params = []
-    for (name, module) in model.named_modules():
+    for (name, module) in nn_model.named_modules():
         name = name.replace('module.', '')
         if isinstance(module,
                 (torch.nn.GroupNorm, torch.nn.BatchNorm2d,
@@ -36,14 +36,14 @@ def list_norm_layer_params(model):
             norm_layer_params.append(name + '.bias')
     return norm_layer_params
 
-def get_params_from_nn_module(model, exclude_norm_layers=True, include_bias=False):
+def get_params_from_nn_module(nn_model, exclude_norm_layers=True, include_bias=False):
 
     norm_layer_params = []
     if exclude_norm_layers:
-        norm_layer_params = list_norm_layer_params(model)
+        norm_layer_params = list_norm_layer_params(nn_model)
 
     params = []
-    for (name, param) in model.named_parameters():
+    for (name, param) in nn_model.named_parameters():
         if name not in norm_layer_params:
             if name.endswith('.weight') or (name.endswith('.bias') and include_bias):
                 params.append(param)
@@ -51,11 +51,11 @@ def get_params_from_nn_module(model, exclude_norm_layers=True, include_bias=Fals
     return params
 
 def get_modules_by_names(
-        model: nn.Module,
+        nn_model: nn.Module,
         layer_names: List[str]
         ) -> List[nn.Module]:
     layers = [
-        reduce(getattr, layer_name.split(sep='.'), model)
+        reduce(getattr, layer_name.split(sep='.'), nn_model)
         for layer_name in layer_names]
     return layers
 
@@ -114,3 +114,15 @@ def bisect_left(a, x, lo=0, hi=None, *, key=None):
             else:
                 hi = mid
     return lo
+
+
+class eval_mode(object):
+    def __init__(self, nn_model):
+        self.nn_model = nn_model
+
+    def __enter__(self):
+        self.training = self.nn_model.training
+        self.nn_model.eval()
+
+    def __exit__(self, type, value, traceback):
+        self.nn_model.train(self.training)

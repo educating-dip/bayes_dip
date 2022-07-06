@@ -53,14 +53,14 @@ class DeepImagePriorReconstructor():
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.ray_trafo = ray_trafo.to(self.device)
         self.net_kwargs = net_kwargs
-        self.init_model(torch_manual_seed)
+        self.init_nn_model(torch_manual_seed)
         self.net_input = None
         self.optimizer = None
 
-    def init_model(self,
+    def init_nn_model(self,
             torch_manual_seed: Union[int, None]):
         """
-        Initialize the network :attr:`model`.
+        Initialize the network :attr:`nn_model`.
 
         Parameters
         ----------
@@ -75,7 +75,7 @@ class DeepImagePriorReconstructor():
             if torch_manual_seed is not None:
                 torch.random.manual_seed(torch_manual_seed)
 
-            self.model = UNet(
+            self.nn_model = UNet(
                 in_ch=1,
                 out_ch=1,
                 channels=self.net_kwargs['channels'][:self.net_kwargs['scales']],
@@ -101,7 +101,7 @@ class DeepImagePriorReconstructor():
             get_original_cwd(),
             learned_params_path if learned_params_path.endswith('.pt') \
                 else learned_params_path + '.pt')
-        self.model.load_state_dict(torch.load(path, map_location=self.device))
+        self.nn_model.load_state_dict(torch.load(path, map_location=self.device))
 
     def reconstruct(self,
             noisy_observation: Tensor,
@@ -170,14 +170,14 @@ class DeepImagePriorReconstructor():
         optim_kwargs.setdefault('iterations', 10000)
         optim_kwargs.setdefault('loss_function', 'mse')
 
-        self.model.train()
+        self.nn_model.train()
 
         self.net_input = (
             0.1 * torch.randn(1, 1, *self.ray_trafo.im_shape, device=self.device)
             if recon_from_randn else
             filtbackproj.to(self.device))
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=optim_kwargs['lr'])
+        self.optimizer = torch.optim.Adam(self.nn_model.parameters(), lr=optim_kwargs['lr'])
         noisy_observation = noisy_observation.to(self.device)
         if optim_kwargs['loss_function'] == 'mse':
             criterion = MSELoss()
@@ -187,8 +187,8 @@ class DeepImagePriorReconstructor():
 
         min_loss_state = {
             'loss': np.inf,
-            'output': self.model(self.net_input).detach(),  # pylint: disable=not-callable
-            'params_state_dict': deepcopy(self.model.state_dict()),
+            'output': self.nn_model(self.net_input).detach(),  # pylint: disable=not-callable
+            'params_state_dict': deepcopy(self.nn_model.state_dict()),
         }
 
         with tqdm(range(optim_kwargs['iterations']), desc='DIP', disable=not show_pbar,
@@ -196,21 +196,21 @@ class DeepImagePriorReconstructor():
 
             for i in pbar:
                 self.optimizer.zero_grad()
-                output = self.model(self.net_input)  # pylint: disable=not-callable
+                output = self.nn_model(self.net_input)  # pylint: disable=not-callable
                 loss = criterion(self.ray_trafo(output), noisy_observation)
                 if use_tv_loss:
                     loss = loss + optim_kwargs['gamma'] * tv_loss(output)
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
+                torch.nn.utils.clip_grad_norm_(self.nn_model.parameters(), max_norm=1)
 
                 if loss.item() < min_loss_state['loss']:
                     min_loss_state['loss'] = loss.item()
                     min_loss_state['output'] = output.detach()
-                    min_loss_state['params_state_dict'] = deepcopy(self.model.state_dict())
+                    min_loss_state['params_state_dict'] = deepcopy(self.nn_model.state_dict())
 
                 self.optimizer.step()
 
-                for p in self.model.parameters():
+                for p in self.nn_model.parameters():
                     p.data.clamp_(-1000, 1000) # MIN,MAX
 
                 if ground_truth is not None:
@@ -227,7 +227,7 @@ class DeepImagePriorReconstructor():
                     writer.add_image('reco', normalize(
                             min_loss_state['output'][0, ...]).cpu().numpy(), i)
 
-        self.model.load_state_dict(min_loss_state['params_state_dict'])
+        self.nn_model.load_state_dict(min_loss_state['params_state_dict'])
         writer.close()
 
         return min_loss_state['output']
