@@ -81,5 +81,5 @@ approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
     device=device,
     use_cpu=True)
 
-print(approx_neural_basis_expansion.vjp(v_out).shape)
-print(approx_neural_basis_expansion.jvp(v_params).shape)
+print(approx_neural_basis_expansion.vjp_approx(v_out).shape)
+print(approx_neural_basis_expansion.jvp_approx(v_params).shape)
