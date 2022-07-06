@@ -99,9 +99,9 @@ class ApproxNeuralBasisExpansion(NeuralBasisExpansion):
                 S[:self.low_rank_rank_dim],
                 Vh[:self.low_rank_rank_dim, :])
 
-    def vjp_approx(self, v) -> Tensor:
+    def vjp(self, v) -> Tensor:
         return ((v.view(v.shape[0], -1) @ self.jac_U) * self.jac_S[None, :]) @ self.jac_Vh
 
-    def jvp_approx(self, v) -> Tensor:
+    def jvp(self, v) -> Tensor:
         return ((self.jac_U @ (self.jac_S[:, None] * (self.jac_Vh @ v.T))).T).view(
                 -1, *self.nn_out_shape)
