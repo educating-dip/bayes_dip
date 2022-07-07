@@ -94,10 +94,7 @@ def coordinator(cfg : DictConfig) -> None:
         )
 
         approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
-                nn_model=reconstructor.nn_model,
-                nn_input=nn_input,
-                ordered_nn_params=parameter_cov.ordered_nn_params,
-                nn_out_shape=nn_input.shape,
+                neural_basis_expansion=neural_basis_expansion,
                 vec_batch_size=1,
                 oversampling_param=5,
                 low_rank_rank_dim=10,
@@ -123,7 +120,7 @@ def coordinator(cfg : DictConfig) -> None:
         print(out.shape)
 
         v = torch.randn((3, neural_basis_expansion.num_params), device=device)
-        _, out = neural_basis_expansion.jvp(v)
+        out = neural_basis_expansion.jvp(v)
         print(out.shape)
 
         v = torch.randn((3, 1, 28, 28), device=device)

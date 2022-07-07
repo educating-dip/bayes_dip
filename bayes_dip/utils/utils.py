@@ -127,3 +127,28 @@ class eval_mode:
 
     def __exit__(self, *exc):
         self.nn_model.train(self.training)
+
+
+class CustomAutogradFunction(torch.autograd.Function):
+    # pylint: disable=abstract-method
+
+    @staticmethod
+    def forward(ctx, x, forward_fun, backward_fun):  # pylint: disable=arguments-differ
+        ctx.backward_fun = backward_fun
+        y = forward_fun(x)
+        return y
+
+    @staticmethod
+    def backward(ctx, y):  # pylint: disable=arguments-differ
+        x = ctx.backward_fun(y)
+        return x, None, None
+
+
+class CustomAutogradModule(nn.Module):
+    def __init__(self, forward_fun, backward_fun):
+        super().__init__()
+        self.forward_fun = forward_fun
+        self.backward_fun = backward_fun
+
+    def forward(self, x):
+        return CustomAutogradFunction.apply(x, self.forward_fun, self.backward_fun)

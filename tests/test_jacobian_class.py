@@ -64,22 +64,26 @@ print('jac shape', neural_basis_expansion.jac_shape)
 # v_out = torch.randn((3, 10), device=device)
 v_out = torch.randn((3, 1, 1, 28, 28), device=device)
 v_params = torch.randn((3, neural_basis_expansion.num_params), device=device)
+v_out.requires_grad_(True)
 out = neural_basis_expansion.vjp(v_out)
 print(out.shape)
+print(out.requires_grad)
+out.sum().backward()
 
-_, out = neural_basis_expansion.jvp(v_params)
+v_params.requires_grad_(True)
+# _, out = neural_basis_expansion.jvp_with_out(v_params)
+out = neural_basis_expansion.jvp(v_params)
 print(out.shape)
+print(out.requires_grad)
+out.sum().backward()
 
 approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
-    nn_model=nn_model,
-    nn_input=nn_input,
-    ordered_nn_params=ordered_nn_params,
-    nn_out_shape=(1, 1, 28, 28),
+    neural_basis_expansion=neural_basis_expansion,
     vec_batch_size=1,
     oversampling_param=5,
     low_rank_rank_dim=5,
     device=device,
     use_cpu=True)
 
-print(approx_neural_basis_expansion.vjp_approx(v_out).shape)
-print(approx_neural_basis_expansion.jvp_approx(v_params).shape)
+print(approx_neural_basis_expansion.vjp(v_out).shape)
+print(approx_neural_basis_expansion.jvp(v_params).shape)

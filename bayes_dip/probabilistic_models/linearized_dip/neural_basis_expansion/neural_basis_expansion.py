@@ -1,14 +1,14 @@
 from typing import Callable, Sequence, Tuple
 import torch
 from torch import nn
-import numpy as np
 import functorch as ftch
 
-from bayes_dip.utils.utils import eval_mode
+from bayes_dip.utils.utils import CustomAutogradModule
+from .base_neural_basis_expansion import BaseNeuralBasisExpansion
 from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
-from ..utils import get_inds_from_ordered_params, get_slices_from_ordered_params
 
-class NeuralBasisExpansion:
+
+class NeuralBasisExpansion(BaseNeuralBasisExpansion):
 
     # pylint: disable=too-few-public-methods
     # self.jvp and self.vjp act as main public "methods"
@@ -26,38 +26,26 @@ class NeuralBasisExpansion:
         and exposes just the JvP and vJP methods.
         """
 
-        self.nn_model = nn_model
-        self.nn_input = nn_input
+        super().__init__(
+                nn_model=nn_model, nn_input=nn_input, ordered_nn_params=ordered_nn_params,
+                nn_out_shape=nn_out_shape)
+
         self._func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
 
-        self.ordered_nn_params = ordered_nn_params
-        self.inds_from_ordered_params = get_inds_from_ordered_params(
-                self.nn_model, self.ordered_nn_params
-            )
-        self.slices_from_ordered_params = get_slices_from_ordered_params(
-                self.ordered_nn_params
-            )
-        self.num_params = sum([param.data.numel() for param in self.ordered_nn_params])
-
-        self.nn_out_shape = nn_out_shape
-        if self.nn_out_shape is None:
-            with torch.no_grad(), eval_mode(self.nn_model):
-                self.nn_out_shape = self.nn_model(nn_input).shape
-
-        _single_jvp_fun = self._get_single_jvp_fun(return_out=True)
+        _single_jvp_fun_with_out = self._get_single_jvp_fun(return_out=True)
+        _single_jvp_fun = self._get_single_jvp_fun(return_out=False)
         _single_vjp_fun = self._get_single_vjp_fun(return_out=False)
 
         # jvp takes inputs of size (K, 1, D) where K is number of vectors to perform jvp with and
         # D is size of those vectors which should match number of non-normed parameters
-        self.jvp = ftch.vmap(_single_jvp_fun, in_dims=0)
-
+        self.jvp_with_out = ftch.vmap(_single_jvp_fun_with_out, in_dims=0)
+        jvp = ftch.vmap(_single_jvp_fun, in_dims=0)
         # vjp takes inputs of size (K, 1, O) where K is number of vectors to perform jvp with and
         # O is size of the NN outputs
-        self.vjp = ftch.vmap(_single_vjp_fun, in_dims=(0))
+        vjp = ftch.vmap(_single_vjp_fun, in_dims=0)
 
-    @property
-    def jac_shape(self) -> Tuple[int, int]:
-        return (np.prod(self.nn_out_shape), self.num_params)
+        self._jvp = CustomAutogradModule(jvp, vjp)
+        self._vjp = CustomAutogradModule(vjp, jvp)
 
     def _func_model(self,
             func_params):
@@ -118,3 +106,9 @@ class NeuralBasisExpansion:
             return (single_out, single_w_grad) if return_out else single_w_grad
 
         return f
+
+    def jvp(self, v):
+        return self._jvp(v)
+
+    def vjp(self, v):
+        return self._vjp(v)

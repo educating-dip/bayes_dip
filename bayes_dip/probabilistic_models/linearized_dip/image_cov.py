@@ -23,7 +23,7 @@ class ImageCov(BaseImageCov):
 
         v = self.neural_basis_expansion.vjp(v.unsqueeze(dim=1))
         v = self.parameter_cov(v, **kwargs)
-        _, v = self.neural_basis_expansion.jvp(v)
+        v = self.neural_basis_expansion.jvp(v)
 
         return v.squeeze(dim=1)
 
