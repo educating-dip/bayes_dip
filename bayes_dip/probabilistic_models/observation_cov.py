@@ -1,5 +1,5 @@
 """Provides :class:`ObservationCov`"""
-from typing import Tuple
+from typing import Optional, Tuple
 from functools import lru_cache
 import torch
 import numpy as np
@@ -89,7 +89,7 @@ class ObservationCov(nn.Module):
     def assemble_observation_cov(self,
         vec_batch_size: int = 1,
         use_noise_variance: bool = True,
-        sub_slice_batches = None,
+        sub_slice_batches: Optional[slice] = None,
         ) -> Tensor:
         """
         Parameters

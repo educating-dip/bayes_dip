@@ -3,7 +3,7 @@ Provides :class:`DeepImagePriorReconstructor`.
 """
 import os
 import socket
-from typing import Union
+from typing import Optional, Union
 import datetime
 from warnings import warn
 from copy import deepcopy
@@ -105,8 +105,8 @@ class DeepImagePriorReconstructor():
 
     def reconstruct(self,
             noisy_observation: Tensor,
-            filtbackproj: Tensor = None,
-            ground_truth: Tensor = None,
+            filtbackproj: Optional[Tensor] = None,
+            ground_truth: Optional[Tensor] = None,
             recon_from_randn: bool = False,
             use_tv_loss: bool = True,
             log_path: str = '.',

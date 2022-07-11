@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 from math import ceil
 import torch
 from torch import Tensor
@@ -12,7 +12,7 @@ class ApproxNeuralBasisExpansion(BaseNeuralBasisExpansion):
             neural_basis_expansion: NeuralBasisExpansion,
             oversampling_param: int,
             low_rank_rank_dim: int,
-            load_approx_basis_from: str = None,
+            load_approx_basis_from: Optional[str] = None,
             device=None,
             vec_batch_size: int = 1,
             use_cpu: bool = False) -> None:

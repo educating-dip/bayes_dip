@@ -1,4 +1,4 @@
-from typing import Callable, Sequence, Tuple
+from typing import Callable, Optional, Sequence, Tuple
 import torch
 from torch import nn
 import functorch as ftch
@@ -17,7 +17,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
             nn_model: nn.Module,
             nn_input: torch.Tensor,
             ordered_nn_params: Sequence,
-            nn_out_shape: Tuple[int, int] = None,
+            nn_out_shape: Optional[Tuple[int, int]] = None,
             ) -> None:
 
         """
