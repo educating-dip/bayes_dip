@@ -1,6 +1,4 @@
-from typing import Callable, Optional, Sequence, Tuple
-import torch
-from torch import nn
+from typing import Callable
 import functorch as ftch
 
 from bayes_dip.utils.utils import CustomAutogradModule
@@ -9,26 +7,17 @@ from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
 
 
 class NeuralBasisExpansion(BaseNeuralBasisExpansion):
+    """
+    Implementation of Jacobian vector products (:meth:`jvp`) and vector Jacobian products
+    (:meth:`vjp`) via functorch. Both methods support autograd.
+    """
 
-    # pylint: disable=too-few-public-methods
-    # self.jvp and self.vjp act as main public "methods"
-
-    def __init__(self,
-            nn_model: nn.Module,
-            nn_input: torch.Tensor,
-            ordered_nn_params: Sequence,
-            nn_out_shape: Optional[Tuple[int, int]] = None,
-            ) -> None:
-
+    def __init__(self, *args, **kwargs) -> None:
         """
-        Wrapper class for Jacobian vector products and vector Jacobian products.
-        This class stores all the statefull information needed for these operations as attributes
-        and exposes just the JvP and vJP methods.
+        Parameters are the same as for :class:`BaseNeuralBasisExpansion`.
         """
 
-        super().__init__(
-                nn_model=nn_model, nn_input=nn_input, ordered_nn_params=ordered_nn_params,
-                nn_out_shape=nn_out_shape)
+        super().__init__(*args, **kwargs)
 
         self._func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
 

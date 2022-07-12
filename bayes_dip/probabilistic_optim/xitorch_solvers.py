@@ -1,10 +1,8 @@
-
+"""
+Clone from https://github.com/xitorch/xitorch/blob/420ff19f1db2a2916b7d98753793a815212423ac/xitorch/_impls/linalg/solve.py
 """
 
-clone from https://github.com/xitorch/xitorch/blob/420ff19f1db2a2916b7d98753793a815212423ac/xitorch/_impls/linalg/solve.py
-
-"""
-
+# pylint: skip-file
 
 import warnings
 import functools
@@ -423,7 +421,7 @@ def gmres(A: LinearOperator, B: torch.Tensor,
             if max_resid_norm < best_resid:
                 best_resid = max_resid_norm
                 best_res = res
-            
+
             print("%4d: |dy|=%.3e" % (k, resid_norm.max().item()))
 
             if torch.all(resid_norm < stop_matrix):

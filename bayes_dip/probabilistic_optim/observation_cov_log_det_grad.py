@@ -1,59 +1,60 @@
 from typing import Optional, Callable, Dict
 import torch
 from torch import Tensor
+from xitorch import LinearOperator
 from ..probabilistic_models import ObservationCov, LinearSandwichCov
 from .random_probes import generate_probes_bernoulli
-from xitorch import LinearOperator
 from .xitorch_solvers import cg
 
-class xitorch_operator(LinearOperator):
-    def __init__(self, size, func, device='cpu', dtype=torch.float32):
-        super().__init__(shape=(size,size), is_hermitian=True, device=device, dtype=dtype)
+class HermitianOperator(LinearOperator):
+    def __init__(self, size, func, **kwargs):
+        super().__init__(shape=(size, size), is_hermitian=True, **kwargs)
         self.func = func
 
     def _getparamnames(self, prefix=""):
-       return []
-    
-    def _mv(self, v):
-        return self.func(v)
+        return []
+
+    def _mv(self, x):
+        return self.func(x)
 
 def linear_cg(
         observation_cov: ObservationCov,
         v: Tensor,
         preconditioner: Optional[Callable] = None,
         max_cg_iter: int = 10,
-        rtol: float = 1e-3 
+        rtol: float = 1e-3
         ) -> Tensor:
 
     num_probes = v.shape[-1]
-    closure = xitorch_operator(
-        size=observation_cov.trafo.obs_shape,
+    closure = HermitianOperator(
+        size=observation_cov.shape[0],
         func=lambda v: observation_cov(v.T.reshape(1, num_probes, *observation_cov.trafo.obs_shape)
             ).view(num_probes, observation_cov.shape[0]).T,
         device=observation_cov.device,
+        dtype=v.dtype,
     )
 
-    precond = None 
-    if preconditioner is not None: 
+    precond = None
+    if preconditioner is not None:
         raise NotImplementedError
-    else: 
+    else:
         precond = None
-    
-    v_norm = torch.norm(v, 2, dim=0, keepdim=True)  
+
+    v_norm = torch.norm(v, 2, dim=0, keepdim=True)
     v_scaled = v.div(v_norm)
 
     solve_T, residual_norm = cg(
         closure, v_scaled,
         posdef=True,
-        precond=precond, 
+        precond=precond,
         max_niter=max_cg_iter,
         rtol=rtol,
         atol=1e-08,
         eps=1e-6,
-        resid_calc_every=10, 
+        resid_calc_every=10,
         verbose=True
     )
-    
+
     solve = solve_T.T * v_norm
     return solve, residual_norm
 
@@ -91,7 +92,8 @@ def approx_observation_cov_log_det_grads(
 
     ## gradients for parameters in image_cov
 
-    v_obs_left_flat, residual_norm = linear_cg(observation_cov, v_flat, preconditioner=preconditioner)    
+    v_obs_left_flat, residual_norm = linear_cg(
+            observation_cov, v_flat, preconditioner=preconditioner)
     v_im_left_flat = trafo.trafo_adjoint_flat(v_obs_left_flat)  # (im_numel, num_probes)
     v_left = v_im_left_flat.T.reshape(1, num_probes, *trafo.im_shape)
     v_left = image_cov.lin_op_transposed(v_left)  # (num_probes, nn_params_numel)
@@ -116,4 +118,4 @@ def approx_observation_cov_log_det_grads(
     # (scalar product over observation)
     grads[log_noise_variance] = torch.autograd.grad((noise_scalar,), (log_noise_variance,))[0]
 
-    return grads
+    return grads, residual_norm

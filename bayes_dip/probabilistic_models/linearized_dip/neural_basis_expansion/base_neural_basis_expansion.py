@@ -9,9 +9,11 @@ from ..utils import get_inds_from_ordered_params, get_slices_from_ordered_params
 
 
 class BaseNeuralBasisExpansion(ABC):
-
-    # pylint: disable=too-few-public-methods
-    # self.jvp and self.vjp act as main public "methods"
+    """
+    Wrapper class for Jacobian vector products and vector Jacobian products.
+    This class stores all the stateful information needed for these operations as attributes
+    and exposes just the :meth:`jvp` and :meth:`vjp` methods.
+    """
 
     def __init__(self,
             nn_model: nn.Module,
@@ -19,12 +21,6 @@ class BaseNeuralBasisExpansion(ABC):
             ordered_nn_params: Sequence,
             nn_out_shape: Optional[Tuple[int, int]] = None,
             ) -> None:
-
-        """
-        Wrapper class for Jacobian vector products and vector Jacobian products.
-        This class stores all the statefull information needed for these operations as attributes
-        and exposes just the JvP and vJP methods.
-        """
 
         self.nn_model = nn_model
         self.nn_input = nn_input

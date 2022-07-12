@@ -1,4 +1,3 @@
-from typing import Tuple
 from abc import ABC, abstractmethod
 from torch import Tensor, nn
 
