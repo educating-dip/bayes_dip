@@ -132,3 +132,8 @@ KMNIST/*
 MNIST/*
 outputs/*
 multirun/*
+
+experiments/KMNIST/*
+experiments/MNIST/*
+experiments/outputs/*
+experiments/multirun/*

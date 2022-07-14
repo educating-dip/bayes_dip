@@ -14,7 +14,6 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
 
         super().__init__(inner_cov=parameter_cov)
 
-        self.parameter_cov = parameter_cov
         self.neural_basis_expansion = neural_basis_expansion
 
     forward = LinearSandwichCov.forward  # lin_op @ parameter_cov @ lin_op_transposed

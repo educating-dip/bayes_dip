@@ -41,6 +41,12 @@ class BaseGaussPrior(nn.Module, ABC):
             ):
 
         raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def log_variance(self,
+            ):
+        raise NotImplementedError
 
     @abstractmethod
     def sample(self,
@@ -203,6 +209,14 @@ class GPprior(BaseGaussPrior):
         self.cov = self.covariance_constructor(kernel_size=self.kernel_size,
                 device=self.device)
 
+    @property
+    def log_variance(self, ): 
+        return self.cov.log_variance 
+    
+    @property
+    def log_lengthscale(self, ): 
+        return self.cov.log_lengthscale 
+
     def sample(self,
             shape: Tuple,
             ) -> Tensor:
@@ -253,10 +267,14 @@ class NormalPrior(BaseGaussPrior):
     def _setup(self, modules):
 
         super()._setup(modules=modules)
-        self.log_variance = nn.Parameter(
+        self._log_variance = nn.Parameter(
                 torch.ones(1, device=self.device)
             )
 
+    @property
+    def log_variance(self, ): 
+        return self._log_variance
+    
     def _init_parameters(self,
             init_hyperparams: Dict
             ):

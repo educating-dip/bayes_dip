@@ -1,5 +1,6 @@
 from typing import Optional, Callable, Dict
 import torch
+from torch import nn
 from torch import Tensor
 from xitorch import LinearOperator
 from ..probabilistic_models import ObservationCov, LinearSandwichCov
@@ -15,21 +16,22 @@ class HermitianOperator(LinearOperator):
         return []
 
     def _mv(self, x):
+        # x.shape  = ..., size 
         return self.func(x)
 
 def linear_cg(
         observation_cov: ObservationCov,
         v: Tensor,
         preconditioner: Optional[Callable] = None,
-        max_cg_iter: int = 10,
+        max_cg_iter: int = 50,
         rtol: float = 1e-3
         ) -> Tensor:
 
     num_probes = v.shape[-1]
     closure = HermitianOperator(
         size=observation_cov.shape[0],
-        func=lambda v: observation_cov(v.T.reshape(1, num_probes, *observation_cov.trafo.obs_shape)
-            ).view(num_probes, observation_cov.shape[0]).T,
+        func=lambda v: observation_cov(v.reshape(1, num_probes, *observation_cov.trafo.obs_shape)
+            ).view(num_probes, observation_cov.shape[0]),
         device=observation_cov.device,
         dtype=v.dtype,
     )
@@ -43,7 +45,7 @@ def linear_cg(
     v_norm = torch.norm(v, 2, dim=0, keepdim=True)
     v_scaled = v.div(v_norm)
 
-    solve_T, residual_norm = cg(
+    scaled_solve, residual_norm = cg(
         closure, v_scaled,
         posdef=True,
         precond=precond,
@@ -52,21 +54,21 @@ def linear_cg(
         atol=1e-08,
         eps=1e-6,
         resid_calc_every=10,
-        verbose=True
+        verbose=False
     )
 
-    solve = solve_T.T * v_norm
+    solve = scaled_solve * v_norm
     return solve, residual_norm
 
 def approx_observation_cov_log_det_grads(
         observation_cov: ObservationCov,
         preconditioner=None,
         num_probes=1,
-        ) -> Dict[Tensor]:
+        ) -> Dict[nn.Parameter, Tensor]:
     """
-    Estimates the gradient for the log-determinant ``log|observation_cov|`` w.r.t. its parameters
+    Estimates the gradient for the log-determinant ``0.5*log|observation_cov|`` w.r.t. its parameters
     via Hutchinson's trace estimator
-    ``E(v.T @ observation_cov**-1 @ d observation_cov / d params @ v)``,
+    ``E(0.5 * v.T @ observation_cov**-1 @ d observation_cov / d params @ v)``,
     with ``v.T @ observation_cov**-1`` being approximated by the conjugate gradient (CG) method.
     """
     trafo = observation_cov.trafo
@@ -75,7 +77,7 @@ def approx_observation_cov_log_det_grads(
 
     parameters = list(observation_cov.parameters())
     image_cov_parameters = list(image_cov.parameters())
-    assert len(parameters) == len(image_cov.parameters()) + 1  # log_noise_variance
+    assert len(parameters) == len(image_cov_parameters) + 1  # log_noise_variance
 
     assert isinstance(image_cov, LinearSandwichCov)
     # image_cov == image_cov.lin_op @ image_cov.inner_cov @ image_cov.lin_op_transposed
@@ -91,17 +93,19 @@ def approx_observation_cov_log_det_grads(
     grads = {}
 
     ## gradients for parameters in image_cov
+    with torch.no_grad(): 
+        v_obs_left_flat, residual_norm = linear_cg(
+                observation_cov, v_flat, preconditioner=preconditioner)
 
-    v_obs_left_flat, residual_norm = linear_cg(
-            observation_cov, v_flat, preconditioner=preconditioner)
-    v_im_left_flat = trafo.trafo_adjoint_flat(v_obs_left_flat)  # (im_numel, num_probes)
-    v_left = v_im_left_flat.T.reshape(1, num_probes, *trafo.im_shape)
-    v_left = image_cov.lin_op_transposed(v_left)  # (num_probes, nn_params_numel)
-    # v_left = v.T @ observation_cov**-1 @ trafo @ lin_op
+        v_im_left_flat = trafo.trafo_adjoint_flat(v_obs_left_flat)  # (im_numel, num_probes)
+        v_left = v_im_left_flat.T.reshape(1, num_probes, *trafo.im_shape)
+        v_left = image_cov.lin_op_transposed(v_left)  # (num_probes, nn_params_numel)
+        # v_left = v.T @ observation_cov**-1 @ trafo @ lin_op
 
-    v_right = trafo.trafo_adjoint_flat(v_flat)
-    v_right = v_right.T.reshape(1, num_probes, *trafo.im_shape)
-    v_right = image_cov.lin_op_transposed(v_right)  # (num_probes, nn_params_numel)
+        v_right = trafo.trafo_adjoint_flat(v_flat)
+        v_right = v_right.T.reshape(1, num_probes, *trafo.im_shape)
+        v_right = image_cov.lin_op_transposed(v_right) # (num_probes, nn_params_numel)
+
     # v_right = lin_op_transposed @ trafo_adjoint @ v
 
     # estimate expected value E(v_left @ d image_cov.inner_cov / d params @ v_right.T)
@@ -109,13 +113,14 @@ def approx_observation_cov_log_det_grads(
     # (scalar product over network params)
     image_cov_grads = torch.autograd.grad((v_scalar,), image_cov_parameters)
     for param, grad in zip(image_cov_parameters, image_cov_grads):
-        grads[param] = grad
+        grads[param] = 0.5 * grad
 
     ## gradient for log_noise_variance
 
     # estimate expected value E(exp(v_obs_left_flat.T @ v_flat))
     noise_scalar = torch.sum(v_obs_left_flat * v_flat, dim=0).mean() * log_noise_variance.exp()
+
     # (scalar product over observation)
-    grads[log_noise_variance] = torch.autograd.grad((noise_scalar,), (log_noise_variance,))[0]
+    grads[log_noise_variance] = 0.5 * torch.autograd.grad((noise_scalar,), (log_noise_variance,))[0]
 
     return grads, residual_norm

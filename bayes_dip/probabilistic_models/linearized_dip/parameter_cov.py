@@ -30,6 +30,10 @@ class ParameterCov(nn.Module):
 
         return ordered_params_list
 
+    @property
+    def log_variances(self, ):
+        return [prior.log_variance for prior in self.priors.values()]
+
     def _create_prior_dict(self, nn_model: nn.Module):
 
         priors = {}
