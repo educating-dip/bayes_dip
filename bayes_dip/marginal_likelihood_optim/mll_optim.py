@@ -4,7 +4,7 @@ import socket
 import datetime
 import torch
 import numpy as np
-from torch import Tensor 
+from torch import Tensor
 from tqdm import tqdm
 import tensorboardX
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
@@ -21,11 +21,11 @@ def get_ordered_nn_params_vec(parameter_cov):
 
 def marginal_likelihood_hyperparams_optim(
     observation_cov: ObservationCov,
-    observation: Tensor, 
+    observation: Tensor,
     recon: Tensor,
     use_linearized_weights: Union[bool, Tensor] = True,
-    optim_kwargs: Dict = None, 
-    log_path: str = './', 
+    optim_kwargs: Dict = None,
+    log_path: str = './',
     comment: str = ''
     ):
 
@@ -38,11 +38,11 @@ def marginal_likelihood_hyperparams_optim(
     proj_recon = observation_cov.trafo(recon).flatten()
     observation = observation.flatten()
 
-    if use_linearized_weights: 
+    if use_linearized_weights:
         raise NotImplementedError
     else:
         weights_vec = get_ordered_nn_params_vec(observation_cov.image_cov.inner_cov)
-    
+
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
 
     with tqdm(range(optim_kwargs['iterations']), desc='marginal_likelihood_hyperparams_optim', miniters=optim_kwargs['iterations']//100) as pbar:
@@ -52,7 +52,7 @@ def marginal_likelihood_hyperparams_optim(
 
             if optim_kwargs['include_predcp']:
                 raise NotImplementedError
-            else: 
+            else:
                 predcp_loss = torch.zeros(1)
 
             # update grads for post_hess_log_det
@@ -63,11 +63,12 @@ def marginal_likelihood_hyperparams_optim(
             )
 
             for param, grad in log_det_grads.items():
+                # assert param in observation_cov.parameters()
                 if param.grad is None:
                     param.grad = grad
                 else:
                     param.grad += grad
-            
+
             observation_error_norm = torch.sum( ( observation - proj_recon ) ** 2) * torch.exp(-observation_cov.log_noise_variance)  # σ_y^-2 ||y_delta - A f(theta^*)||_2^2
             weights_prior_norm = ( observation_cov.image_cov.inner_cov(weights_vec[None], use_inverse=True ) @ weights_vec[None].T)
             loss = 0.5 * (observation_error_norm + weights_prior_norm)
@@ -75,7 +76,7 @@ def marginal_likelihood_hyperparams_optim(
             loss.backward()
             optimizer.step()
 
-            if optim_kwargs['min_log_variance'] != -np.inf:                            
+            if optim_kwargs['min_log_variance'] != -np.inf:
                 for log_variance in observation_cov.image_cov.inner_cov.log_variances:
                     log_variance.data.clamp_(min=optim_kwargs['min_log_variance'])
 
@@ -87,22 +88,22 @@ def marginal_likelihood_hyperparams_optim(
 
             for prior_type, priors in observation_cov.image_cov.inner_cov.priors_per_prior_type.items():
 
-                if issubclass(prior_type, GPprior):  
+                if issubclass(prior_type, GPprior):
                     prior_type_name = 'GPprior'
-                elif issubclass(prior_type, NormalPrior): 
-                    prior_type_name = 'NormalPrior' 
-                else: 
+                elif issubclass(prior_type, NormalPrior):
+                    prior_type_name = 'NormalPrior'
+                else:
                     prior_type_name = None
 
-                for k, prior in enumerate(priors): 
-                    if issubclass(prior_type, BaseGaussPrior): 
-                        writer.add_scalar(f'{prior_type_name}_variance_{k}', torch.exp(prior.log_variance).item(), i) 
-                        if issubclass(prior_type, GPprior):                      
-                            writer.add_scalar(f'{prior_type_name}_lengthscale_{k}', torch.exp(prior.log_lengthscale).item(), i)                    
+                for k, prior in enumerate(priors):
+                    if issubclass(prior_type, BaseGaussPrior):
+                        writer.add_scalar(f'{prior_type_name}_variance_{k}', torch.exp(prior.log_variance).item(), i)
+                        if issubclass(prior_type, GPprior):
+                            writer.add_scalar(f'{prior_type_name}_lengthscale_{k}', torch.exp(prior.log_lengthscale).item(), i)
 
             writer.add_scalar('observation_error_norm', observation_error_norm.item(), i)
             writer.add_scalar('weights_prior_norm', weights_prior_norm.item(), i)
             writer.add_scalar('predcp', - predcp_loss.item(), i)
             writer.add_scalar('observation_noise_variance', torch.exp(observation_cov.log_noise_variance).item(), i)
-            writer.add_scalar('log_det_grad_cg_mean_residual', log_det_residual_norm.item(), i)
+            writer.add_scalar('log_det_grad_cg_mean_residual', log_det_residual_norm.mean().item(), i)
 

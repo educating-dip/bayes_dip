@@ -41,7 +41,7 @@ class ObservationCov(nn.Module):
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
 
         self.log_noise_variance = nn.Parameter(
-                torch.tensor(np.log(init_noise_variance), device=self.device),
+                torch.tensor(float(np.log(init_noise_variance)), device=self.device),
             )
 
     def forward(self,
