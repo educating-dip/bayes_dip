@@ -8,8 +8,8 @@ from torch import Tensor
 from tqdm import tqdm
 import tensorboardX
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
+from .sample_based_predcp import set_sample_based_predcp_grads
 from ..probabilistic_models import ObservationCov, BaseGaussPrior, GPprior, NormalPrior
-
 
 def get_ordered_nn_params_vec(parameter_cov):
 
@@ -51,30 +51,43 @@ def marginal_likelihood_hyperparams_optim(
             optimizer.zero_grad()
 
             if optim_kwargs['include_predcp']:
-                raise NotImplementedError
+                predcp_grads, predcp_loss = set_sample_based_predcp_grads(
+                    observation_cov=observation_cov,
+                    num_samples=100,
+                    scale=1.)
+                for param in observation_cov.image_cov.parameters():
+                    if param.grad is None:
+                        param.grad = predcp_grads[param]
+                    else:
+                        param.grad += predcp_grads[param]
             else:
                 predcp_loss = torch.zeros(1)
 
             # update grads for post_hess_log_det
             log_det_grads, log_det_residual_norm = approx_observation_cov_log_det_grads(
                 observation_cov=observation_cov,
-                preconditioner=None,
-                num_probes=optim_kwargs['num_probes'],
+                precon=optim_kwargs['linear_cg']['preconditioner'],
+                num_probes=optim_kwargs['num_probes'], 
+                max_cg_iter=optim_kwargs['linear_cg']['max_iter'],
+                cg_rtol=optim_kwargs['linear_cg']['rtol'], 
+                ignore_numerical_warning=True
             )
 
-            for param, grad in log_det_grads.items():
-                # assert param in observation_cov.parameters()
+            for param in observation_cov.parameters():
                 if param.grad is None:
-                    param.grad = grad
+                    param.grad = log_det_grads[param]
                 else:
-                    param.grad += grad
+                    param.grad += log_det_grads[param]
 
-            observation_error_norm = torch.sum( ( observation - proj_recon ) ** 2) * torch.exp(-observation_cov.log_noise_variance)  # σ_y^-2 ||y_delta - A f(theta^*)||_2^2
-            weights_prior_norm = ( observation_cov.image_cov.inner_cov(weights_vec[None], use_inverse=True ) @ weights_vec[None].T)
+            observation_error_norm = torch.sum((observation-proj_recon) ** 2) * torch.exp(-observation_cov.log_noise_variance)
+            weights_prior_norm = (observation_cov.image_cov.inner_cov(weights_vec[None], use_inverse=True) @ weights_vec[None].T)
             loss = 0.5 * (observation_error_norm + weights_prior_norm)
 
             loss.backward()
             optimizer.step()
+
+            if ((i+1) % optim_kwargs['linear_cg']['update_freq']) == 0 and (optim_kwargs['linear_cg']['preconditioner'] is not None):
+                optim_kwargs['linear_cg']['preconditioner'].update()
 
             if optim_kwargs['min_log_variance'] != -np.inf:
                 for log_variance in observation_cov.image_cov.inner_cov.log_variances:

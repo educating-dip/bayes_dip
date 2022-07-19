@@ -10,6 +10,13 @@ class BaseImageCov(nn.Module, ABC):
             ) -> Tensor:
 
         raise NotImplementedError
+    
+    @abstractmethod
+    def sample(self,
+            num_samples: int
+            ) -> Tensor:
+
+        raise NotImplementedError
 
     @property
     @abstractmethod

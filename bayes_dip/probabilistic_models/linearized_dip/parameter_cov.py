@@ -1,4 +1,5 @@
 from typing import Dict, Tuple, List, Callable
+import numpy as np
 import torch
 from torch import nn, Tensor
 from bayes_dip.utils import get_modules_by_names
@@ -91,6 +92,14 @@ class ParameterCov(nn.Module):
             params_cnt += len_params
 
         return torch.cat(v_parameter_cov_mul, dim=-1)
+    
+    def sample(self, 
+        num_samples: int = 10
+        ) -> Tensor: 
+        samples = torch.randn(num_samples, self.shape[0],
+            device=self.device
+            )
+        return self.forward(samples, use_cholesky=True)
 
     @property
     def shape(self) -> Tuple[int, int]:

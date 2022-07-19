@@ -4,7 +4,6 @@ import functorch as ftch
 from bayes_dip.data import get_ray_trafo, get_kmnist_testset, SimulatedDataset
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, ParameterCov
-from bayes_dip.probabilistic_models.linearized_dip.utils import get_inds_from_ordered_params
 
 @pytest.fixture(scope='function')
 def parameter_cov():

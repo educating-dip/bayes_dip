@@ -6,7 +6,7 @@ from tqdm import tqdm
 from .base_neural_basis_expansion import BaseNeuralBasisExpansion
 from .neural_basis_expansion import NeuralBasisExpansion
 
-class ApproxNeuralBasisExpansion(BaseNeuralBasisExpansion):
+class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
     def __init__(self,
             neural_basis_expansion: NeuralBasisExpansion,
@@ -30,7 +30,7 @@ class ApproxNeuralBasisExpansion(BaseNeuralBasisExpansion):
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
 
         if not load_approx_basis_from:
-            self.jac_U, self.jac_S, self.jac_Vh = self.get_batched_jac_low_rank(
+            self.jac_U, self.jac_S, self.jac_Vh = self.get_batched_low_rank_jac(
                     vec_batch_size=vec_batch_size, use_cpu=use_cpu)
         else:
             #TODO: load U, S and Vh
@@ -54,7 +54,7 @@ class ApproxNeuralBasisExpansion(BaseNeuralBasisExpansion):
             )
         return random_matrix
 
-    def get_batched_jac_low_rank(self,
+    def get_batched_low_rank_jac(self,
             vec_batch_size: int = 1, use_cpu: bool = False) -> Tuple[Tensor, Tensor, Tensor]:
 
         random_matrix = self._assemble_random_matrix()
