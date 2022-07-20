@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict
 import functorch as ftch
 
 from bayes_dip.utils.utils import CustomAutogradModule
@@ -19,7 +19,8 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         super().__init__(*args, **kwargs)
 
-        self._func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
+        self.func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
+        self._functional_forward_kwargs = {}
 
         _single_jvp_fun_with_out = self._get_single_jvp_fun(return_out=True)
         _single_jvp_fun = self._get_single_jvp_fun(return_out=False)
@@ -35,9 +36,16 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         self._jvp = CustomAutogradModule(jvp, vjp)
         self._vjp = CustomAutogradModule(vjp, jvp)
+    
+    @property 
+    def functional_forward_kwargs(self, ) -> Dict: 
+        return self._functional_forward_kwargs
 
-    def _func_model(self,
-            func_params):
+    @functional_forward_kwargs.setter
+    def functional_forward_kwargs(self, kwargs: Dict) -> Dict: 
+        self._functional_forward_kwargs = kwargs
+    
+    def _func_model(self, func_params) -> Callable:
         """
         Closure that hardcodes the input `nn_input`, leaving only a function of the NN weights.
 
@@ -46,7 +54,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         func_params
             functorch wrapped NN weights, exposed as to comply with signature of ``ftch.jvp``
         """
-        return self._func_model_with_input(func_params, self.nn_input)
+        return self.func_model_with_input(func_params, self.nn_input, **self.functional_forward_kwargs)
 
     def _get_single_jvp_fun(self,
                     return_out: bool = False) -> Callable:

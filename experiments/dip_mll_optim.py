@@ -115,13 +115,21 @@ def coordinator(cfg : DictConfig) -> None:
                 }, 
                 'min_log_variance': -4.5,
                 'include_predcp': True,
+                'linearize_weights': {
+                        'iterations': 1500, 
+                        'lr': 1e-4,
+                        'wd': 1e-6, 
+                        'gamma': 1e-4, 
+                        'simplified_eqn': False, 
+                        'use_sigmoid': True, 
+                        }
                 }
-
         marginal_likelihood_hyperparams_optim(
                 observation_cov=observation_cov,
                 observation=observation, 
                 recon=recon,
-                use_linearized_weights=False,
+                ground_truth=ground_truth, 
+                use_linearized_weights=True,
                 optim_kwargs=marglik_optim_kwargs, 
                 log_path='./', 
         )

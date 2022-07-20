@@ -9,20 +9,15 @@ from tqdm import tqdm
 import tensorboardX
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
 from .sample_based_predcp import set_sample_based_predcp_grads
+from .weights_linearization import weights_linearization
+from .utils import get_ordered_nn_params_vec, get_params_list_under_GPpriors
 from ..probabilistic_models import ObservationCov, BaseGaussPrior, GPprior, NormalPrior
-
-def get_ordered_nn_params_vec(parameter_cov):
-
-    ordered_nn_params_vec = []
-    for param in parameter_cov.ordered_nn_params:
-        ordered_nn_params_vec.append(param.data.flatten())
-
-    return torch.cat(ordered_nn_params_vec, )
 
 def marginal_likelihood_hyperparams_optim(
     observation_cov: ObservationCov,
     observation: Tensor,
     recon: Tensor,
+    ground_truth: Tensor = None, 
     use_linearized_weights: Union[bool, Tensor] = True,
     optim_kwargs: Dict = None,
     log_path: str = './',
@@ -39,11 +34,17 @@ def marginal_likelihood_hyperparams_optim(
     observation = observation.flatten()
 
     if use_linearized_weights:
-        raise NotImplementedError
+        weights_vec, _ = weights_linearization(
+            observation_cov=observation_cov,
+            observation=observation,
+            ground_truth=ground_truth, 
+            optim_kwargs=optim_kwargs['linearize_weights']
+        )
     else:
         weights_vec = get_ordered_nn_params_vec(observation_cov.image_cov.inner_cov)
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
+    params_list_under_GPpriors = get_params_list_under_GPpriors(observation_cov.image_cov.inner_cov)
 
     with tqdm(range(optim_kwargs['iterations']), desc='marginal_likelihood_hyperparams_optim', miniters=optim_kwargs['iterations']//100) as pbar:
         for i in pbar:
@@ -53,9 +54,11 @@ def marginal_likelihood_hyperparams_optim(
             if optim_kwargs['include_predcp']:
                 predcp_grads, predcp_loss = set_sample_based_predcp_grads(
                     observation_cov=observation_cov,
+                    params_list_under_GPpriors=params_list_under_GPpriors,
                     num_samples=100,
                     scale=1.)
-                for param in observation_cov.image_cov.parameters():
+                
+                for param in params_list_under_GPpriors:
                     if param.grad is None:
                         param.grad = predcp_grads[param]
                     else:
