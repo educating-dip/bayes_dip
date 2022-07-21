@@ -1,9 +1,13 @@
-from typing import Callable, Dict
+from typing import Callable, Dict, Tuple
 import functorch as ftch
+import torch 
+from torch import Tensor
+import torch.autograd as autograd
 
 from bayes_dip.utils.utils import CustomAutogradModule
 from .base_neural_basis_expansion import BaseNeuralBasisExpansion
 from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
+from ..utils import get_inds_from_ordered_params
 
 
 class NeuralBasisExpansion(BaseNeuralBasisExpansion):
@@ -68,7 +72,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
             The default is `False`.
         """
 
-        def f(v):
+        def f(v: Tensor):
 
             unflat_v = unflatten_nn_functorch(
                 self.nn_model,
@@ -104,8 +108,51 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         return f
 
-    def jvp(self, v):
+    def jvp(self, v: Tensor) -> Tensor:
         return self._jvp(v)
 
-    def vjp(self, v):
+    def vjp(self, v: Tensor) -> Tensor:
         return self._vjp(v)
+
+class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion): 
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.func_model_with_input, _ = ftch.make_functional(self.nn_model)
+        self.jac_matrix = self._assemble_jac_matrix()
+
+    def _assemble_jac_matrix(self, ) -> Tensor:
+
+        inds_from_ordered_params = get_inds_from_ordered_params(
+            self.nn_model,
+            self.ordered_nn_params
+        )
+        func_params = [param for param in self.nn_model.parameters()]
+        def _func_model(*func_params_under_prior):
+            for i, func_param in zip(
+                    inds_from_ordered_params, func_params_under_prior):
+                func_params[i] = func_param
+            return self.func_model_with_input(func_params, self.nn_input)
+        
+        jac = autograd.functional.jacobian(
+            _func_model, tuple(self.ordered_nn_params)
+            )
+        jac = torch.cat(
+            [jac_i.view(self.nn_input.numel(), -1) for jac_i in jac], dim=1
+            )
+
+        return jac 
+
+    def jvp(self, v: Tensor) -> Tensor:
+        v_transpose = v.T
+        jvp = (self.jac_matrix @ v_transpose).T
+        return jvp.view(
+            v.shape[0], *self.nn_out_shape)
+
+    def vjp(self, v: Tensor) -> Tensor:
+        return v.view(v.shape[0], -1) @ self.jac_matrix
+    
+    @property
+    def shape(self, ) -> Tuple[int, int]: 
+        return tuple(self.jac_matrix.shape) 

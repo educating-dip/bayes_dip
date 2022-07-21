@@ -223,3 +223,22 @@ class ObservationCov(nn.Module):
             raise NotImplementedError
 
         return observation_cov_mat_eps
+
+
+class ExactObservationCov(ObservationCov):
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.observation_cov_matrix = self._exact_assemble_observation_cov()
+    
+    def _exact_assemble_observation_cov(self, ) -> Tensor: 
+
+        trafo_mat = self.trafo.matrix
+        jac_mat = self.image_cov.neural_basis_expansion.jac_matrix 
+        observation_cov_mat = (
+                self.image_cov.inner_cov(trafo_mat @ jac_mat) @ jac_mat.T @ trafo_mat.T +
+                self.log_noise_variance.exp() * torch.eye(self.shape[0], device=self.device)
+            )
+        return observation_cov_mat
+            
