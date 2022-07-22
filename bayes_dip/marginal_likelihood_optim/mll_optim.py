@@ -68,7 +68,7 @@ def marginal_likelihood_hyperparams_optim(
                 predcp_loss = torch.zeros(1)
 
             if optim_kwargs['compute_exact_logdet']:
-                sign, log_det = torch.linalg.slogdet(observation_cov.observation_cov_matrix)
+                sign, log_det = torch.linalg.slogdet(observation_cov.matrix)
                 assert sign > 0. 
             else: 
                 # update grads for post_hess_log_det
@@ -90,10 +90,11 @@ def marginal_likelihood_hyperparams_optim(
             observation_error_norm = torch.sum((observation-proj_recon) ** 2) * torch.exp(-observation_cov.log_noise_variance)
             weights_prior_norm = (observation_cov.image_cov.inner_cov(weights_vec[None], use_inverse=True) @ weights_vec[None].T)
             loss = 0.5 * (observation_error_norm + weights_prior_norm)
+
             if optim_kwargs['compute_exact_logdet']: 
                 loss = loss + 0.5 * log_det
 
-            loss.backward(retain_graph=True)
+            loss.backward()
             optimizer.step()
             
             if not optim_kwargs['compute_exact_logdet']:

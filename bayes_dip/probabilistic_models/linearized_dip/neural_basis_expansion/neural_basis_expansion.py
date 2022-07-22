@@ -1,4 +1,5 @@
 from typing import Callable, Dict, Tuple
+import functools
 import functorch as ftch
 import torch 
 from torch import Tensor
@@ -109,9 +110,31 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         return f
 
     def jvp(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, self.num_params)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, *self.nn_out_shape)``
+        """
         return self._jvp(v)
 
     def vjp(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, *self.nn_out_shape)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, self.num_params)``
+        """
         return self._vjp(v)
 
 class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion): 
@@ -120,9 +143,42 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
         super().__init__(*args, **kwargs)
 
         self.func_model_with_input, _ = ftch.make_functional(self.nn_model)
-        self.jac_matrix = self._assemble_jac_matrix()
 
-    def _assemble_jac_matrix(self, ) -> Tensor:
+    def jvp(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, self.num_params)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, *self.nn_out_shape)``
+        """
+
+        v_transpose = v.T
+        jvp = (self.matrix @ v_transpose).T
+        return jvp.view(
+            v.shape[0], *self.nn_out_shape)
+
+    def vjp(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, *self.nn_out_shape)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, self.num_params)``
+        """
+        return v.view(v.shape[0], -1) @ self.matrix
+    
+    @property
+    @functools.lru_cache()
+    def matrix(self, ) -> Tensor:
 
         inds_from_ordered_params = get_inds_from_ordered_params(
             self.nn_model,
@@ -135,24 +191,15 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
                 func_params[i] = func_param
             return self.func_model_with_input(func_params, self.nn_input)
         
-        jac = autograd.functional.jacobian(
+        matrix = autograd.functional.jacobian(
             _func_model, tuple(self.ordered_nn_params)
             )
-        jac = torch.cat(
-            [jac_i.view(self.nn_input.numel(), -1) for jac_i in jac], dim=1
+        matrix = torch.cat(
+            [jac_i.view(self.nn_input.numel(), -1) for jac_i in matrix], dim=1
             )
 
-        return jac 
+        return matrix 
 
-    def jvp(self, v: Tensor) -> Tensor:
-        v_transpose = v.T
-        jvp = (self.jac_matrix @ v_transpose).T
-        return jvp.view(
-            v.shape[0], *self.nn_out_shape)
-
-    def vjp(self, v: Tensor) -> Tensor:
-        return v.view(v.shape[0], -1) @ self.jac_matrix
-    
     @property
     def shape(self, ) -> Tuple[int, int]: 
-        return tuple(self.jac_matrix.shape) 
+        return tuple(self.matrix.shape) 

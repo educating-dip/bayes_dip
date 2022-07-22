@@ -1,17 +1,28 @@
-from typing import Tuple
-import torch 
+"""Provides :class:`ImageCov`"""
+from typing import Tuple, Union
 from torch import Tensor
 from ..base_image_cov import BaseImageCov
 from ..linear_sandwich_cov import LinearSandwichCov
-from .neural_basis_expansion import NeuralBasisExpansion
+from .neural_basis_expansion import BaseNeuralBasisExpansion
 from .parameter_cov import ParameterCov
 
 class ImageCov(BaseImageCov, LinearSandwichCov):
+    """
+    Covariance in image space.
+    """
 
     def __init__(self,
         parameter_cov: ParameterCov,
-        neural_basis_expansion: NeuralBasisExpansion,
+        neural_basis_expansion: BaseNeuralBasisExpansion,
         ) -> None:
+        """
+        Parameters
+        ----------
+        parameter_cov : :class:`bayes_dip.probabilistic_models.ParameterCov`
+            Parameter space covariance module.
+        neural_basis_expansion : :class:`bayes_dip.probabilistic_models.BaseNeuralBasisExpansion`
+            Class for Jacobian vector products (:meth:`jvp`) and vector Jacobian products (:meth:`vjp`).
+        """
 
         super().__init__(inner_cov=parameter_cov)
 
@@ -20,17 +31,59 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
     forward = LinearSandwichCov.forward  # lin_op @ parameter_cov @ lin_op_transposed
 
     def lin_op(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, self.neural_basis_expansion.num_params)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:])``
+        """
+
         return self.neural_basis_expansion.jvp(v).squeeze(dim=1)
 
     def lin_op_transposed(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(*self.neural_basis_expansion.nn_out_shape)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, self.neural_basis_expansion.num_params)``
+        """
+
         return self.neural_basis_expansion.vjp(v.unsqueeze(dim=1))
     
-    def sample(self, 
+    def sample(self,
         num_samples: int = 10, 
         return_weight_samples: bool = False, 
-        ) -> Tensor:
-        weight_samples = self.inner_cov.sample(num_samples=num_samples)
-        return self.lin_op(weight_samples) if not return_weight_samples else (self.lin_op(weight_samples), weight_samples)
+        ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        
+        """
+        Return num_samples draws from Gaussian prior over images 
+    
+        Parameters
+        ----------
+        num_samples : int
+        return_weight_samples : bool
+            Whether to return parameters samples from Gaussian prior over nn weights. The default is `False`
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:])``
+            if ``return_weight_sample = False `` else the meth returns a Tuple whose dims are  
+            ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:]), (batch_size, self.neural_basis_expansion.num_params)``
+        """
+
+        weight_samples = self.inner_cov.sample(num_samples=num_samples) # params ~ N(0, parameter_cov)
+        return self.lin_op(weight_samples) if not return_weight_samples else (self.lin_op(weight_samples), weight_samples) # image = J_{params} @ params 
 
     @property
     def shape(self) -> Tuple[int, int]:

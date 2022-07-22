@@ -1,7 +1,6 @@
-"""Provides :class:`ObservationCov`"""
+"""Provides :class:`ObservationCov` and :class:`ExactObservationCov`"""
 from typing import Optional, Tuple
 from functools import lru_cache
-from math import ceil
 import torch
 import numpy as np
 from torch import Tensor, nn
@@ -10,8 +9,9 @@ from tqdm import tqdm
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.utils import bisect_left  # for python >= 3.10: from bisect import bisect_left
 from .base_image_cov import BaseImageCov
+from .base_observation_cov import BaseObservationCov
 
-class ObservationCov(nn.Module):
+class ObservationCov(BaseObservationCov):
     """
     Covariance in observation space.
     """
@@ -225,20 +225,76 @@ class ObservationCov(nn.Module):
         return observation_cov_mat_eps
 
 
-class ExactObservationCov(ObservationCov):
+class ExactObservationCov(BaseObservationCov):
+    """
+    Covariance in observation space computed with assembled Jacobian matrix.
+    """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+        trafo: BaseRayTrafo,
+        image_cov: BaseImageCov,
+        init_noise_variance: float = 1.,
+        device=None,
+        ) -> None:
 
-        self.observation_cov_matrix = self._exact_assemble_observation_cov()
-    
-    def _exact_assemble_observation_cov(self, ) -> Tensor: 
+        super().__init__()
+        """
+        Parameters are the same as for :class:`ObservationCov`.
 
+        Use :class:`bayes_dip.probabilistic_models.ExactNeuralBasisExpansion`
+        for the matmul implementation of Jacobian vector products (:meth:`jvp`) and 
+        vector Jacobian products (:meth:`vjp`). 
+        """
+
+        self.trafo = trafo 
+        self.image_cov = image_cov
+        self.device = device   
+        self.log_noise_variance = nn.Parameter(
+                torch.tensor(float(np.log(init_noise_variance)), device=self.device),
+            )            
         trafo_mat = self.trafo.matrix
-        jac_mat = self.image_cov.neural_basis_expansion.jac_matrix 
-        observation_cov_mat = (
-                self.image_cov.inner_cov(trafo_mat @ jac_mat) @ jac_mat.T @ trafo_mat.T +
+        jac_mat = self.image_cov.neural_basis_expansion.matrix 
+        self.trafo_jac_mat = trafo_mat @ jac_mat
+        self.jac_t_trafo_t_mat = jac_mat.T @ trafo_mat.T
+
+    def forward(self, v: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
+        """
+
+        batch_size = v.shape[0]
+        v = v.view(
+            batch_size, -1, self.shape[0]
+        )
+        return (v @ self.matrix).view(
+            batch_size, -1, *self.trafo.obs_shape
+            )
+    
+    @property
+    def matrix(self, ) -> Tensor:
+        """
+        Covariance in observation space assembled via explicit matmut.
+
+        Returns
+        -------
+        Tensor
+            Assembled observation covariance matrix using exact 
+            Shape: ``(np.prod(self.trafo.obs_shape),) * 2``.
+        """
+
+        matrix = (
+                self.image_cov.inner_cov(self.trafo_jac_mat) @ self.jac_t_trafo_t_mat +
                 self.log_noise_variance.exp() * torch.eye(self.shape[0], device=self.device)
             )
-        return observation_cov_mat
-            
+        return matrix
+
+    @property
+    def shape(self) -> Tuple[int, int]:
+        return (np.prod(self.trafo.obs_shape),) * 2

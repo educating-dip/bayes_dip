@@ -1,4 +1,4 @@
-"""Provides :class:`ObservationCov`"""
+"""Provides :class:`LowRankObservationCov`"""
 from typing import Optional
 from math import ceil
 import torch

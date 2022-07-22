@@ -9,4 +9,5 @@ from .linearized_dip import (
         )
 from .base_image_cov import BaseImageCov
 from .linear_sandwich_cov import LinearSandwichCov
+from .base_observation_cov import BaseObservationCov
 from .observation_cov import ObservationCov, ExactObservationCov

@@ -1,10 +1,13 @@
+"""Provides :class:`ParameterCov`"""
 from typing import Dict, Tuple, List, Callable
-import numpy as np
 import torch
 from torch import nn, Tensor
 from bayes_dip.utils import get_modules_by_names
 
 class ParameterCov(nn.Module):
+    """
+    Covariance in parameter space.
+    """
 
     def __init__(
         self,

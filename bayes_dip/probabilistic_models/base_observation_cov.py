@@ -1,11 +1,11 @@
-"""Provides :class:`BaseImageCov`"""
+"""Provides :class:`BaseObservationCov`"""
 from typing import Tuple
 from abc import ABC, abstractmethod
 from torch import Tensor, nn
 
-class BaseImageCov(nn.Module, ABC):
+class BaseObservationCov(nn.Module, ABC):
     """
-    Base class for covariance in image space.
+    Base class for covariance in observation space.
     """
 
     @abstractmethod
@@ -15,13 +15,6 @@ class BaseImageCov(nn.Module, ABC):
 
         raise NotImplementedError
     
-    @abstractmethod
-    def sample(self,
-            num_samples: int
-            ) -> Tensor:
-
-        raise NotImplementedError
-
     @property
     @abstractmethod
     def shape(self,

@@ -92,7 +92,6 @@ def coordinator(cfg : DictConfig) -> None:
                 image_cov=image_cov,
                 device=device
         )
-  
         marglik_optim_kwargs = {
                 'iterations': 2000, 
                 'lr': 0.01,
