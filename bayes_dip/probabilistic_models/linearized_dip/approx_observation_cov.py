@@ -13,6 +13,15 @@ from ..observation_cov import ObservationCov
 
 class LowRankObservationCov(ObservationCov):
 
+    """
+    Covariance in observation space using low-rank matrix approximation.
+    This class is based Halko et al. ``Finding Structure with Randomness: 
+    probabilistic algorithms for constructing approximate matrix decompositions``
+    (https://epubs.siam.org/doi/epdf/10.1137/090771806). 
+    This class (``:meth:get_batched_low_rank_observation_cov_basis``) uses randomization 
+    (``:meth:_assemble_random_matrix``) to perform low-rank matrix approximation. 
+    """
+
     def __init__(self,
         trafo: BaseRayTrafo,
         image_cov: BaseImageCov,
@@ -23,11 +32,6 @@ class LowRankObservationCov(ObservationCov):
         load_approx_basis_from: Optional['str'] = None,
         device=None,
         ) -> None:
-        """
-        Parameters
-        ----------
-        TODO
-        """
 
         super().__init__(trafo=trafo,
             image_cov=image_cov,
@@ -64,6 +68,30 @@ class LowRankObservationCov(ObservationCov):
         use_cpu: bool = False,
         eps: float = 1e-3,
         ):
+
+        """
+        Eigenvalue Decomposition in One Pass. 
+
+        This method implements Algo. 5.6 from Halko et al. and computes an 
+        approximate eigenvalue decomposition of the low-rank term of 
+        covariance in observation space.
+
+        Parameters
+        ----------
+        use_cpu : bool, optional
+            Whether to compute QR on CPU.
+            The default is `False`.
+        eps : float, optional
+            Minumum value eigenvalues. 
+            The default is 1e-3. 
+
+        Returns
+        -------
+        U : Tensor
+            Output. Shape: ``(np.prod(self.trafo.obs_shape), self.low_rank_rank_dim)``
+        L : Tensor
+            Output. Shape: ``(self.low_rank_rank_dim)``
+        """
         
         num_batches = ceil((self.low_rank_rank_dim + self.oversampling_param ) / self.vec_batch_size)
         v_cov_obs_mat = []
