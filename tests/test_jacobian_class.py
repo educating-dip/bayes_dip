@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 from bayes_dip.utils import get_params_from_nn_module
 from bayes_dip.dip import UNet
-from bayes_dip.probabilistic_models import NeuralBasisExpansion, ApproxNeuralBasisExpansion
+from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion
 
 class DummyNetwork(nn.Module):
     def __init__(self, device) -> None:
@@ -77,7 +77,7 @@ print(out.shape)
 print(out.requires_grad)
 out.sum().backward()
 
-approx_neural_basis_expansion = ApproxNeuralBasisExpansion(
+approx_neural_basis_expansion = LowRankNeuralBasisExpansion(
     neural_basis_expansion=neural_basis_expansion,
     vec_batch_size=1,
     oversampling_param=5,
