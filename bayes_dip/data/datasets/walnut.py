@@ -1,11 +1,12 @@
 """
 Provides walnut projection data and ground truth.
 """
+from math import ceil
 import torch
 from torch import Tensor
 from bayes_dip.data.walnut_utils import (
         get_projection_data, get_single_slice_ray_trafo,
-        get_single_slice_ind, get_ground_truth)
+        get_single_slice_ind, get_ground_truth, VOL_SZ)
 
 
 DEFAULT_WALNUT_SCALING_FACTOR = 14.
@@ -98,3 +99,25 @@ def get_walnut_2d_ground_truth(
         ground_truth *= scaling_factor
 
     return torch.from_numpy(ground_truth)[None]  # add channel dim
+
+
+INNER_PART_START_0 = 72
+INNER_PART_START_1 = 72
+INNER_PART_END_0 = 424
+INNER_PART_END_1 = 424
+
+def get_walnut_2d_inner_patch_indices(patch_size):
+
+    num_patches_0 = VOL_SZ[1] // patch_size
+    num_patches_1 = VOL_SZ[2] // patch_size
+    start_patch_0 = INNER_PART_START_0 // patch_size
+    start_patch_1 = INNER_PART_START_1 // patch_size
+    end_patch_0 = ceil(INNER_PART_END_0 / patch_size)
+    end_patch_1 = ceil(INNER_PART_END_1 / patch_size)
+
+    patch_idx_list = [
+        patch_idx for patch_idx in range(num_patches_0 * num_patches_1)
+        if patch_idx % num_patches_0 in range(start_patch_0, end_patch_0) and
+        patch_idx // num_patches_0 in range(start_patch_1, end_patch_1)]
+
+    return patch_idx_list

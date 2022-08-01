@@ -1,0 +1,15 @@
+iterations: 1000
+lr: 0.01
+num_probes: 50
+linear_cg:
+  max_iter: 150
+  rtol: 1e-1
+  update_freq: 100
+min_log_variance: -4.5
+include_predcp: True
+linearize_weights:
+  iterations: 1500
+  lr: 1e-4
+  wd: 1e-6
+  simplified_eqn: False
+use_linearized_weights: False

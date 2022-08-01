@@ -4,7 +4,7 @@ import torch
 from torch import nn
 import numpy as np
 
-from bayes_dip.utils.utils import eval_mode
+from bayes_dip.utils import eval_mode
 from ..utils import get_inds_from_ordered_params, get_slices_from_ordered_params
 
 

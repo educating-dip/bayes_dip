@@ -105,6 +105,14 @@ class UNet(nn.Module):
         return out
 
 
+class UNetReturnPreSigmoid(nn.Module):
+    def __init__(self, unet: UNet):
+        self.unet = unet
+
+    def forward(self, x: Tensor) -> Tensor:
+        self.unet(x, return_pre_sigmoid=True)
+
+
 class DownBlock(nn.Module):
     """
     Down-sampling block.

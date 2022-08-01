@@ -1,10 +1,12 @@
-from typing import List
+from typing import List, Optional, Callable
 import os
 from functools import reduce
 import numpy as np
 from skimage.metrics import structural_similarity
 import torch
 from torch import nn
+from torch import Tensor
+from .linear_cg_gpytorch import linear_cg
 try:
     import hydra.utils
     HYDRA_AVAILABLE = True
@@ -82,6 +84,29 @@ def normalize(x, inplace=False):
         x = x - x.min()
         x = x / x.max()
     return x
+
+def cg(
+        closure: Callable,
+        v: Tensor,
+        precon_closure: Optional[Callable] = None,
+        max_niter: int = 10,
+        rtol: float = 1e-6,
+        ignore_numerical_warning: bool = False,
+        ) -> Tensor:
+
+    if ignore_numerical_warning:
+        raise NotImplementedError
+
+    v_norm = torch.norm(v, 2, dim=0, keepdim=True)
+    v_scaled = v.div(v_norm)
+
+    scaled_solve, residual_norm = linear_cg(closure, v_scaled, n_tridiag=0, tolerance=rtol,
+                eps=1e-10, stop_updating_after=1e-10, max_iter=max_niter,
+                max_tridiag_iter=max_niter-1, preconditioner=precon_closure,
+            )
+
+    solve = scaled_solve * v_norm
+    return solve, residual_norm
 
 # adapted from python 3.10's bisect module
 def bisect_left(a, x, lo=0, hi=None, *, key=None):

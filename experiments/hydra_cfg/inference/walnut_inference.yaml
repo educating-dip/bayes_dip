@@ -1,0 +1,4 @@
+load_path: null
+use_conj_grad_inv: False
+patch_size: 1
+patch_idx_list: null

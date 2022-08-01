@@ -1,4 +1,4 @@
 """
 Provides network architectures.
 """
-from .unet import UNet
+from .unet import UNet, UNetReturnPreSigmoid

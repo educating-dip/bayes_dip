@@ -1,7 +1,7 @@
 from typing import Callable, Dict, Tuple
 import functools
 import functorch as ftch
-import torch 
+import torch
 from torch import Tensor
 import torch.autograd as autograd
 
@@ -17,7 +17,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
     (:meth:`vjp`) via functorch. Both methods support autograd.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, functional_forward_kwargs=None, **kwargs) -> None:
         """
         Parameters are the same as for :class:`BaseNeuralBasisExpansion`.
         """
@@ -25,7 +25,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         super().__init__(*args, **kwargs)
 
         self.func_model_with_input, self.func_params = ftch.make_functional(self.nn_model)
-        self._functional_forward_kwargs = {}
+        self.functional_forward_kwargs = functional_forward_kwargs or {}
 
         _single_jvp_fun_with_out = self._get_single_jvp_fun(return_out=True)
         _single_jvp_fun = self._get_single_jvp_fun(return_out=False)
@@ -41,15 +41,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         self._jvp = CustomAutogradModule(jvp, vjp)
         self._vjp = CustomAutogradModule(vjp, jvp)
-    
-    @property 
-    def functional_forward_kwargs(self, ) -> Dict: 
-        return self._functional_forward_kwargs
 
-    @functional_forward_kwargs.setter
-    def functional_forward_kwargs(self, kwargs: Dict) -> Dict: 
-        self._functional_forward_kwargs = kwargs
-    
     def _func_model(self, func_params) -> Callable:
         """
         Closure that hardcodes the input `nn_input`, leaving only a function of the NN weights.
@@ -137,7 +129,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         """
         return self._vjp(v)
 
-class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion): 
+class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -175,7 +167,7 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
             Output. Shape: ``(batch_size, self.num_params)``
         """
         return v.view(v.shape[0], -1) @ self.matrix
-    
+
     @property
     @functools.lru_cache()
     def matrix(self, ) -> Tensor:
@@ -190,7 +182,7 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
                     inds_from_ordered_params, func_params_under_prior):
                 func_params[i] = func_param
             return self.func_model_with_input(func_params, self.nn_input)
-        
+
         matrix = autograd.functional.jacobian(
             _func_model, tuple(self.ordered_nn_params)
             )
@@ -198,8 +190,8 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
             [jac_i.view(self.nn_input.numel(), -1) for jac_i in matrix], dim=1
             )
 
-        return matrix 
+        return matrix
 
     @property
-    def shape(self, ) -> Tuple[int, int]: 
-        return tuple(self.matrix.shape) 
+    def shape(self, ) -> Tuple[int, int]:
+        return tuple(self.matrix.shape)

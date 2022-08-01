@@ -1,35 +1,10 @@
-import re
-from typing import Optional, Callable, Dict
+from typing import Dict
 import torch
 from torch import nn
 from torch import Tensor
 from ..probabilistic_models import ObservationCov, LinearSandwichCov
 from .random_probes import generate_probes_bernoulli
-from .linear_cg_gpytorch import linear_cg
-
-def cg(
-        observation_cov: ObservationCov,
-        v: Tensor,
-        precon_closure: Optional[Callable] = None,
-        max_niter: int = 10,
-        rtol: float = 1e-6, 
-        ignore_numerical_warning: bool = False, 
-        ) -> Tensor:
-
-    num_probes = v.shape[-1]
-    closure = lambda v: observation_cov(v.T.reshape(num_probes, 1, *observation_cov.trafo.obs_shape)
-            ).view(num_probes, observation_cov.shape[0]).T
-    
-    v_norm = torch.norm(v, 2, dim=0, keepdim=True)
-    v_scaled = v.div(v_norm)
-
-    scaled_solve, residual_norm = linear_cg(closure, v_scaled, n_tridiag=0, tolerance=rtol,
-                eps=1e-10, stop_updating_after=1e-10, max_iter=max_niter,
-                max_tridiag_iter=max_niter-1, preconditioner=precon_closure, 
-            )   
-
-    solve = scaled_solve * v_norm
-    return solve, residual_norm
+from ..utils import cg
 
 def approx_observation_cov_log_det_grads(
         observation_cov: ObservationCov,
@@ -37,7 +12,7 @@ def approx_observation_cov_log_det_grads(
         max_cg_iter: int = 50,
         cg_rtol: float = 1e-3,
         num_probes: int = 1,
-        ignore_numerical_warning: bool = True, 
+        ignore_numerical_warning: bool = False,
         ) -> Dict[nn.Parameter, Tensor]:
     """
     Estimates the gradient for the log-determinant ``0.5*log|observation_cov|`` w.r.t. its parameters
@@ -64,6 +39,9 @@ def approx_observation_cov_log_det_grads(
         device=observation_cov.device,
         jacobi_vector=None)  # (obs_numel, num_probes)
 
+    observation_cov_closure = lambda v: observation_cov(v.T.reshape(num_probes, 1, *observation_cov.trafo.obs_shape)
+            ).view(num_probes, observation_cov.shape[0]).T
+
     precon_closure = None
     if precon is not None:
         precon_closure = lambda v: precon.matmul(v.T, use_inverse=True).T
@@ -72,7 +50,7 @@ def approx_observation_cov_log_det_grads(
     ## gradients for parameters in image_cov
     with torch.no_grad():
         v_obs_left_flat, residual_norm = cg(
-                observation_cov, v_flat, precon_closure=precon_closure, max_niter=max_cg_iter, rtol=cg_rtol, 
+                observation_cov_closure, v_flat, precon_closure=precon_closure, max_niter=max_cg_iter, rtol=cg_rtol,
                 ignore_numerical_warning=ignore_numerical_warning
             )
         v_im_left_flat = trafo.trafo_adjoint_flat(v_obs_left_flat)  # (im_numel, num_probes)

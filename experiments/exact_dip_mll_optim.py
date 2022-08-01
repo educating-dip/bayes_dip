@@ -93,29 +93,28 @@ def coordinator(cfg : DictConfig) -> None:
                 device=device
         )
         marglik_optim_kwargs = {
-                'iterations': 2000, 
+                'iterations': 2000,
                 'lr': 0.01,
                 'min_log_variance': -4.5,
                 'include_predcp': False,
-                'compute_exact_logdet': True, 
                 'linearize_weights': {
-                        'iterations': 1500, 
+                        'iterations': 1500,
                         'lr': 1e-4,
-                        'wd': 1e-6, 
-                        'gamma': 1e-4, 
-                        'simplified_eqn': False, 
-                        'use_sigmoid': True, 
+                        'wd': 1e-6,
+                        'gamma': 1e-4,
+                        'simplified_eqn': False,
+                        'use_sigmoid': True,
                         }
                 }
 
         marginal_likelihood_hyperparams_optim(
                 observation_cov=observation_cov,
-                observation=observation, 
+                observation=observation,
                 recon=recon,
-                ground_truth=ground_truth, 
+                ground_truth=ground_truth,
                 use_linearized_weights=False,
-                optim_kwargs=marglik_optim_kwargs, 
-                log_path='./', 
+                optim_kwargs=marglik_optim_kwargs,
+                log_path='./',
         )
 
 
