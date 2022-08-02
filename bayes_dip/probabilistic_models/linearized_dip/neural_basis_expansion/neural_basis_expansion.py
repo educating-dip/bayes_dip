@@ -1,5 +1,4 @@
-from typing import Callable, Dict, Tuple
-import functools
+from typing import Callable
 import functorch as ftch
 import torch
 from torch import Tensor
@@ -135,6 +134,7 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
         super().__init__(*args, **kwargs)
 
         self.func_model_with_input, _ = ftch.make_functional(self.nn_model)
+        self.matrix = self.get_matrix()
 
     def jvp(self, v: Tensor) -> Tensor:
         """
@@ -168,9 +168,7 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
         """
         return v.view(v.shape[0], -1) @ self.matrix
 
-    @property
-    @functools.lru_cache()
-    def matrix(self, ) -> Tensor:
+    def get_matrix(self) -> Tensor:
 
         inds_from_ordered_params = get_inds_from_ordered_params(
             self.nn_model,
@@ -192,6 +190,5 @@ class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         return matrix
 
-    @property
-    def shape(self, ) -> Tuple[int, int]:
-        return tuple(self.matrix.shape)
+    def update_matrix(self) -> None:
+        self.matrix = self.get_matrix()
