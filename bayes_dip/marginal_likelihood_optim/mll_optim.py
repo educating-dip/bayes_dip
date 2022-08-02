@@ -11,7 +11,7 @@ import tensorboardX
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
 from .sample_based_predcp import set_sample_based_predcp_grads
 from .utils import get_ordered_nn_params_vec, get_params_list_under_GPpriors
-from ..probabilistic_models import ObservationCov, ExactObservationCov, BaseGaussPrior, GPprior, NormalPrior
+from ..probabilistic_models import ObservationCov, MatmulObservationCov, BaseGaussPrior, GPprior, NormalPrior
 
 def marginal_likelihood_hyperparams_optim(
     observation_cov: ObservationCov,
@@ -50,8 +50,8 @@ def marginal_likelihood_hyperparams_optim(
                 predcp_grads, predcp_loss = set_sample_based_predcp_grads(
                     observation_cov=observation_cov,
                     params_list_under_predcp=params_list_under_predcp,
-                    num_samples=100,
-                    scale=1.)
+                    num_samples=optim_kwargs['predcp']['num_samples'],
+                    scale=optim_kwargs['predcp']['scale'])
 
                 for param in params_list_under_predcp:
                     if param.grad is None:
@@ -61,7 +61,7 @@ def marginal_likelihood_hyperparams_optim(
             else:
                 predcp_loss = torch.zeros(1)
 
-            if isinstance(observation_cov, ExactObservationCov):
+            if isinstance(observation_cov, MatmulObservationCov):
                 sign, log_det = torch.linalg.slogdet(observation_cov.matrix)
                 assert sign > 0.
             else:
@@ -84,13 +84,13 @@ def marginal_likelihood_hyperparams_optim(
             weights_prior_norm = (observation_cov.image_cov.inner_cov(weights_vec[None], use_inverse=True) @ weights_vec[None].T)
             loss = 0.5 * (observation_error_norm + weights_prior_norm)
 
-            if isinstance(observation_cov, ExactObservationCov):
+            if isinstance(observation_cov, MatmulObservationCov):
                 loss = loss + 0.5 * log_det
 
             loss.backward()
             optimizer.step()
 
-            if not isinstance(observation_cov, ExactObservationCov):
+            if not isinstance(observation_cov, MatmulObservationCov):
                 if ((i+1) % optim_kwargs['linear_cg']['update_freq']) == 0 and (optim_kwargs['linear_cg']['preconditioner'] is not None):
                     optim_kwargs['linear_cg']['preconditioner'].update()
 
@@ -123,6 +123,6 @@ def marginal_likelihood_hyperparams_optim(
             writer.add_scalar('weights_prior_norm', weights_prior_norm.item(), i)
             writer.add_scalar('predcp', - predcp_loss.item(), i)
             writer.add_scalar('observation_noise_variance', torch.exp(observation_cov.log_noise_variance).item(), i)
-            if not isinstance(observation_cov, ExactObservationCov):
+            if not isinstance(observation_cov, MatmulObservationCov):
                 writer.add_scalar('log_det_grad_cg_mean_residual', log_det_residual_norm.mean().item(), i)
 

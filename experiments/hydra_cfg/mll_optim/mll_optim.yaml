@@ -7,9 +7,16 @@ linear_cg:
   update_freq: 100
 min_log_variance: -4.5
 include_predcp: True
+predcp:
+  num_samples: 100
+  scale: 1.
 linearize_weights:
   iterations: 1500
   lr: 1e-4
   wd: 1e-6
   simplified_eqn: False
 use_linearized_weights: False
+preconditioner:
+  low_rank_rank_dim: 200
+  oversampling_param: 5
+  vec_batch_size: 1

@@ -36,7 +36,9 @@ def get_image_patch_mask_inds(image_shape, patch_size, flatten=True):
     return patch_mask_inds
 
 def yield_padded_batched_images_patches(images, patch_size, patch_idx_list=None, batch_size=1, return_patch_numels=False):
-    all_patch_mask_inds = get_image_patch_mask_inds(images.shape[1:], patch_size=patch_size, flatten=True)
+    assert images.shape[1] == 1
+    assert images.ndim == 4
+    all_patch_mask_inds = get_image_patch_mask_inds(tuple(images.shape[2:]), patch_size=patch_size, flatten=True)
     if patch_idx_list is None:
         patch_idx_list = list(range(len(all_patch_mask_inds)))
     for j in range(0, len(patch_idx_list), batch_size):

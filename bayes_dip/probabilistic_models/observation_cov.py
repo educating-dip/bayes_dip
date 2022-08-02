@@ -1,4 +1,4 @@
-"""Provides :class:`ObservationCov` and :class:`ExactObservationCov`"""
+"""Provides :class:`ObservationCov` and :class:`MatmulObservationCov`"""
 from typing import Optional
 from functools import lru_cache
 import torch
@@ -79,12 +79,11 @@ class ObservationCov(BaseObservationCov):
             Assembled matrix. Shape: ``(np.prod(self.trafo.obs_shape),) * 2``.
         """
 
-        obs_shape = (1, 1,) + self.trafo.obs_shape
-        obs_numel = np.prod(obs_shape)
+        obs_numel = np.prod(self.trafo.obs_shape)
         if sub_slice_batches is None:
             sub_slice_batches = slice(None)
         rows = []
-        v = torch.empty((vec_batch_size,) + obs_shape, device=self.device)
+        v = torch.empty((vec_batch_size, 1, *self.trafo.obs_shape), device=self.device)
 
         for i in tqdm(np.array(range(0, obs_numel, vec_batch_size))[sub_slice_batches],
                     desc='get_prior_cov_obs_mat', miniters=obs_numel//vec_batch_size//100
@@ -194,11 +193,11 @@ class ObservationCov(BaseObservationCov):
         return observation_cov_mat_eps
 
 
-class ExactObservationCov(BaseObservationCov):
+class MatmulObservationCov(BaseObservationCov):
     """
     Covariance in observation space computed with assembled Jacobian matrix.
 
-    Use :class:`bayes_dip.probabilistic_models.ExactNeuralBasisExpansion`
+    Use :class:`bayes_dip.probabilistic_models.MatmulNeuralBasisExpansion`
     for the matmul implementation of Jacobian vector products (:meth:`jvp`) and
     vector Jacobian products (:meth:`vjp`).
     """

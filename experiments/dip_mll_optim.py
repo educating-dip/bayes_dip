@@ -1,7 +1,7 @@
 import os
 from itertools import islice
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import torch
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
@@ -127,9 +127,9 @@ def coordinator(cfg : DictConfig) -> None:
         low_rank_observation_cov = LowRankObservationCov(
                 trafo=ray_trafo,
                 image_cov=image_cov,
-                low_rank_rank_dim=200,
-                oversampling_param=5,
-                vec_batch_size=1,
+                low_rank_rank_dim=cfg.mll_optim.preconditioner.low_rank_rank_dim,
+                oversampling_param=cfg.mll_optim.preconditioner.oversampling_param,
+                vec_batch_size=cfg.mll_optim.preconditioner.vec_batch_size,
                 device=device
         )
         low_rank_preconditioner = LowRankPreC(
@@ -147,6 +147,7 @@ def coordinator(cfg : DictConfig) -> None:
                 },
                 'min_log_variance': cfg.mll_optim.min_log_variance,
                 'include_predcp': cfg.mll_optim.include_predcp,
+                'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
                 }
         marginal_likelihood_hyperparams_optim(
                 observation_cov=observation_cov,

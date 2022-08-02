@@ -1,4 +1,28 @@
 load_path: null
-use_conj_grad_inv: False
+use_low_rank_neural_basis_expansion: False
+low_rank_neural_basis_expansion:
+  low_rank_rank_dim: 500
+  oversampling_param: 5
+  batch_size: 1
+  use_cpu: True
 patch_size: 1
 patch_idx_list: null
+num_samples: 10000
+save_samples: False
+batch_size: 1
+verbose: True
+cov_obs_mat:
+  eps_mode: auto_rel_mean_diag
+  eps: 0.001
+  eps_min_for_auto: 1e-6
+  include_zero_for_auto: True
+  low_rank_rank_dim: 200
+  oversampling_param: 5
+  batch_size: 1
+sampling:
+  vec_batch_size: 1
+  use_conj_grad_inv: False
+  cg_kwargs:
+    rtol: 1e-1
+    max_niter: 50
+    ignore_numerical_warning: False

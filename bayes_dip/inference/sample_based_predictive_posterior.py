@@ -53,8 +53,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         vec_batch_size: int = 1,
         use_conj_grad_inv: bool = False,
         cg_kwargs: Optional[Dict] = None,
+        return_residual_norm_list: bool = False,
         ) -> Tensor:
-        device = self.observation_cov.device
 
         num_batches = ceil(num_samples / vec_batch_size)
         image_samples_list = []
@@ -63,7 +63,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         with torch.no_grad():
             for _ in tqdm(range(num_batches), desc='sample_via_matheron', miniters=num_batches//100):
                 x_samples = self.observation_cov.image_cov.sample(
-                    num_samples=num_samples,
+                    num_samples=vec_batch_size,
                     return_weight_samples=False
                     )
                 observation_samples = self.observation_cov.trafo(x_samples)
@@ -90,27 +90,29 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                     residual_norm_list.append(residual_norm)
                     inv_obs_diff = inv_obs_diff_T.T
 
-                inv_diff = self.observation_cov.trafo(inv_obs_diff.view(vec_batch_size, *observation.shape[1:]))
-                delta_x = self.observation_cov.image_cov(
-                    inv_diff.view(vec_batch_size, -1)
-                )
-                image_samples_list.append((x_samples + delta_x.view(vec_batch_size, *x_samples.shape[1:])).detach().to(device))
+                inv_diff = self.observation_cov.trafo.trafo_adjoint(inv_obs_diff.view(vec_batch_size, *observation.shape[1:]))
+                delta_x = self.observation_cov.image_cov(inv_diff)
+                image_samples_list.append(x_samples + delta_x)
             image_samples = torch.cat(image_samples_list, axis=0)
 
-        return image_samples if not use_conj_grad_inv else (image_samples, residual_norm_list)
+        return image_samples if not (use_conj_grad_inv and return_residual_norm_list) else (image_samples, residual_norm_list)
 
     # TODO document, esp. padding with 1. diagonal elements in return value
     def yield_covariances_patches(self,
-            observation: Tensor, num_samples: int,
-            patch_size: int = 1,
+            observation: Tensor,
+            num_samples: Optional[int] = 10000,
             samples: Tensor = None,
+            patch_size: int = 1,
             cov_obs_mat_chol: Optional[Tensor] = None,
             patch_idx_list: List[int] = None,
             batch_size: int = 1,
-            noise_x_correction_term: float = 1e-6) -> Tensor:
+            noise_x_correction_term: float = 1e-6,
+            sample_kwargs: Optional[Dict] = None) -> Tensor:
 
         if samples is None:
-            samples = self.sample(observation, num_samples, cov_obs_mat_chol=cov_obs_mat_chol)
+            sample_kwargs = sample_kwargs or {}
+            samples = self.sample(observation, num_samples, cov_obs_mat_chol=cov_obs_mat_chol,
+                    **sample_kwargs)
         for batch_patch_inds, batch_samples_patches, batch_len_mask_inds in yield_padded_batched_images_patches(
                 samples, patch_size=patch_size, patch_idx_list=patch_idx_list, batch_size=batch_size, return_patch_numels=True):
 
@@ -148,28 +150,33 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             return sum_log_prob / total_num_pixels_in_patches
 
     def log_prob_patches(self,
-            observation: Tensor, num_samples: int,
+            observation: Tensor,
             recon: Tensor,
             ground_truth: Tensor,
-            patch_size: int = 1,
+            num_samples: Optional[int] = 10000,
             samples: Tensor = None,
+            patch_size: int = 1,
             cov_obs_mat_chol: Optional[Tensor] = None,
             patch_idx_list: List[int] = None,
             batch_size: int = 1,
             noise_x_correction_term: float = 1e-6,
             verbose: bool = True,
             unscaled: bool = False,
-            return_patch_diags: bool = False) -> Tensor:
+            return_patch_diags: bool = False,
+            sample_kwargs: Optional[Dict] = None) -> Tensor:
 
         if samples is None:
-            samples = self.sample(observation, num_samples, cov_obs_mat_chol=cov_obs_mat_chol)
+            sample_kwargs = sample_kwargs or {}
+            samples = self.sample(observation, num_samples, cov_obs_mat_chol=cov_obs_mat_chol,
+                    **sample_kwargs)
         log_probs = []
         patch_diags = []
         all_patch_mask_inds = get_image_patch_mask_inds(
                 self.observation_cov.trafo.im_shape, patch_size=patch_size, flatten=True)
         for batch_patch_inds, batch_predictive_cov_image_patch, batch_len_mask_inds in self.yield_covariances_patches(
                 observation=observation,
-                patch_size=patch_size, samples=samples,
+                samples=samples,
+                patch_size=patch_size,
                 cov_obs_mat_chol=cov_obs_mat_chol,
                 patch_idx_list=patch_idx_list,
                 batch_size=batch_size,
@@ -203,7 +210,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                 log_probs += batch_patch_log_prob_unscaled.tolist()
             else:
                 batch_len_mask_inds = [len(all_patch_mask_inds[patch_idx]) for patch_idx in batch_patch_inds]
-                batch_patch_log_prob = batch_patch_log_prob_unscaled / np.asarray(batch_len_mask_inds)
+                batch_patch_log_prob = batch_patch_log_prob_unscaled / torch.tensor(
+                        batch_len_mask_inds, device=batch_patch_log_prob_unscaled.device)
                 log_probs += batch_patch_log_prob.tolist()
 
         return (log_probs, patch_diags) if return_patch_diags else log_probs

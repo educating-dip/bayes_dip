@@ -128,7 +128,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         """
         return self._vjp(v)
 
-class ExactNeuralBasisExpansion(BaseNeuralBasisExpansion):
+class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

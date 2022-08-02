@@ -77,7 +77,7 @@ print(out.shape)
 print(out.requires_grad)
 out.sum().backward()
 
-approx_neural_basis_expansion = LowRankNeuralBasisExpansion(
+low_rank_neural_basis_expansion = LowRankNeuralBasisExpansion(
     neural_basis_expansion=neural_basis_expansion,
     vec_batch_size=1,
     oversampling_param=5,
@@ -85,5 +85,5 @@ approx_neural_basis_expansion = LowRankNeuralBasisExpansion(
     device=device,
     use_cpu=True)
 
-print(approx_neural_basis_expansion.vjp(v_out).shape)
-print(approx_neural_basis_expansion.jvp(v_params).shape)
+print(low_rank_neural_basis_expansion.vjp(v_out).shape)
+print(low_rank_neural_basis_expansion.jvp(v_params).shape)

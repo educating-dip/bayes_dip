@@ -1,13 +1,13 @@
 from itertools import islice
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import torch
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
-from bayes_dip.probabilistic_models import ExactNeuralBasisExpansion, ParameterCov, ImageCov, ExactObservationCov
+from bayes_dip.probabilistic_models import MatmulNeuralBasisExpansion, ParameterCov, ImageCov, MatmulObservationCov
 from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim
 
 @hydra.main(config_path='hydra_cfg', config_name='config')
@@ -77,7 +77,7 @@ def coordinator(cfg : DictConfig) -> None:
                 hyperparams_init_dict,
                 device=device
         )
-        exact_neural_basis_expansion = ExactNeuralBasisExpansion(
+        matmul_neural_basis_expansion = MatmulNeuralBasisExpansion(
                 nn_model=reconstructor.nn_model,
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
@@ -85,9 +85,9 @@ def coordinator(cfg : DictConfig) -> None:
         )
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
-                neural_basis_expansion=exact_neural_basis_expansion
+                neural_basis_expansion=matmul_neural_basis_expansion
         )
-        observation_cov = ExactObservationCov(
+        matmul_observation_cov = MatmulObservationCov(
                 trafo=ray_trafo,
                 image_cov=image_cov,
                 device=device
@@ -97,6 +97,7 @@ def coordinator(cfg : DictConfig) -> None:
                 'lr': 0.01,
                 'min_log_variance': -4.5,
                 'include_predcp': False,
+                'predcp': OmegaConf.to_object(cfg.mll_optim.predcp),
                 'linearize_weights': {
                         'iterations': 1500,
                         'lr': 1e-4,
@@ -108,7 +109,7 @@ def coordinator(cfg : DictConfig) -> None:
                 }
 
         marginal_likelihood_hyperparams_optim(
-                observation_cov=observation_cov,
+                observation_cov=matmul_observation_cov,
                 observation=observation,
                 recon=recon,
                 ground_truth=ground_truth,
