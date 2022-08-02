@@ -106,11 +106,19 @@ class UNet(nn.Module):
 
 
 class UNetReturnPreSigmoid(nn.Module):
+    """
+    Same as UNet, but always passing ``return_pre_sigmoid=True`` and defaulting to
+    ``saturation_safety=False`` in ``UNet.forward``.
+    """
     def __init__(self, unet: UNet):
+        super().__init__()
         self.unet = unet
 
-    def forward(self, x: Tensor) -> Tensor:
-        self.unet(x, return_pre_sigmoid=True)
+    def forward(self,
+            x: Tensor,
+            saturation_safety: bool = False) -> Tensor:
+
+        return self.unet(x, saturation_safety=saturation_safety, return_pre_sigmoid=True)
 
 
 class DownBlock(nn.Module):

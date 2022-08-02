@@ -10,11 +10,11 @@ include_predcp: True
 predcp:
   num_samples: 100
   scale: 1.
-linearize_weights:
-  iterations: 1500
+weights_linearization:
+  iterations: 5000
   lr: 1e-4
   wd: 1e-6
-  simplified_eqn: False
+  simplified_eqn: True
 use_linearized_weights: False
 preconditioner:
   low_rank_rank_dim: 200

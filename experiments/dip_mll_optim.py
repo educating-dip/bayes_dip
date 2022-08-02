@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
-from bayes_dip.dip import DeepImagePriorReconstructor, UNetReturnPreSigmoid
+from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov
 from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, LowRankPreC, weights_linearization, get_ordered_nn_params_vec
@@ -54,20 +54,28 @@ def coordinator(cfg : DictConfig) -> None:
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs)
-        optim_kwargs = {
-                'lr': cfg.dip.optim.lr,
-                'iterations': cfg.dip.optim.iterations,
-                'loss_function': cfg.dip.optim.loss_function,
-                'gamma': cfg.dip.optim.gamma}
-        recon = reconstructor.reconstruct(
-                observation,
-                filtbackproj=filtbackproj,
-                ground_truth=ground_truth,
-                recon_from_randn=cfg.dip.recon_from_randn,
-                log_path=cfg.dip.log_path,
-                optim_kwargs=optim_kwargs)
+        if cfg.dip.load_params_from_path is None:
+            optim_kwargs = {
+                    'lr': cfg.dip.optim.lr,
+                    'iterations': cfg.dip.optim.iterations,
+                    'loss_function': cfg.dip.optim.loss_function,
+                    'gamma': cfg.dip.optim.gamma}
+            recon = reconstructor.reconstruct(
+                    observation,
+                    filtbackproj=filtbackproj,
+                    ground_truth=ground_truth,
+                    recon_from_randn=cfg.dip.recon_from_randn,
+                    log_path=cfg.dip.log_path,
+                    optim_kwargs=optim_kwargs)
+        else:
+            reconstructor.nn_model.load_state_dict(
+                    torch.load(os.path.join(cfg.dip.load_params_from_path, f'dip_model_{i}.pt')))
+            recon = reconstructor.nn_model(filtbackproj).detach()
         torch.save(reconstructor.nn_model.state_dict(),
                 f'dip_model_{i}.pt')
+        torch.save(recon.cpu(),
+                f'recon_{i}.pt'
+        )
 
         print(f'DIP reconstruction of sample {i}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
@@ -98,31 +106,22 @@ def coordinator(cfg : DictConfig) -> None:
         )
         linearized_weights = None
         if cfg.mll_optim.use_linearized_weights:
-            linearize_weights_optim_kwargs = {
-                    'iterations': cfg.mll_optim.linearize_weights.iterations,
-                    'lr': cfg.mll_optim.linearize_weights.lr,
-                    'wd': cfg.mll_optim.linearize_weights.wd,
-                    'gamma': cfg.dip.optim.gamma,
-                    'simplified_eqn': cfg.mll_optim.linearize_weights.simplified_eqn,
-                    'use_sigmoid': cfg.dip.net.use_sigmoid,
-                    }
-            neural_basis_expansion_no_sigmoid = neural_basis_expansion
-            if cfg.dip.net.use_sigmoid:
-                nn_model_no_sigmoid = UNetReturnPreSigmoid(reconstructor.nn_model)
-                neural_basis_expansion_no_sigmoid = NeuralBasisExpansion(
-                        nn_model=nn_model_no_sigmoid,
-                        nn_input=filtbackproj,
-                        ordered_nn_params=parameter_cov.ordered_nn_params,
-                        nn_out_shape=filtbackproj.shape,
-                )
+            weights_linearization_optim_kwargs = OmegaConf.to_object(cfg.mll_optim.weights_linearization)
+            weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
             map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
-            linearized_weights = weights_linearization(
+            linearized_weights, lin_recon = weights_linearization(
                 trafo=ray_trafo,
-                neural_basis_expansion=neural_basis_expansion_no_sigmoid,
+                neural_basis_expansion=neural_basis_expansion,
                 map_weights=map_weights,
                 observation=observation,
                 ground_truth=ground_truth,
-                optim_kwargs=linearize_weights_optim_kwargs,
+                optim_kwargs=weights_linearization_optim_kwargs,
+            )
+            torch.save(linearized_weights,
+                    f'lin_weights_{i}.pt'
+            )
+            torch.save(lin_recon.cpu(),
+                    f'lin_recon_{i}.pt'
             )
         low_rank_observation_cov = LowRankObservationCov(
                 trafo=ray_trafo,

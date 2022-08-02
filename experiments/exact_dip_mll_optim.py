@@ -1,14 +1,15 @@
 from itertools import islice
+import os
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
-from bayes_dip.dip import DeepImagePriorReconstructor
+from bayes_dip.dip import DeepImagePriorReconstructor, UNetReturnPreSigmoid
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import MatmulNeuralBasisExpansion, ParameterCov, ImageCov, MatmulObservationCov
-from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim
+from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, weights_linearization, get_ordered_nn_params_vec
 
 @hydra.main(config_path='hydra_cfg', config_name='config')
 def coordinator(cfg : DictConfig) -> None:
@@ -50,20 +51,28 @@ def coordinator(cfg : DictConfig) -> None:
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs)
-        optim_kwargs = {
-                'lr': cfg.dip.optim.lr,
-                'iterations': cfg.dip.optim.iterations,
-                'loss_function': cfg.dip.optim.loss_function,
-                'gamma': cfg.dip.optim.gamma}
-        recon = reconstructor.reconstruct(
-                observation,
-                filtbackproj=filtbackproj,
-                ground_truth=ground_truth,
-                recon_from_randn=cfg.dip.recon_from_randn,
-                log_path=cfg.dip.log_path,
-                optim_kwargs=optim_kwargs)
+        if cfg.dip.load_params_from_path is None:
+            optim_kwargs = {
+                    'lr': cfg.dip.optim.lr,
+                    'iterations': cfg.dip.optim.iterations,
+                    'loss_function': cfg.dip.optim.loss_function,
+                    'gamma': cfg.dip.optim.gamma}
+            recon = reconstructor.reconstruct(
+                    observation,
+                    filtbackproj=filtbackproj,
+                    ground_truth=ground_truth,
+                    recon_from_randn=cfg.dip.recon_from_randn,
+                    log_path=cfg.dip.log_path,
+                    optim_kwargs=optim_kwargs)
+        else:
+            reconstructor.nn_model.load_state_dict(
+                    torch.load(os.path.join(cfg.dip.load_params_from_path, f'dip_model_{i}.pt')))
+            recon = reconstructor.nn_model(filtbackproj).detach()
         torch.save(reconstructor.nn_model.state_dict(),
-                './dip_model_{}.pt'.format(i))
+                f'dip_model_{i}.pt')
+        torch.save(recon.cpu(),
+                f'recon_{i}.pt'
+        )
 
         print('DIP reconstruction of sample {:d}'.format(i))
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
@@ -92,31 +101,44 @@ def coordinator(cfg : DictConfig) -> None:
                 image_cov=image_cov,
                 device=device
         )
+        linearized_weights = None
+        if cfg.mll_optim.use_linearized_weights:
+            weights_linearization_optim_kwargs = OmegaConf.to_object(cfg.mll_optim.weights_linearization)
+            weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
+            map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
+            linearized_weights, lin_recon = weights_linearization(
+                trafo=ray_trafo,
+                neural_basis_expansion=matmul_neural_basis_expansion,
+                map_weights=map_weights,
+                observation=observation,
+                ground_truth=ground_truth,
+                optim_kwargs=weights_linearization_optim_kwargs,
+            )
+            torch.save(linearized_weights,
+                    f'lin_weights_{i}.pt'
+            )
+            torch.save(lin_recon.cpu(),
+                    f'lin_recon_{i}.pt'
+            )
         marglik_optim_kwargs = {
-                'iterations': 2000,
-                'lr': 0.01,
-                'min_log_variance': -4.5,
-                'include_predcp': False,
-                'predcp': OmegaConf.to_object(cfg.mll_optim.predcp),
-                'linearize_weights': {
-                        'iterations': 1500,
-                        'lr': 1e-4,
-                        'wd': 1e-6,
-                        'gamma': 1e-4,
-                        'simplified_eqn': False,
-                        'use_sigmoid': True,
-                        }
+                'iterations': cfg.mll_optim.iterations,
+                'lr': cfg.mll_optim.lr,
+                'min_log_variance': cfg.mll_optim.min_log_variance,
+                'include_predcp': cfg.mll_optim.include_predcp,
+                'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
                 }
 
         marginal_likelihood_hyperparams_optim(
                 observation_cov=matmul_observation_cov,
                 observation=observation,
                 recon=recon,
-                ground_truth=ground_truth,
-                use_linearized_weights=False,
+                linearized_weights=linearized_weights,
                 optim_kwargs=marglik_optim_kwargs,
                 log_path='./',
         )
+        torch.save(
+                matmul_observation_cov.state_dict(),
+                f'observation_cov_{i}.pt')
 
 
 if __name__ == '__main__':
