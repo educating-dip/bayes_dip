@@ -50,7 +50,8 @@ def coordinator(cfg : DictConfig) -> None:
                 'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
-                device=device, net_kwargs=net_kwargs)
+                device=device, net_kwargs=net_kwargs,
+                load_params_path=cfg.dip.load_learned_params_from_path)
         if cfg.dip.load_params_from_path is None:
             optim_kwargs = {
                     'lr': cfg.dip.optim.lr,

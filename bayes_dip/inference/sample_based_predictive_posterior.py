@@ -1,5 +1,3 @@
-from importlib.resources import path
-from tabnanny import verbose
 from typing import Optional, Dict, List
 from math import ceil
 import numpy as np
@@ -7,7 +5,6 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 from bayes_dip.inference.utils import is_invalid
-from tests.test_observation_log_det_grads import observation_cov
 from .base_predictive_posterior import BasePredictivePosterior
 from .utils import yield_padded_batched_images_patches, get_image_patch_mask_inds, is_invalid
 from ..utils import cg

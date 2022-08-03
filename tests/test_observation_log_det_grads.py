@@ -105,7 +105,7 @@ def test_approx_observation_log_det_grads_with_preconditioner(observation_cov):
     low_rank_observation_cov = LowRankObservationCov(
                 trafo=observation_cov.trafo,
                 image_cov=observation_cov.image_cov,
-                low_rank_rank_dim=200, 
+                low_rank_rank_dim=200,
                 oversampling_param=5,
                 vec_batch_size=1,
                 device=observation_cov.device

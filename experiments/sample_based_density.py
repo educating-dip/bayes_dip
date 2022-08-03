@@ -59,9 +59,8 @@ def coordinator(cfg : DictConfig) -> None:
                 'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
-                device=device, net_kwargs=net_kwargs)
-        reconstructor.nn_model.load_state_dict(
-                torch.load(os.path.join(cfg.inference.load_path, 'dip_model_{}.pt'.format(i))))
+                device=device, net_kwargs=net_kwargs,
+                load_params_path=os.path.join(cfg.inference.load_path, 'dip_model_{}.pt'.format(i)))
 
         with torch.no_grad(), eval_mode(reconstructor.nn_model):
             recon = reconstructor.nn_model(filtbackproj)

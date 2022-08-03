@@ -36,7 +36,8 @@ class DeepImagePriorReconstructor():
             ray_trafo: BaseRayTrafo,
             torch_manual_seed: Union[int, None] = 1,
             device=None,
-            net_kwargs=None):
+            net_kwargs=None,
+            load_params_path: Optional[str] = None):
         """
         ray_trafo : :class:`bayes_dip.data.BaseRayTrafo`
             Ray transform.
@@ -48,12 +49,18 @@ class DeepImagePriorReconstructor():
         device : str or torch.device, optional
             Device for the reconstruction.
             If `None` (the default), `cuda:0` is chosen if available or `cpu` otherwise.
+        net_kwargs : dict, optional
+            Network architecture keyword arguments.
+        load_params_path : str, optional
+            If specified, load the specified parameters instead of random initialization.
         """
 
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.ray_trafo = ray_trafo.to(self.device)
         self.net_kwargs = net_kwargs
         self.init_nn_model(torch_manual_seed)
+        if load_params_path is not None:
+            self.load_params(load_params_path)
         self.net_input = None
         self.optimizer = None
 
@@ -85,22 +92,22 @@ class DeepImagePriorReconstructor():
                 sigmoid_saturation_thresh= self.net_kwargs['sigmoid_saturation_thresh']
                 ).to(self.device)
 
-    def load_pretrain_model(self,
-            learned_params_path: str):
+    def load_params(self,
+            params_path: str):
         """
         Load model state dict from file.
 
         Parameters
         ----------
-        learned_params_path : str
+        params_path : str
             Path to the parameters, either absolute or relative to the original
             current working directory.
         """
 
         path = os.path.join(
             get_original_cwd(),
-            learned_params_path if learned_params_path.endswith('.pt') \
-                else learned_params_path + '.pt')
+            params_path if params_path.endswith('.pt') \
+                else params_path + '.pt')
         self.nn_model.load_state_dict(torch.load(path, map_location=self.device))
 
     def reconstruct(self,
