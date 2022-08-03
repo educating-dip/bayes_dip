@@ -7,7 +7,7 @@ from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standar
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
 
-@hydra.main(config_path='hydra_cfg', config_name='config')
+@hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
 
     if cfg.use_double:

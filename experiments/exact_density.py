@@ -14,7 +14,7 @@ from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import ParameterCov, ImageCov, MatmulObservationCov, MatmulNeuralBasisExpansion
 from bayes_dip.inference import ExactPredictivePosterior
 
-@hydra.main(config_path='hydra_cfg', config_name='config')
+@hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
 
     if cfg.use_double:

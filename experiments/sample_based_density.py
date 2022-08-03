@@ -16,7 +16,7 @@ from bayes_dip.marginal_likelihood_optim import LowRankPreC
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 from bayes_dip.data.datasets import get_walnut_2d_inner_patch_indices
 
-@hydra.main(config_path='hydra_cfg', config_name='config')
+@hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
 
     if cfg.use_double:

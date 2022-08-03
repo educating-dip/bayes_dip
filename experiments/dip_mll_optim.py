@@ -11,7 +11,7 @@ from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov
 from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, LowRankPreC, weights_linearization, get_ordered_nn_params_vec
 
-@hydra.main(config_path='hydra_cfg', config_name='config')
+@hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
 
     if cfg.use_double:
