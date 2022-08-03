@@ -1,3 +1,6 @@
+defaults:
+  - base_dataset
+
 name: kmnist
 im_size: 28
 noise_stddev: 0.05

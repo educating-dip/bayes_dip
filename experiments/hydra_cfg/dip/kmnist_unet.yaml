@@ -1,3 +1,6 @@
+defaults:
+  - base_unet
+
 net:
   scales: 3
   channels: [32, 32, 32]
@@ -10,9 +13,3 @@ optim:
   iterations: 10000
   loss_function: mse
   gamma: 1e-4
-show_pbar: True
-torch_manual_seed: 10
-log_path: ./
-load_pretrain_model: False
-load_params_from_path: null
-recon_from_randn: False

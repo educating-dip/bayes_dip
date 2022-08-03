@@ -1,9 +1,10 @@
 defaults:
-  - dataset: kmnist
-  - trafo: simple_trafo
-  - dip: unet
+  - dataset: ???
+  - trafo: ???
+  - dip: ???
   - mll_optim: mll_optim
-  - inference: kmnist_inference
+  - inference: ???
+  - experiment: kmnist
 seed: 1
 num_images: 1
 use_double: False

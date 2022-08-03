@@ -1,3 +1,6 @@
+defaults:
+  - base_unet
+
 net:
   scales: 6
   channels: [128, 128, 128, 128, 128, 128]
@@ -10,10 +13,6 @@ optim:
   iterations: 1500
   loss_function: mse
   gamma: 6.5e-6
-show_pbar: True
-torch_manual_seed: 10
-log_path: ./
 load_pretrain_model: True
 learned_params_path: outputs/2021-12-02/17-23-12/params/model_walnut.pt # from pretraining
 load_params_from_path: multirun/2022-01-10/13-44-18/0/dip_model_0.pt # spec. to obs.
-recon_from_randn: False

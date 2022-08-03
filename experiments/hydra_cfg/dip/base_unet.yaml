@@ -1,0 +1,18 @@
+net:
+  scales: ???
+  channels: ???
+  skip_channels: ???
+  use_norm: ???
+  use_sigmoid: ???
+  sigmoid_saturation_thresh: ???
+optim:
+  lr: ???
+  iterations: ???
+  loss_function: ???
+  gamma: ???
+show_pbar: True
+torch_manual_seed: 10
+log_path: ./
+load_pretrain_model: False
+load_params_from_path: null
+recon_from_randn: False
