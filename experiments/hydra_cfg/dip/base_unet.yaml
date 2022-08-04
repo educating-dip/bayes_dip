@@ -13,6 +13,4 @@ optim:
 show_pbar: True
 torch_manual_seed: 10
 log_path: ./
-load_learned_params_from_path: null
-load_params_from_path: null
 recon_from_randn: False

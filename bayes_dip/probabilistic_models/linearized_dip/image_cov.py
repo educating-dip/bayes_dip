@@ -1,5 +1,5 @@
 """Provides :class:`ImageCov`"""
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 from torch import Tensor
 from ..base_image_cov import BaseImageCov
 from ..linear_sandwich_cov import LinearSandwichCov
@@ -59,15 +59,16 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         """
 
         return self.neural_basis_expansion.vjp(v.unsqueeze(dim=1))
-    
+
     def sample(self,
-        num_samples: int = 10, 
-        return_weight_samples: bool = False, 
+        num_samples: int = 10,
+        return_weight_samples: bool = False,
+        mean: Optional[Tensor] = None,
         ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-        
+
         """
-        Return num_samples draws from Gaussian prior over images 
-    
+        Return num_samples draws from Gaussian prior over images
+
         Parameters
         ----------
         num_samples : int
@@ -76,14 +77,18 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
 
         Returns
         -------
-        Tensor
-            Output. Shape: ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:])``
-            if ``return_weight_sample = False `` else the meth returns a Tuple whose dims are  
-            ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:]), (batch_size, self.neural_basis_expansion.num_params)``
+        Tensor or tuple of Tensor
+            ``samples`` or a tuple ``(samples, weight_samples)``, with
+            ``samples.shape == (batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:])``
+            and ``weight_samples.shape == (batch_size, self.neural_basis_expansion.num_params)``.
+            ``weight_samples`` always has mean zero.
         """
 
-        weight_samples = self.inner_cov.sample(num_samples=num_samples) # params ~ N(0, parameter_cov)
-        return self.lin_op(weight_samples) if not return_weight_samples else (self.lin_op(weight_samples), weight_samples) # image = J_{params} @ params 
+        weight_samples = self.inner_cov.sample(num_samples=num_samples)  # params ~ N(0, parameter_cov)
+        samples = self.lin_op(weight_samples)  # image = J_{params} @ params
+        if mean is not None:
+            samples = samples + mean
+        return samples if not return_weight_samples else (samples, weight_samples)
 
     @property
     def shape(self) -> Tuple[int, int]:

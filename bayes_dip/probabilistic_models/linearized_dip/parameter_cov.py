@@ -1,5 +1,5 @@
 """Provides :class:`ParameterCov`"""
-from typing import Dict, Tuple, List, Callable
+from typing import Dict, Tuple, List, Callable, Optional
 import torch
 from torch import nn, Tensor
 from bayes_dip.utils import get_modules_by_names
@@ -95,14 +95,18 @@ class ParameterCov(nn.Module):
             params_cnt += len_params
 
         return torch.cat(v_parameter_cov_mul, dim=-1)
-    
-    def sample(self, 
-        num_samples: int = 10
-        ) -> Tensor: 
+
+    def sample(self,
+        num_samples: int = 10,
+        mean: Optional[Tensor] = None,
+        ) -> Tensor:
         samples = torch.randn(num_samples, self.shape[0],
             device=self.device
             )
-        return self.forward(samples, use_cholesky=True)
+        samples = self.forward(samples, use_cholesky=True)
+        if mean is not None:
+            samples = samples + mean
+        return samples
 
     @property
     def shape(self) -> Tuple[int, int]:

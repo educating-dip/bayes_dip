@@ -54,8 +54,8 @@ def coordinator(cfg : DictConfig) -> None:
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
-                load_params_path=cfg.dip.load_learned_params_from_path)
-        if cfg.dip.load_params_from_path is None:
+                load_params_path=cfg.load_pretrained_dip_params)
+        if cfg.load_dip_params_from_path is None:
             optim_kwargs = {
                     'lr': cfg.dip.optim.lr,
                     'iterations': cfg.dip.optim.iterations,
@@ -69,8 +69,8 @@ def coordinator(cfg : DictConfig) -> None:
                     log_path=cfg.dip.log_path,
                     optim_kwargs=optim_kwargs)
         else:
-            reconstructor.nn_model.load_state_dict(
-                    torch.load(os.path.join(cfg.dip.load_params_from_path, f'dip_model_{i}.pt')))
+            reconstructor.load_params(
+                    os.path.join(cfg.load_dip_params_from_path, f'dip_model_{i}.pt'))
             recon = reconstructor.nn_model(filtbackproj).detach()
         torch.save(reconstructor.nn_model.state_dict(),
                 f'dip_model_{i}.pt')

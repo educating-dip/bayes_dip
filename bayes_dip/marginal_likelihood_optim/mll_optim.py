@@ -9,7 +9,7 @@ from tqdm import tqdm
 import tensorboardX
 
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
-from .sample_based_predcp import set_sample_based_predcp_grads
+from .sample_based_predcp import sample_based_predcp_grads
 from .utils import get_ordered_nn_params_vec, get_params_list_under_GPpriors
 from ..probabilistic_models import ObservationCov, MatmulObservationCov, BaseGaussPrior, GPprior, NormalPrior
 
@@ -32,10 +32,23 @@ def marginal_likelihood_hyperparams_optim(
     proj_recon = observation_cov.trafo(recon).flatten()
     observation = observation.flatten()
 
+    map_weights = get_ordered_nn_params_vec(observation_cov.image_cov.inner_cov)
+
     if linearized_weights is not None:
         weights_vec = linearized_weights
     else:
-        weights_vec = get_ordered_nn_params_vec(observation_cov.image_cov.inner_cov)
+        weights_vec = map_weights
+
+    if optim_kwargs['predcp']['use_map_weights_mean']:
+        mean_kwargs = {
+            'mean': recon,
+            'weight_mean': map_weights,
+        }
+    else:
+        mean_kwargs = {
+            'mean': recon - observation_cov.image_cov.lin_op(map_weights[None]),  # h(0), h is linearized nn_model (around map_weights)
+            'weight_mean': None,  # 0.
+        }
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
     if optim_kwargs['include_predcp']:
@@ -47,11 +60,13 @@ def marginal_likelihood_hyperparams_optim(
             optimizer.zero_grad()
 
             if optim_kwargs['include_predcp']:
-                predcp_grads, predcp_loss = set_sample_based_predcp_grads(
+                predcp_grads, predcp_loss = sample_based_predcp_grads(
                     observation_cov=observation_cov,
                     params_list_under_predcp=params_list_under_predcp,
                     num_samples=optim_kwargs['predcp']['num_samples'],
-                    scale=optim_kwargs['predcp']['scale'])
+                    scale=optim_kwargs['predcp']['scale'],
+                    **mean_kwargs,
+                    )
 
                 for param in params_list_under_predcp:
                     if param.grad is None:

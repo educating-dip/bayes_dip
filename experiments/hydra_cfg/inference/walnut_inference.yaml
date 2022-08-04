@@ -3,3 +3,4 @@ defaults:
 
 low_rank_neural_basis_expansion:
   use_cpu: True
+verbose: False

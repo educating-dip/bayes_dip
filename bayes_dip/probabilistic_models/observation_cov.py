@@ -6,7 +6,7 @@ import numpy as np
 from torch import Tensor
 from tqdm import tqdm
 
-from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
+from bayes_dip.data.trafo import MatmulRayTrafo
 from bayes_dip.utils import bisect_left  # for python >= 3.10: from bisect import bisect_left
 from .base_image_cov import BaseImageCov
 from .base_observation_cov import BaseObservationCov
@@ -203,17 +203,15 @@ class MatmulObservationCov(BaseObservationCov):
     """
 
     def __init__(self,
-        trafo: BaseRayTrafo,
+        trafo: MatmulRayTrafo,
         image_cov: BaseImageCov,
-        init_noise_variance: float = 1.,
-        device=None,
+        **kwargs
         ) -> None:
 
         super().__init__(
                 trafo=trafo,
                 image_cov=image_cov,
-                init_noise_variance=init_noise_variance,
-                device=device)
+                **kwargs)
 
         trafo_mat = self.trafo.matrix
         jac_mat = self.image_cov.neural_basis_expansion.matrix

@@ -33,6 +33,9 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation, ground_truth, filtbackproj = data_sample
 
+        torch.save({'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth},
+                f'sample_{i}.pt')
+
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
         ground_truth = ground_truth.to(dtype=dtype, device=device)
@@ -48,9 +51,9 @@ def coordinator(cfg : DictConfig) -> None:
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
-                load_params_path=cfg.dip.load_learned_params_from_path)
-        if cfg.dip.load_params_from_path is not None:
-            print(f'ignoring dip.load_params_from_path={cfg.dip.load_params_from_path}, recomputing DIP')
+                load_params_path=cfg.load_pretrained_dip_params)
+        if cfg.load_dip_params_from_path is not None:
+            print(f'ignoring dip.load_params_from_path={cfg.load_dip_params_from_path}, recomputing DIP')
 
         optim_kwargs = {
                 'lr': cfg.dip.optim.lr,

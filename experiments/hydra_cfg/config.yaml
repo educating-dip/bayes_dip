@@ -9,7 +9,6 @@ defaults:
 seed: 1
 num_images: 1
 use_double: False
-load_dip_models_from_path: null
 hydra:
   job:
     chdir: True
@@ -17,3 +16,5 @@ hydra:
     dir: outputs/${now:%Y-%m-%dT%H:%M:%S.%fZ}
   sweep:
     dir: multirun/${now:%Y-%m-%dT%H:%M:%S.%fZ}
+load_pretrained_dip_params: null  # from pretraining
+load_dip_params_from_path: null  # spec. to obs.

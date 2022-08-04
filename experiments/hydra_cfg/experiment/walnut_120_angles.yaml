@@ -4,3 +4,6 @@ defaults:
   - override /trafo: walnut_120_angles_trafo
   - override /dip: walnut_unet_120
   - override /inference: walnut_inference
+
+load_pretrained_dip_params: outputs/2021-12-02/17-23-12/params/model_walnut.pt # from pretraining
+load_dip_params_from_path: multirun/2022-04-07/15-37-52/0/ # spec. to obs.

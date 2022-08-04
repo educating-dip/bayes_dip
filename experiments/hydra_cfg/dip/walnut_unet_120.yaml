@@ -13,5 +13,3 @@ optim:
   iterations: 2500
   loss_function: mse
   gamma: 4e-6
-load_learned_params_from_path: outputs/2021-12-02/17-23-12/params/model_walnut.pt # from pretraining
-load_params_from_path: multirun/2022-04-07/15-37-52/0/dip_model_0.pt # spec. to obs.

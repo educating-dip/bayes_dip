@@ -10,6 +10,7 @@ include_predcp: True
 predcp:
   num_samples: 100
   scale: 1.
+  use_map_weights_mean: False
 weights_linearization:
   iterations: 5000
   lr: 1e-4
