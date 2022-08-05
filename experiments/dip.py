@@ -1,3 +1,4 @@
+import os
 from itertools import islice
 import hydra
 from omegaconf import DictConfig
@@ -66,7 +67,7 @@ def coordinator(cfg : DictConfig) -> None:
                 filtbackproj=filtbackproj,
                 ground_truth=ground_truth,
                 recon_from_randn=cfg.dip.recon_from_randn,
-                log_path=cfg.dip.log_path,
+                log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
                 optim_kwargs=optim_kwargs)
 
         torch.save(reconstructor.nn_model.state_dict(),

@@ -22,3 +22,4 @@ weights_linearization:
   wd: 1e-6
   simplified_eqn: False
 use_linearized_weights: False
+log_path: ./

@@ -66,7 +66,7 @@ def coordinator(cfg : DictConfig) -> None:
                     filtbackproj=filtbackproj,
                     ground_truth=ground_truth,
                     recon_from_randn=cfg.dip.recon_from_randn,
-                    log_path=cfg.dip.log_path,
+                    log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
                     optim_kwargs=optim_kwargs)
         else:
             reconstructor.load_params(
@@ -150,7 +150,7 @@ def coordinator(cfg : DictConfig) -> None:
                 recon=recon,
                 linearized_weights=linearized_weights,
                 optim_kwargs=marglik_optim_kwargs,
-                log_path='./',
+                log_path=os.path.join(cfg.mll_optim.log_path, f'mrglik_optim_{i}'),
         )
         torch.save(
                 matmul_observation_cov.state_dict(),
