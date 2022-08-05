@@ -25,7 +25,7 @@ def weights_linearization(
     with torch.no_grad():
         recon_no_activation = nn_model_no_sigmoid(nn_input, saturation_safety=True)
 
-    lin_weights_fd = nn.Parameter(torch.zeros_like(map_weights))
+    lin_weights_fd = nn.Parameter(torch.zeros_like(map_weights))  if optim_kwargs['simplified_eqn'] else map_weights.clone()
     optimizer = torch.optim.Adam([lin_weights_fd], lr=optim_kwargs['lr'], weight_decay=0)
 
     precision = 1.
@@ -39,7 +39,7 @@ def weights_linearization(
             else:
                 fd_vector = lin_weights_fd - map_weights
 
-            lin_recon = neural_basis_expansion.jvp(fd_vector[None, :]).detach()
+            lin_recon = neural_basis_expansion.jvp(fd_vector[None, :]).detach().squeeze(dim=1)
 
             if not optim_kwargs['simplified_eqn']:
                 lin_recon = lin_recon + recon_no_activation
@@ -50,21 +50,18 @@ def weights_linearization(
             proj_lin_recon = trafo(lin_recon)
 
             observation = observation.view(*proj_lin_recon.shape)
-            norm_grad = trafo.trafo_adjoint( observation - proj_lin_recon ).flatten()
-            tv_grad = batch_tv_grad(lin_recon.squeeze(dim=0)).flatten()
+            norm_grad = trafo.trafo_adjoint( observation - proj_lin_recon )
+            tv_grad = batch_tv_grad(lin_recon)
 
             # loss = torch.nn.functional.mse_loss(proj_lin_recon, observation.view(*proj_lin_recon.shape)) + optim_kwargs['gamma'] * tv_loss(lin_recon)
             v = - 2 / observation.numel() * precision * norm_grad + optim_kwargs['gamma'] * tv_grad
 
             if nn_model.use_sigmoid:
-                v = v * lin_recon.flatten() * (1 - lin_recon.flatten())
+                v = v * lin_recon * (1 - lin_recon)
 
             optimizer.zero_grad()
-            nn_model_no_sigmoid.zero_grad()
-            to_grad = nn_model_no_sigmoid(nn_input, saturation_safety=True).flatten() * v
-            to_grad.sum().backward()
 
-            grads_vec = torch.cat([param.grad.flatten().detach() for param in neural_basis_expansion.ordered_nn_params])
+            grads_vec = neural_basis_expansion.vjp(v.view(1, 1, 1, *trafo.im_shape)).squeeze(dim=0)
             lin_weights_fd.grad = grads_vec + optim_kwargs['wd'] * lin_weights_fd.detach()
             optimizer.step()
 

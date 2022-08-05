@@ -4,3 +4,4 @@ defaults:
   - override /trafo: simple_trafo
   - override /dip: kmnist_unet
   - override /inference: kmnist_inference
+  - override /mll_optim: kmnist_mll_optim

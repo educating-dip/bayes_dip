@@ -1,0 +1,13 @@
+defaults:
+  - base_mll_optim
+
+num_probes: 10
+linear_cg:
+  max_iter: 50
+  preconditioner:
+    low_rank_rank_dim: 500
+    oversampling_param: 5
+    vec_batch_size: 32
+predcp:
+  num_samples: 20
+use_linearized_weights: True

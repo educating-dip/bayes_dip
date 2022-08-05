@@ -1,4 +1,4 @@
-from typing import Sequence, Optional
+from typing import Sequence, Union
 import torch
 import torch.autograd as autograd
 from torch import Tensor
@@ -21,17 +21,25 @@ def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
 def sample_based_predcp_grads(
         observation_cov: ObservationCov,
         params_list_under_predcp: Sequence,
+        image_mean: Tensor,
         num_samples: int = 100,
         scale: float = 1.,
-        mean: Optional[Tensor] = None,
-        weight_mean: Optional[Tensor] = None):
+        weight_mean: Union[Tensor, float, None] = None,
+        return_loss: bool = True):
 
     x_samples, weight_samples = observation_cov.image_cov.sample(
         num_samples=num_samples,
         return_weight_samples=True,
-        mean=mean,
+        mean=image_mean,
         )
 
+    # weight_samples return from image_cov has zero mean, so add weight_mean;
+    # it affects only the loss, not the gradients
+    assert not (return_loss and weight_mean is None), (
+            '`weight_mean` required for loss computation. To use zero weight mean, pass '
+            '``weight_mean=0.`` and make sure `image_mean` is consistent with it; alternatively, '
+            'pass ``return_loss=False`` to disable loss computation '
+            '(gradients will not be affected by `weight_mean`).')
     if weight_mean is not None:
         weight_samples = weight_samples + weight_mean
 
@@ -56,4 +64,4 @@ def sample_based_predcp_grads(
         grads = compute_log_hyperparams_grads(params_list_under_predcp, first_derivative_grads, second_derivative_grads, scale)
         loss = scale * (loss - torch.stack(log_dets).sum().detach())
 
-    return grads, loss
+    return (grads, loss) if return_loss else grads

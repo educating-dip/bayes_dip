@@ -107,40 +107,54 @@ def coordinator(cfg : DictConfig) -> None:
         )
         linearized_weights = None
         if cfg.mll_optim.use_linearized_weights:
-            weights_linearization_optim_kwargs = OmegaConf.to_object(cfg.mll_optim.weights_linearization)
-            weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
-            map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
-            linearized_weights, lin_recon = weights_linearization(
-                trafo=ray_trafo,
-                neural_basis_expansion=neural_basis_expansion,
-                map_weights=map_weights,
-                observation=observation,
-                ground_truth=ground_truth,
-                optim_kwargs=weights_linearization_optim_kwargs,
-            )
+            if cfg.load_dip_params_from_path is not None:
+                try:
+                    linearized_weights = torch.load(
+                            os.path.join(cfg.load_dip_params_from_path, f'lin_weights_{i}.pt'))
+                    lin_recon = torch.load(
+                            os.path.join(cfg.load_dip_params_from_path, f'lin_recon_{i}.pt'))
+                except FileNotFoundError:
+                    pass
+            if linearized_weights is None:
+                weights_linearization_optim_kwargs = OmegaConf.to_object(cfg.mll_optim.weights_linearization)
+                weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
+                map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
+                linearized_weights, lin_recon = weights_linearization(
+                        trafo=ray_trafo,
+                        neural_basis_expansion=neural_basis_expansion,
+                        map_weights=map_weights,
+                        observation=observation,
+                        ground_truth=ground_truth,
+                        optim_kwargs=weights_linearization_optim_kwargs,
+                )
+            print('linearized weights reconstruction of sample {:d}'.format(i))
+            print('PSNR:', PSNR(lin_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
+            print('SSIM:', SSIM(lin_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             torch.save(linearized_weights,
                     f'lin_weights_{i}.pt'
             )
             torch.save(lin_recon.cpu(),
                     f'lin_recon_{i}.pt'
             )
-        low_rank_observation_cov = LowRankObservationCov(
-                trafo=ray_trafo,
-                image_cov=image_cov,
-                low_rank_rank_dim=cfg.mll_optim.preconditioner.low_rank_rank_dim,
-                oversampling_param=cfg.mll_optim.preconditioner.oversampling_param,
-                vec_batch_size=cfg.mll_optim.preconditioner.vec_batch_size,
-                device=device
-        )
-        low_rank_preconditioner = LowRankPreC(
-                pre_con_obj=low_rank_observation_cov
-        )
+        cg_preconditioner = None
+        if cfg.mll_optim.linear_cg.use_preconditioner:
+            low_rank_observation_cov = LowRankObservationCov(
+                    trafo=ray_trafo,
+                    image_cov=image_cov,
+                    low_rank_rank_dim=cfg.mll_optim.linear_cg.preconditioner.low_rank_rank_dim,
+                    oversampling_param=cfg.mll_optim.linear_cg.preconditioner.oversampling_param,
+                    vec_batch_size=cfg.mll_optim.linear_cg.preconditioner.vec_batch_size,
+                    device=device
+            )
+            cg_preconditioner = LowRankPreC(
+                    pre_con_obj=low_rank_observation_cov
+            )
         marglik_optim_kwargs = {
                 'iterations': cfg.mll_optim.iterations,
                 'lr': cfg.mll_optim.lr,
                 'num_probes': cfg.mll_optim.num_probes,
                 'linear_cg': {
-                    'preconditioner': low_rank_preconditioner,
+                    'preconditioner': cg_preconditioner,
                     'max_iter': cfg.mll_optim.linear_cg.max_iter,
                     'rtol': cfg.mll_optim.linear_cg.rtol,
                     'update_freq': cfg.mll_optim.linear_cg.update_freq,

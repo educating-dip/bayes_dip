@@ -4,6 +4,7 @@ defaults:
   - override /trafo: walnut_trafo
   - override /dip: walnut_unet
   - override /inference: walnut_inference
+  - override /mll_optim: walnut_mll_optim
 
 load_pretrained_dip_params: outputs/2021-12-02/17-23-12/params/model_walnut.pt # from pretraining
 load_dip_params_from_path: multirun/2022-01-10/13-44-18/0/ # spec. to obs.

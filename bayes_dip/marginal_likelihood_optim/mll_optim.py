@@ -39,15 +39,21 @@ def marginal_likelihood_hyperparams_optim(
     else:
         weights_vec = map_weights
 
+    # f ~ N(predcp_recon_mean, image_cov)
+    # let h be the linearization (first Taylor expansion) of nn_model around map_weights
     if optim_kwargs['predcp']['use_map_weights_mean']:
-        mean_kwargs = {
-            'mean': recon,
-            'weight_mean': map_weights,
+        # params ~ N(map_weights, parameter_cov)
+        # E[f] == E[h(params)] == h(map_weights) == recon
+        predcp_mean_kwargs = {
+                'weight_mean': map_weights,
+                'image_mean': recon,
         }
     else:
-        mean_kwargs = {
-            'mean': recon - observation_cov.image_cov.lin_op(map_weights[None]),  # h(0), h is linearized nn_model (around map_weights)
-            'weight_mean': None,  # 0.
+        # params ~ N(0, parameter_cov)
+        # E[f] == E[h(params)] == h(0) == recon - J @ map_weights
+        predcp_mean_kwargs = {
+                'weight_mean': 0.,
+                'image_mean': recon - observation_cov.image_cov.lin_op(map_weights[None]),
         }
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
@@ -65,7 +71,7 @@ def marginal_likelihood_hyperparams_optim(
                     params_list_under_predcp=params_list_under_predcp,
                     num_samples=optim_kwargs['predcp']['num_samples'],
                     scale=optim_kwargs['predcp']['scale'],
-                    **mean_kwargs,
+                    **predcp_mean_kwargs,
                     )
 
                 for param in params_list_under_predcp:

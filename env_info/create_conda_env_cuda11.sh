@@ -42,11 +42,10 @@ conda config --append channels astra-toolbox
 conda config --append channels conda-forge
 
 # install pytorch
-conda install pytorch=1.12 torchvision -c pytorch
+conda install pytorch=1.12 torchvision cudatoolkit=11.6 -c pytorch
 
 # install other conda packages
 conda install tensorboard tensorboardx scikit-image imageio opt_einsum tqdm tabulate gpytorch astra-toolbox
-
 
 # install pip packages
 pip install hydra-core tensorly==0.6.0 https://github.com/odlgroup/odl/archive/master.zip bios functorch
