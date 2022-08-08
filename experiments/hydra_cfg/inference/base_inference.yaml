@@ -1,4 +1,5 @@
 load_path: null
+load_iter: null
 use_low_rank_neural_basis_expansion: False
 low_rank_neural_basis_expansion:
   low_rank_rank_dim: 500
@@ -7,8 +8,11 @@ low_rank_neural_basis_expansion:
   use_cpu: False
 patch_size: 1
 patch_idx_list: null
-num_samples: 10000
+save_cov_obs_mat: False
+load_cov_obs_mat_from_path: null
+num_samples: 4096
 save_samples: False
+save_samples_chunk_size: 1024
 batch_size: 1
 verbose: True
 cov_obs_mat:

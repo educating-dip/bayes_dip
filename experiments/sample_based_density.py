@@ -1,17 +1,17 @@
 import os
+from warnings import warn
 from itertools import islice
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import numpy as np
 import torch
-import scipy.sparse
 import tensorly as tl
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
-from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov
+from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov, get_image_noise_correction_term
 from bayes_dip.marginal_likelihood_optim import LowRankPreC
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 from bayes_dip.data.datasets import get_walnut_2d_inner_patch_indices
@@ -44,11 +44,13 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation, ground_truth, filtbackproj = data_sample
 
+        # assert that sample data matches with that from [exact_]dip_mll_optim.py
+        sample_dict = torch.load(os.path.join(cfg.inference.load_path, 'sample_{}.pt'.format(i)), map_location=device)
+        assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
         ground_truth = ground_truth.to(dtype=dtype, device=device)
-        sample_dict = torch.load(os.path.join(cfg.inference.load_path, 'sample_{}.pt'.format(i)), map_location=device)
-        assert torch.allclose(sample_dict['filtbackproj'], filtbackproj, atol=1e-6)
 
         net_kwargs = {
                 'scales': cfg.dip.net.scales,
@@ -101,29 +103,27 @@ def coordinator(cfg : DictConfig) -> None:
                 image_cov=image_cov,
                 device=device
         )
+        observation_cov_filename = (
+                f'observation_cov_{i}.pt' if cfg.inference.load_iter is None else
+                f'observation_cov_{i}_iter_{cfg.inference.load_iter}.pt')
         observation_cov.load_state_dict(
-                torch.load(os.path.join(cfg.inference.load_path, f'observation_cov_{i}.pt')))
+                torch.load(os.path.join(cfg.inference.load_path, observation_cov_filename)))
 
-        noise_x_correction_term = None
-        trafo_mat = ray_trafo.matrix
-        if trafo_mat.is_sparse:
-            # pseudo-inverse computation
-            U_trafo, S_trafo, Vh_trafo = scipy.sparse.linalg.svds(trafo, k=100)
-            # (Vh.T S U.T U S Vh)^-1 == (Vh.T S^2 Vh)^-1 == Vh.T S^-2 Vh
-            S_inv_Vh_trafo = scipy.sparse.diags(1/S_trafo) @ Vh_trafo
-            # trafo_T_trafo_diag = np.diag(S_inv_Vh_trafo.T @ S_inv_Vh_trafo)
-            trafo_T_trafo_diag = np.sum(S_inv_Vh_trafo**2, axis=0)
-            noise_x_correction_term = np.mean(trafo_T_trafo_diag) * observation_cov.log_noise_variance.exp().item()
-        else:
-            # pseudo-inverse computation
-            trafo = ray_trafo.matrix
-            trafo_T_trafo = trafo.T @ trafo
-            U, S, Vh = tl.truncated_svd(trafo_T_trafo, n_eigenvecs=100) # costructing tsvd-pseudoinverse
-            noise_x_correction_term = (Vh.T @ torch.diag(1/S) @ U.T * observation_cov.log_noise_variance.exp()).diag().mean().item()
+        noise_x_correction_term = get_image_noise_correction_term(observation_cov=observation_cov)
         print('noise_x_correction_term:', noise_x_correction_term)
 
-        cov_obs_mat = observation_cov.assemble_observation_cov(
-                vec_batch_size=cfg.inference.cov_obs_mat.batch_size)
+        if cfg.inference.load_cov_obs_mat_from_path is None:
+            cov_obs_mat = observation_cov.assemble_observation_cov(
+                    vec_batch_size=cfg.inference.cov_obs_mat.batch_size)
+        else:
+            cov_obs_mat = torch.load(
+                    os.path.join(cfg.inference.load_cov_obs_mat_from_path, f'cov_obs_mat_{i}.pt'),
+                    map_location=observation_cov.device)
+            if cfg.use_double and cov_obs_mat.dtype == torch.float32:
+                warn('Loaded cov_obs_mat with dtype float32 but running with use_double=True')
+            cov_obs_mat = cov_obs_mat.to(dtype=dtype)
+        if cfg.inference.save_cov_obs_mat:
+            torch.save(cov_obs_mat.cpu(), f'cov_obs_mat_{i}.pt')
         eps = ObservationCov.get_stabilizing_eps(
                 cov_obs_mat,
                 eps_mode=cfg.inference.cov_obs_mat.eps_mode,
@@ -154,10 +154,13 @@ def coordinator(cfg : DictConfig) -> None:
                 observation=observation,
                 num_samples=cfg.inference.num_samples,
                 cov_obs_mat_chol=cov_obs_mat_chol,
+                return_on_device='cpu',
                 **sample_kwargs)
 
         if cfg.inference.save_samples:
-            raise NotImplementedError
+            for j, start_i in enumerate(range(0, len(samples), cfg.inference.save_samples_chunk_size)):
+                sample_chunk = samples[start_i:start_i+cfg.inference.save_samples_chunk_size].clone()
+                torch.save(sample_chunk, f'samples_{i}_chunk_{j}.pt')
 
         log_probs_unscaled, patch_diags = predictive_posterior.log_prob_patches(
             observation=observation,

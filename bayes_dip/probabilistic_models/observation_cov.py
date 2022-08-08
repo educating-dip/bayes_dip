@@ -85,25 +85,26 @@ class ObservationCov(BaseObservationCov):
         rows = []
         v = torch.empty((vec_batch_size, 1, *self.trafo.obs_shape), device=self.device)
 
-        for i in tqdm(np.array(range(0, obs_numel, vec_batch_size))[sub_slice_batches],
-                    desc='get_prior_cov_obs_mat', miniters=obs_numel//vec_batch_size//100
-                ):
+        with torch.no_grad():
+            for i in tqdm(np.array(range(0, obs_numel, vec_batch_size))[sub_slice_batches],
+                        desc='get_prior_cov_obs_mat', miniters=obs_numel//vec_batch_size//100
+                    ):
 
-            v[:] = 0.
-            # set v.view(vec_batch_size, -1) to be a subset of rows of torch.eye(obs_numel);
-            # in last batch, it may contain some additional (zero) rows
-            v.view(vec_batch_size, -1)[:, i:i+vec_batch_size].fill_diagonal_(1.)
+                v[:] = 0.
+                # set v.view(vec_batch_size, -1) to be a subset of rows of torch.eye(obs_numel);
+                # in last batch, it may contain some additional (zero) rows
+                v.view(vec_batch_size, -1)[:, i:i+vec_batch_size].fill_diagonal_(1.)
 
-            rows_batch = self.forward(
-                v,
-                use_noise_variance=use_noise_variance)
+                rows_batch = self.forward(
+                    v,
+                    use_noise_variance=use_noise_variance)
 
-            rows_batch = rows_batch.view(vec_batch_size, -1)
+                rows_batch = rows_batch.view(vec_batch_size, -1)
 
-            if i+vec_batch_size > obs_numel:  # last batch
-                rows_batch = rows_batch[:obs_numel%vec_batch_size]
-            rows_batch = rows_batch.cpu()  # collect on CPU (saves memory while running the closure)
-            rows.append(rows_batch)
+                if i+vec_batch_size > obs_numel:  # last batch
+                    rows_batch = rows_batch[:obs_numel%vec_batch_size]
+                rows_batch = rows_batch.cpu()  # collect on CPU (saves memory while running the closure)
+                rows.append(rows_batch)
 
         observation_cov_mat = torch.cat(rows, dim=0)
 

@@ -31,6 +31,16 @@ def _convert_to_torch_matrix(matrix):
     return matrix
 
 
+def _convert_to_scipy_sparse_matrix(matrix):
+    matrix = matrix.cpu()
+    matrix = matrix.coalesce()
+    values = matrix.values()
+    row, col = matrix.indices()
+    shape = matrix.shape
+    matrix = scipy.sparse.coo_matrix((values, (row, col)), shape=shape)
+    return matrix
+
+
 class MatmulRayTrafo(BaseRayTrafo):
     """
     Ray transform implemented by (sparse) matrix multiplication.

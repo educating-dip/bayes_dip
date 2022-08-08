@@ -51,12 +51,14 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         use_conj_grad_inv: bool = False,
         cg_kwargs: Optional[Dict] = None,
         return_residual_norm_list: bool = False,
+        return_on_device = None,
         ) -> Tensor:
 
         num_batches = ceil(num_samples / vec_batch_size)
         image_samples_list = []
         residual_norm_list = []
         assert not (use_conj_grad_inv and cov_obs_mat_chol is None)
+        return_on_device = observation.device if return_on_device is None else return_on_device
         with torch.no_grad():
             for _ in tqdm(range(num_batches), desc='sample_via_matheron', miniters=num_batches//100):
                 x_samples = self.observation_cov.image_cov.sample(
@@ -73,9 +75,9 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                     ).view(vec_batch_size, -1)
 
                 if not use_conj_grad_inv:
-                    inv_obs_diff = torch.triangular_solve(
-                        torch.triangular_solve(
-                            obs_diff.T, cov_obs_mat_chol, upper=False)[0], cov_obs_mat_chol.T, upper=True)[0].T
+                    inv_obs_diff = torch.linalg.solve_triangular(
+                        cov_obs_mat_chol.T, torch.linalg.solve_triangular(
+                            cov_obs_mat_chol, obs_diff.T, upper=False), upper=True).T
                 else:
                     observation_cov_closure = lambda v: self.observation_cov(v.T.reshape(vec_batch_size, 1, *self.observation_cov.trafo.obs_shape)
                             ).view(vec_batch_size, self.observation_cov.shape[0]).T
@@ -89,7 +91,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
 
                 inv_diff = self.observation_cov.trafo.trafo_adjoint(inv_obs_diff.view(vec_batch_size, *observation.shape[1:]))
                 delta_x = self.observation_cov.image_cov(inv_diff)
-                image_samples_list.append(x_samples + delta_x)
+                image_samples_list.append((x_samples + delta_x).to(device=return_on_device))
             image_samples = torch.cat(image_samples_list, axis=0)
 
         return image_samples if not (use_conj_grad_inv and return_residual_norm_list) else (image_samples, residual_norm_list)
@@ -104,17 +106,19 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             patch_idx_list: List[int] = None,
             batch_size: int = 1,
             noise_x_correction_term: float = 1e-6,
-            sample_kwargs: Optional[Dict] = None) -> Tensor:
+            sample_kwargs: Optional[Dict] = None,
+            device = None) -> Tensor:
 
+        device = observation.device if device is None else device
         if samples is None:
             sample_kwargs = sample_kwargs or {}
             samples = self.sample(observation, num_samples, cov_obs_mat_chol=cov_obs_mat_chol,
-                    **sample_kwargs)
+                    return_on_device='cpu', **sample_kwargs)
         for batch_patch_inds, batch_samples_patches, batch_len_mask_inds in yield_padded_batched_images_patches(
                 samples, patch_size=patch_size, patch_idx_list=patch_idx_list, batch_size=batch_size, return_patch_numels=True):
 
             batch_predictive_cov_image_patch = approx_predictive_cov_image_patch_from_samples_batched(
-                    batch_samples_patches, noise_x_correction_term=noise_x_correction_term)
+                    batch_samples_patches.to(device), noise_x_correction_term=noise_x_correction_term)
             # use identity for padding dims in predictive_cov_image_patch
             # (the determinant then is the same as for predictive_cov_image_patch[:len_mask_inds, :len_mask_inds])
             max_len_mask_inds = max(batch_len_mask_inds)
@@ -124,7 +128,9 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             batch_invalid_values = is_invalid(batch_predictive_cov_image_patch)
             batch_invalid_values_patch_inds = torch.tensor(batch_patch_inds)[batch_invalid_values].tolist()
             if len(batch_invalid_values_patch_inds) > 0:
-                raise ValueError(f'invalid value occured in patch indices {batch_invalid_values_patch_inds}')
+                raise ValueError(
+                        'invalid value occurred in predictive cov for patch indices '
+                        f'{batch_invalid_values_patch_inds}')
 
             yield batch_patch_inds, batch_predictive_cov_image_patch, batch_len_mask_inds
 
@@ -165,7 +171,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         if samples is None:
             sample_kwargs = sample_kwargs or {}
             samples = self.sample(observation, num_samples, cov_obs_mat_chol=cov_obs_mat_chol,
-                    **sample_kwargs)
+                    return_on_device='cpu', **sample_kwargs)
         log_probs = []
         patch_diags = []
         all_patch_mask_inds = get_image_patch_mask_inds(

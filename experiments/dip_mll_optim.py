@@ -37,6 +37,11 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation, ground_truth, filtbackproj = data_sample
 
+        if cfg.load_dip_params_from_path is not None:
+            # assert that sample data matches with that from the dip to be loaded
+            sample_dict = torch.load(os.path.join(cfg.load_dip_params_from_path, 'sample_{}.pt'.format(i)), map_location=device)
+            assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+
         torch.save({'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth},
                 f'sample_{i}.pt')
 
@@ -170,6 +175,7 @@ def coordinator(cfg : DictConfig) -> None:
                 linearized_weights=linearized_weights,
                 optim_kwargs=marglik_optim_kwargs,
                 log_path=os.path.join(cfg.mll_optim.log_path, f'mrglik_optim_{i}'),
+                comment=f'{i}',
         )
         torch.save(
                 observation_cov.state_dict(),

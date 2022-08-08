@@ -11,7 +11,7 @@ from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standar
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
-from bayes_dip.probabilistic_models import ParameterCov, ImageCov, MatmulObservationCov, MatmulNeuralBasisExpansion
+from bayes_dip.probabilistic_models import ParameterCov, ImageCov, MatmulObservationCov, MatmulNeuralBasisExpansion, get_image_noise_correction_term
 from bayes_dip.inference import ExactPredictivePosterior
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
@@ -42,11 +42,13 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation, ground_truth, filtbackproj = data_sample
 
+        # assert that sample data matches with that from [exact_]dip_mll_optim.py
+        sample_dict = torch.load(os.path.join(cfg.inference.load_path, 'sample_{}.pt'.format(i)), map_location=device)
+        assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
         ground_truth = ground_truth.to(dtype=dtype, device=device)
-        sample_dict = torch.load(os.path.join(cfg.inference.load_path, 'sample_{}.pt'.format(i)), map_location=device)
-        assert torch.allclose(sample_dict['filtbackproj'], filtbackproj, atol=1e-6)
 
         net_kwargs = {
                 'scales': cfg.dip.net.scales,
@@ -93,22 +95,7 @@ def coordinator(cfg : DictConfig) -> None:
         observation_cov.load_state_dict(
                 torch.load(os.path.join(cfg.inference.load_path, f'observation_cov_{i}.pt')))
 
-        noise_x_correction_term = None
-        trafo_mat = ray_trafo.matrix
-        if trafo_mat.is_sparse:
-            # pseudo-inverse computation
-            U_trafo, S_trafo, Vh_trafo = scipy.sparse.linalg.svds(trafo, k=100)
-            # (Vh.T S U.T U S Vh)^-1 == (Vh.T S^2 Vh)^-1 == Vh.T S^-2 Vh
-            S_inv_Vh_trafo = scipy.sparse.diags(1/S_trafo) @ Vh_trafo
-            # trafo_T_trafo_diag = np.diag(S_inv_Vh_trafo.T @ S_inv_Vh_trafo)
-            trafo_T_trafo_diag = np.sum(S_inv_Vh_trafo**2, axis=0)
-            noise_x_correction_term = np.mean(trafo_T_trafo_diag) * observation_cov.log_noise_variance.exp().item()
-        else:
-            # pseudo-inverse computation
-            trafo = ray_trafo.matrix
-            trafo_T_trafo = trafo.T @ trafo
-            U, S, Vh = tl.truncated_svd(trafo_T_trafo, n_eigenvecs=100) # costructing tsvd-pseudoinverse
-            noise_x_correction_term = (Vh.T @ torch.diag(1/S) @ U.T * observation_cov.log_noise_variance.exp()).diag().mean().item()
+        noise_x_correction_term = get_image_noise_correction_term(observation_cov=observation_cov)
         print('noise_x_correction_term:', noise_x_correction_term)
 
         predictive_posterior = ExactPredictivePosterior(observation_cov)

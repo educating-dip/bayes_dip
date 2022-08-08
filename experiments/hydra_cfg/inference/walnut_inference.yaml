@@ -3,4 +3,9 @@ defaults:
 
 low_rank_neural_basis_expansion:
   use_cpu: True
+save_samples_chunk_size: 1024
 verbose: False
+cov_obs_mat:
+  batch_size: 16
+sampling:
+  vec_batch_size: 16

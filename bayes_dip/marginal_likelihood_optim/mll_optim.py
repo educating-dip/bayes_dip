@@ -121,9 +121,9 @@ def marginal_likelihood_hyperparams_optim(
 
             if (i+1) % 200 == 0:
                 torch.save(optimizer.state_dict(),
-                    './optimizer_{}_iter_{}.pt'.format(comment, i))
+                    f'optimizer_{comment}_iter_{i+1}.pt')
                 torch.save(observation_cov.state_dict(),
-                    './observation_cov_{}_iter_{}.pt'.format(comment, i))
+                    f'observation_cov_{comment}_iter_{i+1}.pt')
 
             for prior_type, priors in observation_cov.image_cov.inner_cov.priors_per_prior_type.items():
 
