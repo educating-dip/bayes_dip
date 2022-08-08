@@ -1,6 +1,8 @@
+import numpy as np
+import scipy.sparse
 import torch
 import tensorly as tl
-from bayes_dip.data.trafo.matmul_ray_trafo import MatmulRayTrafo
+from bayes_dip.data.trafo.matmul_ray_trafo import MatmulRayTrafo, _convert_to_scipy_sparse_matrix
 from bayes_dip.probabilistic_models.observation_cov import ObservationCov
 
 
@@ -8,13 +10,16 @@ def get_trafo_t_trafo_pseudo_inv_diag_mean(trafo: MatmulRayTrafo) -> float:
 
     trafo_mat = trafo.matrix
     if trafo_mat.is_sparse:
-        # pseudo-inverse computation
-        U_trafo, S_trafo, V_trafo = torch.svd_lowrank(trafo_mat, q=100)
-        # (V S U.T U S V.T)^-1 == (V S^2 V.T)^-1 == V S^-2 V.T
-        V_S_inv_trafo = V_trafo * (1./S_trafo)[None, :]
-        # trafo_T_trafo_diag = torch.diag(S_inv_Vh_trafo.T @ S_inv_Vh_trafo)
-        trafo_T_trafo_diag = torch.sum(V_S_inv_trafo**2, axis=1)
-        diag_mean = torch.mean(trafo_T_trafo_diag).item()
+        # tl.truncated_svd does not support sparse tensors;
+        # torch has a function svd_lowrank that is much faster,
+        # but the result seems to differ from scipy.sparse.linalg.svds, so use scipy
+        trafo_mat = _convert_to_scipy_sparse_matrix(trafo_mat)
+        U_trafo, S_trafo, Vh_trafo = scipy.sparse.linalg.svds(trafo_mat, k=100)
+        # (Vh.T S U.T U S Vh)^-1 == (Vh.T S^2 Vh)^-1 == Vh.T S^-2 Vh
+        S_inv_Vh_trafo = 1./S_trafo[:, None] * Vh_trafo
+        # trafo_T_trafo_diag = np.diag(S_inv_Vh_trafo.T @ S_inv_Vh_trafo)
+        trafo_T_trafo_diag = np.sum(S_inv_Vh_trafo**2, axis=0)
+        diag_mean = np.mean(trafo_T_trafo_diag)
     else:
         # pseudo-inverse computation
         trafo_T_trafo = trafo_mat.T @ trafo_mat

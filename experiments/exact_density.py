@@ -98,6 +98,7 @@ def coordinator(cfg : DictConfig) -> None:
         observation_cov.load_state_dict(
                 torch.load(os.path.join(cfg.inference.load_path, observation_cov_filename)))
 
+        print('computing noise correction term')
         noise_x_correction_term = get_image_noise_correction_term(observation_cov=observation_cov)
         print('noise_x_correction_term:', noise_x_correction_term)
 
