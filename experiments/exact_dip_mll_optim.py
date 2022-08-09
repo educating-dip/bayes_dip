@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
-from bayes_dip.dip import DeepImagePriorReconstructor, UNetReturnPreSigmoid
+from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import MatmulNeuralBasisExpansion, ParameterCov, ImageCov, MatmulObservationCov
 from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, weights_linearization, get_ordered_nn_params_vec
@@ -148,7 +148,7 @@ def coordinator(cfg : DictConfig) -> None:
                 'include_predcp': cfg.mll_optim.include_predcp,
                 'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
                 }
-
+        
         marginal_likelihood_hyperparams_optim(
                 observation_cov=matmul_observation_cov,
                 observation=observation,

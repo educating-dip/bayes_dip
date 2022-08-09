@@ -18,9 +18,15 @@ class BaseGaussPrior(nn.Module, ABC):
         self._setup(self.modules)
         self._init_parameters(init_hyperparams)
 
+    @classmethod
+    def get_params_under_prior_from_modules(cls,
+            modules
+            ):
+        return [module.weight for module in modules]
+
     def get_params_under_prior(self,
             ):
-        return [module.weight for module in self.modules]
+        return self.get_params_under_prior_from_modules(modules = self.modules)
 
     def _setup(self,
         modules: List[nn.Conv2d]):
@@ -31,7 +37,6 @@ class BaseGaussPrior(nn.Module, ABC):
             assert layer.kernel_size[0] == layer.kernel_size[1]
             assert layer.kernel_size[0] == self.kernel_size
 
-        self.kernel_size = modules[0].kernel_size[0]
         self.num_total_filters = sum(
                 layer.in_channels * layer.out_channels for layer in modules)
 
@@ -307,3 +312,75 @@ class NormalPrior(BaseGaussPrior):
 
     def cov_log_det(self) -> Tensor:
         return self.log_variance * self.kernel_size
+
+class IsotropicPrior(BaseGaussPrior):
+    
+    def _setup(self, modules):
+        self._log_variance = nn.Parameter(
+                torch.ones(1, device=self.device)
+        )
+
+    @classmethod
+    def get_params_under_prior_from_modules(cls,
+            modules
+            ):
+        return [module.weight for module in modules]
+
+    def get_params_under_prior(self,
+            ):
+        return self.get_params_under_prior_from_modules(modules = self.modules)
+
+    @property
+    def log_variance(self,
+            ):
+        return self._log_variance
+    
+    @log_variance.setter
+    def log_variance(self, value
+            ):
+        self._log_variance.data[:] = np.log(value)
+
+    def _init_parameters(self,
+            init_hyperparams: Dict, 
+            ) -> None:
+
+        nn.init.constant_(self.log_variance, 
+            np.log(init_hyperparams['variance'])
+        )
+    
+    def sample(self,
+            shape: Tuple,
+            ) -> Tensor:
+        raise NotImplementedError
+
+    def log_prob(self,
+            x: Tensor
+            ) -> Tensor:
+        raise NotImplementedError
+
+    def cov_mat(self, use_cholesky: bool = False) -> Tensor:
+        raise NotImplementedError
+
+    def cov_log_det(self) -> Tensor:
+        raise NotImplementedError
+
+    @classmethod
+    def batched_cov_mul(cls,
+            priors,
+            v: Tensor,
+            use_cholesky: bool = False,
+            use_inverse: bool = False,
+            eps: float = 1e-6,
+        ) -> Tensor:
+
+        assert not (use_cholesky and use_inverse)
+        if len(priors)!= 1:
+            raise NotImplementedError
+        
+        prior = priors[0]
+        
+        scale = prior.log_variance.exp() if not use_cholesky \
+            else prior.log_variance.exp().pow(0.5)
+        if use_inverse:
+            scale = (scale + eps).pow(-1)
+        return scale * v

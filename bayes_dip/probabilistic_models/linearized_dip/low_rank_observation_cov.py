@@ -67,6 +67,7 @@ class LowRankObservationCov(ObservationCov):
     def get_batched_low_rank_observation_cov_basis(self,
         use_cpu: bool = False,
         eps: float = 1e-3,
+        verbose: bool = True
         ):
 
         """
@@ -120,5 +121,7 @@ class LowRankObservationCov(ObservationCov):
         B = torch.linalg.solve(random_matrix @ Q, v_cov_obs_mat.T @ Q)
         L, V = torch.linalg.eig(B)
         U = Q @ V.real
+        if verbose:
+            print(f'L.min: {L.real[:self.low_rank_rank_dim].min()}, L.max: {L.real[:self.low_rank_rank_dim].max()}, L.num_vals_below_{eps}:{(L.real[:self.low_rank_rank_dim] < eps).sum()}\n')
         return U[:, :self.low_rank_rank_dim], L.real[:self.low_rank_rank_dim].clamp_(min=eps)
 

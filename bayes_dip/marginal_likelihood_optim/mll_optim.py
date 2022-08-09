@@ -8,10 +8,11 @@ from torch import Tensor
 from tqdm import tqdm
 import tensorboardX
 
+
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
 from .sample_based_predcp import sample_based_predcp_grads
 from .utils import get_ordered_nn_params_vec, get_params_list_under_GPpriors
-from ..probabilistic_models import ObservationCov, MatmulObservationCov, BaseGaussPrior, GPprior, NormalPrior
+from ..probabilistic_models import ObservationCov, MatmulObservationCov, BaseGaussPrior, GPprior, IsotropicPrior, NormalPrior
 
 def marginal_likelihood_hyperparams_optim(
     observation_cov: ObservationCov,
@@ -20,7 +21,7 @@ def marginal_likelihood_hyperparams_optim(
     linearized_weights: Optional[Tensor] = None,
     optim_kwargs: Dict = None,
     log_path: str = './',
-    comment: str = ''
+    comment: str = 'mll'
     ):
 
     writer = tensorboardX.SummaryWriter(
@@ -131,11 +132,13 @@ def marginal_likelihood_hyperparams_optim(
                     prior_type_name = 'GPprior'
                 elif issubclass(prior_type, NormalPrior):
                     prior_type_name = 'NormalPrior'
+                elif issubclass(prior_type, IsotropicPrior):
+                    prior_type_name = 'GPrior'
                 else:
                     prior_type_name = None
 
                 for k, prior in enumerate(priors):
-                    if issubclass(prior_type, BaseGaussPrior):
+                    if issubclass(prior_type, BaseGaussPrior) or issubclass(prior_type, IsotropicPrior):
                         writer.add_scalar(f'{prior_type_name}_variance_{k}', torch.exp(prior.log_variance).item(), i)
                         if issubclass(prior_type, GPprior):
                             writer.add_scalar(f'{prior_type_name}_lengthscale_{k}', torch.exp(prior.log_lengthscale).item(), i)

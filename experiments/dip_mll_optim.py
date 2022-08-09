@@ -7,8 +7,9 @@ from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
+from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts
 from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov
+from bayes_dip.probabilistic_models.linearized_dip.neural_basis_expansion import GpriorNeuralBasisExpansion
 from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, LowRankPreC, weights_linearization, get_ordered_nn_params_vec
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
@@ -88,7 +89,9 @@ def coordinator(cfg : DictConfig) -> None:
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.nn_model)
+                reconstructor.nn_model) if not cfg.priors.use_gprior else get_default_unet_gprior_dicts(
+                        nn_model=reconstructor.nn_model,
+                )
         parameter_cov = ParameterCov(
                 reconstructor.nn_model,
                 prior_assignment_dict,
@@ -100,7 +103,14 @@ def coordinator(cfg : DictConfig) -> None:
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
-        )
+        ) if not cfg.priors.use_gprior else GpriorNeuralBasisExpansion(
+                    trafo=ray_trafo,
+                    nn_model=reconstructor.nn_model,
+                    nn_input=filtbackproj,
+                    ordered_nn_params=parameter_cov.ordered_nn_params,
+                    nn_out_shape=filtbackproj.shape,
+                    scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
+                )
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion
@@ -168,6 +178,8 @@ def coordinator(cfg : DictConfig) -> None:
                 'include_predcp': cfg.mll_optim.include_predcp,
                 'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
                 }
+        
+        assert cfg.priors.use_gprior and not cfg.mll_optim.include_predcp
         marginal_likelihood_hyperparams_optim(
                 observation_cov=observation_cov,
                 observation=observation,

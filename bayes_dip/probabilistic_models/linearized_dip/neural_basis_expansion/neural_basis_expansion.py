@@ -1,10 +1,14 @@
-from typing import Callable
+from warnings import warn
+from typing import Callable, Optional
 import functorch as ftch
 import torch
+import numpy as np
+from tqdm import tqdm
 from torch import Tensor
 import torch.autograd as autograd
 
 from bayes_dip.utils.utils import CustomAutogradModule
+from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from .base_neural_basis_expansion import BaseNeuralBasisExpansion
 from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
 from ..utils import get_inds_from_ordered_params
@@ -192,3 +196,106 @@ class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
     def update_matrix(self) -> None:
         self.matrix = self.get_matrix()
+
+class GpriorNeuralBasisExpansion(NeuralBasisExpansion):
+    def __init__(self, 
+            trafo: BaseRayTrafo,
+            scale_kwargs, 
+            *args,
+            **kwargs
+        ) -> None:
+
+        super().__init__(*args, **kwargs)
+
+        self.trafo = trafo
+        self.neural_basis_expansion = NeuralBasisExpansion(
+            *args, **kwargs,
+        )
+        self.scale = self.compute_scale(**scale_kwargs)
+    
+    def update_scale(self, **scale_kwargs): 
+        self.scale = self.compute_scale(**scale_kwargs)
+
+    def compute_scale(self,
+            reduction: str = 'mean',
+            batch_size: int = 1,
+            eps: float = 1e-6,
+            max_scale_thresh: float = 1e5,
+            verbose: bool = True,
+        ) -> Tensor:
+            
+            def forward(v):
+                return self.neural_basis_expansion.vjp(
+                    self.trafo.trafo_adjoint(v).unsqueeze(dim=1)
+                ).pow(2) 
+                
+            obs_numel = np.prod(self.trafo.obs_shape)
+            v = torch.empty((batch_size, 1, *self.trafo.obs_shape), device=self.trafo.matrix.device)
+            rows = torch.zeros((self.num_params), device=self.trafo.matrix.device)
+            with torch.no_grad():
+                for i in tqdm(np.array(range(0, obs_numel, batch_size)),
+                            desc='compute_scale', miniters=obs_numel//batch_size//100
+                        ):
+                    v[:] = 0.
+                    # set v.view(batch_size, -1) to be a subset of rows of torch.eye(obs_numel);
+                    # in last batch, it may contain some additional (zero) rows
+                    v.view(batch_size, -1)[:, i:i+batch_size].fill_diagonal_(1.)
+                    rows_batch = forward(
+                        v,
+                    )
+                    rows_batch = rows_batch.view(batch_size, -1)
+                    if i+batch_size > obs_numel:  # last batch
+                        rows_batch = rows_batch[:obs_numel%batch_size]
+                    rows += rows_batch.sum(dim=0)
+                if verbose:
+                    print(f'scale.min: {rows.min()}, scale.max: {rows.max()}, ' 
+                        f'scale.num_vals_below_{eps}:{(rows < eps).sum()}\n'
+                    )
+                if rows.max() > max_scale_thresh: 
+                    warn('max scale values reached.')
+                scale_vec = (rows.clamp_(min=eps) / obs_numel).pow(0.5) if reduction == 'mean' \
+                     else rows.clamp_(min=eps).pow(0.5) # num_obs, num_params
+
+            return scale_vec
+
+    def _get_single_jvp_fun(self,
+                    return_out: bool = False) -> Callable:
+        """
+        Generate closure that performs ``J_{params*scale}(x)``.
+        """
+
+        def f(v: Tensor):
+            scaled_v = v*self.scale
+            scaled_unflat_v = unflatten_nn_functorch(
+                self.nn_model,
+                self.inds_from_ordered_params,
+                self.slices_from_ordered_params,
+                scaled_v.detach()
+               )
+
+            single_out, single_jvp = ftch.jvp(  # pylint: disable=unbalanced-tuple-unpacking
+                self._func_model, (self.func_params,), (scaled_unflat_v,))
+
+            return (single_out, single_jvp) if return_out else single_jvp
+
+        return f
+
+    def _get_single_vjp_fun(self,
+                    return_out: bool = False) -> Callable:
+
+        single_out, vjp_fn = ftch.vjp(  # pylint: disable=unbalanced-tuple-unpacking
+                self._func_model, self.func_params)
+
+        def f(v):
+            # Calculate v.J*s using vJp
+            # v is vector of size N_outputs
+            unflat_w_grad = vjp_fn(v)[0] # we index 0th element, as vjp return tuple
+
+            single_w_grad = flatten_grad_functorch(
+                self.inds_from_ordered_params,
+                unflat_w_grad,
+               )  # (D,)
+
+            return (single_out, single_w_grad*self.scale) if return_out else single_w_grad*self.scale
+
+        return f

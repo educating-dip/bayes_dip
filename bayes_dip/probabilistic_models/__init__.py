@@ -2,10 +2,10 @@
 Provides probabilistic models.
 """
 from .linearized_dip import (
-        NeuralBasisExpansion, LowRankNeuralBasisExpansion, MatmulNeuralBasisExpansion,
-        get_default_unet_gaussian_prior_dicts,
+        NeuralBasisExpansion, LowRankNeuralBasisExpansion, MatmulNeuralBasisExpansion, GpriorNeuralBasisExpansion,
+        get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts, 
         ParameterCov, ImageCov,
-        BaseGaussPrior, GPprior, NormalPrior, LowRankObservationCov
+        BaseGaussPrior, GPprior, IsotropicPrior, NormalPrior, LowRankObservationCov
         )
 from .base_image_cov import BaseImageCov
 from .linear_sandwich_cov import LinearSandwichCov

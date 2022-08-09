@@ -1,0 +1,8 @@
+use_gprior: False
+gprior: 
+  scale:
+    reduction: mean
+    batch_size: 10
+    eps: 1e-6
+    max_scale_thresh: 1e5
+    verbose: True

@@ -13,8 +13,7 @@ def unflatten_nn_functorch(nn_model, inds_from_ordered_params, slices_from_order
     weight_list = [None] * len(params)
 
     for ind, slice_param in zip(inds_from_ordered_params, slices_from_ordered_params):
-        weight_list[ind] = weights[slice_param].view(
-                *params[ind].shape)
+        weight_list[ind] = weights[slice_param].view(*params[ind].shape) 
 
     for ind, weight in enumerate(weight_list):
         if weight is None:

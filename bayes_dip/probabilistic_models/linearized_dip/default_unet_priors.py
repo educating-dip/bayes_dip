@@ -2,8 +2,9 @@ from typing import Optional, Dict, Tuple, Callable, List
 from torch.nn import Conv2d
 from bayes_dip.dip.network.unet import UNet
 from bayes_dip.probabilistic_models.linearized_dip.parameter_priors import (
-        get_GPprior_RadialBasisFuncCov, NormalPrior)
+        get_GPprior_RadialBasisFuncCov, NormalPrior, IsotropicPrior)
 from bayes_dip.utils import get_modules_by_names
+from bayes_dip.data import BaseRayTrafo
 
 def get_default_unet_gaussian_prior_dicts(
         nn_model: UNet,
@@ -65,4 +66,24 @@ def get_default_unet_gaussian_prior_dicts(
                     conv.kernel_size[0] * conv.kernel_size[1] > 1
                     for conv in get_modules_by_names(nn_model, convs))
 
+    return prior_assignment_dict, hyperparams_init_dict
+
+
+def get_default_unet_gprior_dicts(
+        nn_model: UNet,
+        gprior_hyperparams_init: Optional[Dict] = None,
+        ) -> Tuple[Dict[str, Tuple[Callable, List[str]]], Dict[str, Dict]]:
+
+    if gprior_hyperparams_init is None:
+        gprior_hyperparams_init = {}
+    gprior_hyperparams_init.setdefault('variance', 1.)
+
+    prior_assignment_dict = {}
+    hyperparams_init_dict = {}
+
+    prior_assignment_dict['gprior'] = (IsotropicPrior, [
+        f'{name}' for name, module in nn_model.named_modules() 
+        if isinstance(module, Conv2d)]) 
+
+    hyperparams_init_dict['gprior'] = gprior_hyperparams_init.copy()
     return prior_assignment_dict, hyperparams_init_dict

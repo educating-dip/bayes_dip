@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
-from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov, get_image_noise_correction_term
+from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts
+from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov, get_image_noise_correction_term, GpriorNeuralBasisExpansion
 from bayes_dip.marginal_likelihood_optim import LowRankPreC
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 from bayes_dip.data.datasets import get_walnut_2d_inner_patch_indices
@@ -72,7 +72,9 @@ def coordinator(cfg : DictConfig) -> None:
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.nn_model)
+                reconstructor.nn_model) if not cfg.priors.use_gprior else get_default_unet_gprior_dicts(
+                        nn_model=reconstructor.nn_model,
+        )
         parameter_cov = ParameterCov(
                 reconstructor.nn_model,
                 prior_assignment_dict,
@@ -84,7 +86,14 @@ def coordinator(cfg : DictConfig) -> None:
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
-        )
+        ) if cfg.priors.use_gprior else GpriorNeuralBasisExpansion(
+                    trafo=ray_trafo,
+                    nn_model=reconstructor.nn_model,
+                    nn_input=filtbackproj,
+                    ordered_nn_params=parameter_cov.ordered_nn_params,
+                    nn_out_shape=filtbackproj.shape,
+                    scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
+            )
         if cfg.inference.use_low_rank_neural_basis_expansion:
             neural_basis_expansion = LowRankNeuralBasisExpansion(
                 neural_basis_expansion=neural_basis_expansion,
