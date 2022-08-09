@@ -11,7 +11,7 @@ from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standar
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts
-from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov, get_image_noise_correction_term, GpriorNeuralBasisExpansion
+from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov, GpriorNeuralBasisExpansion, get_image_noise_correction_term
 from bayes_dip.marginal_likelihood_optim import LowRankPreC
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 from bayes_dip.data.datasets import get_walnut_2d_inner_patch_indices

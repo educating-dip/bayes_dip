@@ -5,8 +5,8 @@ defaults:
   - mll_optim: mll_optim
   - inference: ???
   - priors: priors
-  - experiment: kmnist
   - _self_
+  - experiment: kmnist
 seed: 1
 num_images: 1
 use_double: False
