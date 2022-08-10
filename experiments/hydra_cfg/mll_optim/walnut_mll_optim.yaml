@@ -1,6 +1,7 @@
 defaults:
   - base_mll_optim
 
+iterations: 2000
 num_probes: 10
 linear_cg:
   max_iter: 50

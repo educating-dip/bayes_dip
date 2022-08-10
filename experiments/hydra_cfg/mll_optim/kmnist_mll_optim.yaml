@@ -1,6 +1,7 @@
 defaults:
   - base_mll_optim
 
+iterations: 1500
 num_probes: 10
 linear_cg:
   max_iter: 50
@@ -9,4 +10,4 @@ linear_cg:
     oversampling_param: 5
     vec_batch_size: 32
 predcp:
-  num_samples: 20
+  num_samples: 1000
