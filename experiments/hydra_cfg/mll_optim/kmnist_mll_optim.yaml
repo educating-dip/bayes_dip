@@ -11,4 +11,4 @@ linear_cg:
     vec_batch_size: 32
 predcp:
   num_samples: 50
-  scale: 50.
+  scale: 1.

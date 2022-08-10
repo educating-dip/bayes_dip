@@ -11,5 +11,5 @@ linear_cg:
     vec_batch_size: 32
 predcp:
   num_samples: 20
-  scale: 50.
+  scale: 1.
 use_linearized_weights: True
