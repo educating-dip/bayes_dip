@@ -7,7 +7,6 @@ from torch import Tensor
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from .neural_basis_expansion import NeuralBasisExpansion
 
-
 class GpriorNeuralBasisExpansion(NeuralBasisExpansion):
     def __init__(self,
             trafo: BaseRayTrafo,
@@ -61,8 +60,9 @@ class GpriorNeuralBasisExpansion(NeuralBasisExpansion):
                 )
             if rows.max() > max_scale_thresh:
                 warn('max scale values reached.')
-            scale_vec = (rows.clamp_(min=eps) / obs_numel).pow(0.5) if reduction == 'mean' \
-                    else rows.clamp_(min=eps).pow(0.5) # num_obs, num_params
+
+            scale_vec = (rows.clamp_(min=eps) / obs_numel).pow(-0.5) if reduction == 'mean' \
+                    else rows.clamp_(min=eps).pow(-0.5) # num_obs, num_params
 
         return scale_vec
 
