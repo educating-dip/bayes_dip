@@ -3,7 +3,7 @@ from torch import nn
 from tqdm import tqdm
 from bayes_dip.dip import UNetReturnPreSigmoid
 from bayes_dip.probabilistic_models import NeuralBasisExpansion
-from ..utils import tv_loss, batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-import
+from ..utils import batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-import
 
 def weights_linearization(
         trafo, neural_basis_expansion, map_weights, observation, ground_truth, optim_kwargs):
@@ -31,7 +31,7 @@ def weights_linearization(
             else map_weights.clone())
     optimizer = torch.optim.Adam([lin_weights_fd], lr=optim_kwargs['lr'], weight_decay=0)
 
-    precision = 1.
+    precision = optim_kwargs['noise_precision']
 
     with tqdm(range(optim_kwargs['iterations']),
                 miniters=optim_kwargs['iterations']//100) as pbar, \
