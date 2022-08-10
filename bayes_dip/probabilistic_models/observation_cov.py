@@ -10,6 +10,7 @@ from bayes_dip.data.trafo import MatmulRayTrafo
 from bayes_dip.utils import bisect_left  # for python >= 3.10: from bisect import bisect_left
 from .base_image_cov import BaseImageCov
 from .base_observation_cov import BaseObservationCov
+from ..utils import make_choleskable
 
 class ObservationCov(BaseObservationCov):
     """
@@ -217,20 +218,22 @@ class MatmulObservationCov(BaseObservationCov):
         trafo_mat = self.trafo.matrix
         jac_mat = self.image_cov.neural_basis_expansion.matrix
         self.trafo_jac_mat = trafo_mat @ jac_mat
-        self.jac_t_trafo_t_mat = jac_mat.T @ trafo_mat.T
+        self.jac_t_trafo_t_mat = self.trafo_jac_mat.T
 
-    def forward(self, v: Tensor) -> Tensor:
+    def forward(self, v: Tensor, matrix: Tensor = None, apply_make_choleskable=False) -> Tensor:
+
+        if matrix is None:
+            matrix = self.get_matrix(apply_make_choleskable=apply_make_choleskable)
 
         batch_size = v.shape[0]
         v = v.view(
             batch_size, -1, self.shape[0]
         )
-        return (v @ self.matrix).view(
+        return (v @ matrix).view(
             batch_size, -1, *self.trafo.obs_shape
             )
 
-    @property
-    def matrix(self, ) -> Tensor:
+    def get_matrix(self, apply_make_choleskable=False) -> Tensor:
         """
         Covariance in observation space assembled via explicit matmut.
 
@@ -245,4 +248,6 @@ class MatmulObservationCov(BaseObservationCov):
                 self.image_cov.inner_cov(self.trafo_jac_mat) @ self.jac_t_trafo_t_mat +
                 self.log_noise_variance.exp() * torch.eye(self.shape[0], device=self.device)
             )
+        if apply_make_choleskable:
+            make_choleskable(matrix)
         return matrix

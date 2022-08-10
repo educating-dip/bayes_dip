@@ -3,7 +3,7 @@ import torch
 from torch import autograd
 from torch import Tensor
 
-from ..probabilistic_models import ObservationCov
+from ..probabilistic_models import BaseImageCov
 from ..utils import batch_tv_grad
 
 def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
@@ -19,7 +19,7 @@ def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
     return grads
 
 def sample_based_predcp_grads(
-        observation_cov: ObservationCov,
+        image_cov: BaseImageCov,
         params_list_under_predcp: Sequence,
         image_mean: Tensor,
         num_samples: int = 100,
@@ -27,7 +27,7 @@ def sample_based_predcp_grads(
         weight_mean: Union[Tensor, float, None] = None,
         return_loss: bool = True):
 
-    x_samples, weight_samples = observation_cov.image_cov.sample(
+    x_samples, weight_samples = image_cov.sample(
         num_samples=num_samples,
         return_weight_samples=True,
         mean=image_mean,
@@ -45,7 +45,7 @@ def sample_based_predcp_grads(
 
     with torch.no_grad():
         tv_x_samples = batch_tv_grad(x_samples)
-        jac_tv_x_samples = observation_cov.image_cov.lin_op_transposed(tv_x_samples)
+        jac_tv_x_samples = image_cov.lin_op_transposed(tv_x_samples)
 
     loss = (weight_samples * jac_tv_x_samples).sum(dim=1).mean(dim=0)
     first_derivative_grads = autograd.grad(

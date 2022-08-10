@@ -4,26 +4,8 @@ from torch import Tensor
 from torch.distributions.multivariate_normal import MultivariateNormal
 from bayes_dip.probabilistic_models import MatmulObservationCov
 from .base_predictive_posterior import BasePredictivePosterior
+from ..utils import make_choleskable, assert_positive_diag
 
-def assert_positive_diag(mat):
-    assert mat.diag().min() > 0
-
-def make_choleskable(
-        mat: Tensor, step: float = 1e-6, max_nsteps: int = 1000, verbose: bool = True) -> Tensor:
-
-    succeed = False
-    cnt = 0
-    while not succeed:
-        try:
-            chol = torch.linalg.cholesky(mat)
-            succeed = True
-        except RuntimeError:
-            mat[np.diag_indices(mat.shape[0])] += step
-            cnt += 1
-            assert cnt < max_nsteps
-    if verbose:
-        print(f'amount added to make choleskable: {cnt*step}')
-    return chol
 
 class ExactPredictivePosterior(BasePredictivePosterior):
 
@@ -37,7 +19,7 @@ class ExactPredictivePosterior(BasePredictivePosterior):
         eps: float = 1e-6
         ) -> Tensor:
 
-        obs_cov_mat = self.observation_cov.matrix  # obs_cov
+        obs_cov_mat = self.observation_cov.get_matrix(apply_make_choleskable=True)  # obs_cov
 
         # jac, shape (dx, dparam)
         jac_mat = self.observation_cov.image_cov.neural_basis_expansion.matrix

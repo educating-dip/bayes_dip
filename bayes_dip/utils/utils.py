@@ -142,6 +142,28 @@ def bisect_left(a, x, lo=0, hi=None, *, key=None):
     return lo
 
 
+def assert_positive_diag(mat):
+    assert mat.diag().min() > 0
+
+
+def make_choleskable(
+        mat: Tensor, step: float = 1e-6, max_nsteps: int = 1000, verbose: bool = True) -> Tensor:
+
+    succeed = False
+    cnt = 0
+    while not succeed:
+        try:
+            chol = torch.linalg.cholesky(mat)
+            succeed = True
+        except RuntimeError:
+            mat[np.diag_indices(mat.shape[0])] += step
+            cnt += 1
+            assert cnt < max_nsteps
+    if verbose and cnt != 0:
+        print(f'amount added to make choleskable: {cnt*step}')
+    return chol
+
+
 class eval_mode:
     def __init__(self, nn_model):
         self.nn_model = nn_model

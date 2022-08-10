@@ -99,7 +99,7 @@ def marginal_likelihood_hyperparams_optim(
 
             if optim_kwargs['include_predcp']:
                 predcp_grads, predcp_loss = sample_based_predcp_grads(
-                    observation_cov=observation_cov,
+                    image_cov=observation_cov.image_cov,
                     params_list_under_predcp=params_list_under_predcp,
                     num_samples=optim_kwargs['predcp']['num_samples'],
                     scale=optim_kwargs['predcp']['scale'],
@@ -113,7 +113,8 @@ def marginal_likelihood_hyperparams_optim(
             loss = torch.zeros(1, device=observation_cov.device)
 
             if isinstance(observation_cov, MatmulObservationCov):
-                sign, log_det = torch.linalg.slogdet(observation_cov.matrix)
+                sign, log_det = torch.linalg.slogdet(observation_cov.get_matrix(
+                        apply_make_choleskable=True))
                 assert sign > 0.
 
                 loss = loss + 0.5 * log_det  # grads will be added in loss.backward() call

@@ -79,6 +79,7 @@ def test_observation_cov_vs_matmul_observation_cov(observation_cov_and_matmul_ob
     observation_cov, matmul_observation_cov = observation_cov_and_matmul_observation_cov
 
     observation_cov_assembled = observation_cov.assemble_observation_cov()
-    matmul_observation_cov_assembled = matmul_observation_cov.matrix
+    matmul_observation_cov_assembled = matmul_observation_cov.get_matrix(
+            apply_make_choleskable=True)
 
     assert torch.allclose(observation_cov_assembled, matmul_observation_cov_assembled)
