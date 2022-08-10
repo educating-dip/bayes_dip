@@ -8,7 +8,8 @@ from ..utils import batch_tv_grad
 
 def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
         first_derivative_grads: Sequence,
-        second_derivative_grads, scaling: Sequence
+        second_derivative_grads: Sequence,
+        scaling: float
         ):
 
     assert len(first_derivative_grads) == len(params_list_under_GPpriors)
