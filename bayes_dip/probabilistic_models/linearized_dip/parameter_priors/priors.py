@@ -44,9 +44,8 @@ class BaseGaussPrior(nn.Module, ABC):
     def _init_parameters(self,
             init_hyperparams: Dict,
             ):
-
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def log_variance(self,
@@ -57,26 +56,22 @@ class BaseGaussPrior(nn.Module, ABC):
     def sample(self,
             shape: Tuple,
             ) -> Tensor:
-
         raise NotImplementedError
 
     @abstractmethod
     def log_prob(self,
             x: Tensor
             ) -> Tensor:
-
         raise NotImplementedError
 
     @abstractmethod
     def cov_mat(self,
             ) -> Tensor :
-
         raise NotImplementedError
 
     @abstractmethod
     def cov_log_det(self,
             ) -> Tensor:
-
         raise NotImplementedError
 
     @classmethod
@@ -215,12 +210,12 @@ class GPprior(BaseGaussPrior):
                 device=self.device)
 
     @property
-    def log_variance(self, ): 
-        return self.cov.log_variance 
-    
+    def log_variance(self, ):
+        return self.cov.log_variance
+
     @property
-    def log_lengthscale(self, ): 
-        return self.cov.log_lengthscale 
+    def log_lengthscale(self, ):
+        return self.cov.log_lengthscale
 
     def sample(self,
             shape: Tuple,
@@ -277,9 +272,9 @@ class NormalPrior(BaseGaussPrior):
             )
 
     @property
-    def log_variance(self, ): 
+    def log_variance(self, ):
         return self._log_variance
-    
+
     def _init_parameters(self,
             init_hyperparams: Dict
             ):
@@ -314,7 +309,7 @@ class NormalPrior(BaseGaussPrior):
         return self.log_variance * self.kernel_size
 
 class IsotropicPrior(BaseGaussPrior):
-    
+
     def _setup(self, modules):
         self._log_variance = nn.Parameter(
                 torch.ones(1, device=self.device)
@@ -334,20 +329,20 @@ class IsotropicPrior(BaseGaussPrior):
     def log_variance(self,
             ):
         return self._log_variance
-    
+
     @log_variance.setter
     def log_variance(self, value
             ):
         self._log_variance.data[:] = np.log(value)
 
     def _init_parameters(self,
-            init_hyperparams: Dict, 
+            init_hyperparams: Dict,
             ) -> None:
 
-        nn.init.constant_(self.log_variance, 
+        nn.init.constant_(self.log_variance,
             np.log(init_hyperparams['variance'])
         )
-    
+
     def sample(self,
             shape: Tuple,
             ) -> Tensor:
@@ -376,9 +371,9 @@ class IsotropicPrior(BaseGaussPrior):
         assert not (use_cholesky and use_inverse)
         if len(priors)!= 1:
             raise NotImplementedError
-        
+
         prior = priors[0]
-        
+
         scale = prior.log_variance.exp() if not use_cholesky \
             else prior.log_variance.exp().pow(0.5)
         if use_inverse:

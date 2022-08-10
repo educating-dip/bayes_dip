@@ -49,6 +49,6 @@ conda install tensorboard tensorboardx scikit-image imageio opt_einsum tqdm tabu
 
 
 # install pip packages
-pip install hydra-core tensorly==0.6.0 https://github.com/odlgroup/odl/archive/master.zip bios functorch
+pip install hydra-core https://github.com/odlgroup/odl/archive/master.zip bios functorch
 
 echo -e "created env ${env_path}; to activate it, use:\n\tconda activate ${env_path}"

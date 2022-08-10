@@ -15,18 +15,18 @@ class LowRankObservationCov(ObservationCov):
 
     """
     Covariance in observation space using low-rank matrix approximation.
-    This class is based Halko et al. ``Finding Structure with Randomness: 
+    This class is based Halko et al. ``Finding Structure with Randomness:
     probabilistic algorithms for constructing approximate matrix decompositions``
-    (https://epubs.siam.org/doi/epdf/10.1137/090771806). 
-    This class (``:meth:get_batched_low_rank_observation_cov_basis``) uses randomization 
-    (``:meth:_assemble_random_matrix``) to perform low-rank matrix approximation. 
+    (https://epubs.siam.org/doi/epdf/10.1137/090771806).
+    This class (``:meth:get_batched_low_rank_observation_cov_basis``) uses randomization
+    (``:meth:_assemble_random_matrix``) to perform low-rank matrix approximation.
     """
 
     def __init__(self,
         trafo: BaseRayTrafo,
         image_cov: BaseImageCov,
         init_noise_variance: float = 1.,
-        low_rank_rank_dim: int = 100, 
+        low_rank_rank_dim: int = 100,
         oversampling_param: int = 5,
         vec_batch_size: int = 1,
         load_approx_basis_from: Optional['str'] = None,
@@ -58,12 +58,12 @@ class LowRankObservationCov(ObservationCov):
     def _assemble_random_matrix(self, ) -> Tensor:
         low_rank_rank_dim = self.low_rank_rank_dim + self.oversampling_param
         random_matrix = torch.randn(
-            (low_rank_rank_dim, np.prod(self.trafo.obs_shape) 
+            (low_rank_rank_dim, np.prod(self.trafo.obs_shape)
                 ),
             device=self.device
             )
         return random_matrix
-    
+
     def get_batched_low_rank_observation_cov_basis(self,
         use_cpu: bool = False,
         eps: float = 1e-3,
@@ -71,10 +71,10 @@ class LowRankObservationCov(ObservationCov):
         ):
 
         """
-        Eigenvalue Decomposition in One Pass. 
+        Eigenvalue Decomposition in One Pass.
 
-        This method implements Algo. 5.6 from Halko et al. and computes an 
-        approximate eigenvalue decomposition of the low-rank term of 
+        This method implements Algo. 5.6 from Halko et al. and computes an
+        approximate eigenvalue decomposition of the low-rank term of
         covariance in observation space.
 
         Parameters
@@ -83,8 +83,8 @@ class LowRankObservationCov(ObservationCov):
             Whether to compute QR on CPU.
             The default is `False`.
         eps : float, optional
-            Minumum value eigenvalues. 
-            The default is 1e-3. 
+            Minumum value eigenvalues.
+            The default is 1e-3.
 
         Returns
         -------
@@ -93,24 +93,25 @@ class LowRankObservationCov(ObservationCov):
         L : Tensor
             Output. Shape: ``(self.low_rank_rank_dim)``
         """
-        
-        num_batches = ceil((self.low_rank_rank_dim + self.oversampling_param ) / self.vec_batch_size)
+
+        batch_size = self.vec_batch_size
+        num_batches = ceil((self.low_rank_rank_dim + self.oversampling_param) / batch_size)
         v_cov_obs_mat = []
         for i in tqdm(range(num_batches), miniters=num_batches//100, desc='get_cov_obs_low_rank'):
-            rnd_vect = self.random_matrix[i * self.vec_batch_size:(i * self.vec_batch_size) + self.vec_batch_size, :].unsqueeze(dim=1)
+            rnd_vect = self.random_matrix[i * batch_size:(i+1) * batch_size, :].unsqueeze(dim=1)
             eff_batch_size = rnd_vect.shape[0]
-            if eff_batch_size < self.vec_batch_size:
+            if eff_batch_size < batch_size:
                 rnd_vect = torch.cat(
                     [rnd_vect, torch.zeros(
-                            (self.vec_batch_size-eff_batch_size, *rnd_vect.shape[1:]), 
+                            (batch_size-eff_batch_size, *rnd_vect.shape[1:]),
                                 dtype=rnd_vect.dtype,
                                 device=rnd_vect.device)
                         ]
                     )
-            v = super().forward( 
+            v = super().forward(
                 rnd_vect,
                 use_noise_variance=False)
-            if eff_batch_size < self.vec_batch_size:
+            if eff_batch_size < batch_size:
                 v = v[:eff_batch_size]
             v_cov_obs_mat.append(v)
         v_cov_obs_mat = torch.cat(v_cov_obs_mat)
@@ -122,6 +123,8 @@ class LowRankObservationCov(ObservationCov):
         L, V = torch.linalg.eig(B)
         U = Q @ V.real
         if verbose:
-            print(f'L.min: {L.real[:self.low_rank_rank_dim].min()}, L.max: {L.real[:self.low_rank_rank_dim].max()}, L.num_vals_below_{eps}:{(L.real[:self.low_rank_rank_dim] < eps).sum()}\n')
+            print(
+                    f'L.min: {L.real[:self.low_rank_rank_dim].min()}, '
+                    f'L.max: {L.real[:self.low_rank_rank_dim].max()}, '
+                    f'L.num_vals_below_{eps}:{(L.real[:self.low_rank_rank_dim] < eps).sum()}\n')
         return U[:, :self.low_rank_rank_dim], L.real[:self.low_rank_rank_dim].clamp_(min=eps)
-

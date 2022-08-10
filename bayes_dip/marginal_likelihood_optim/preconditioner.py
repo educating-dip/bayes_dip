@@ -1,6 +1,6 @@
 
-import torch
 from abc import ABC, abstractmethod
+import torch
 from torch import Tensor
 from ..probabilistic_models import LowRankObservationCov
 
@@ -17,7 +17,6 @@ class BasePreC(ABC):
     def sample(self,
             num_samples: int
             ) -> Tensor:
-
         raise NotImplementedError
 
     @abstractmethod
@@ -25,14 +24,12 @@ class BasePreC(ABC):
             v: Tensor,
             use_inverse: bool,
             ) -> Tensor:
-
         raise NotImplementedError
 
     @abstractmethod
     def update(self,
         use_cpu: bool
         ) -> Tensor:
-
         raise NotImplementedError
 
 class LowRankPreC(BasePreC):
@@ -66,20 +63,24 @@ class LowRankPreC(BasePreC):
         ):
 
         if not use_inverse:
-            return self.pre_con_obj.U @ ( self.L[:, None] * (self.U.T @ v) ) + self.noise_model_variance_obs_and_eps * v
+            v = (self.pre_con_obj.U @ (self.L[:, None] * (self.U.T @ v))
+                    + self.noise_model_variance_obs_and_eps * v)
         else:
-            return ( v / self.noise_model_variance_obs_and_eps) - ( self.U @ torch.linalg.solve(
-                self.sysmat, self.U.T @ v.T / (self.noise_model_variance_obs_and_eps ** 2) ) ).T
+            v = (v / self.noise_model_variance_obs_and_eps) - (self.U @ torch.linalg.solve(
+                    self.sysmat, self.U.T @ v.T / (self.noise_model_variance_obs_and_eps ** 2))).T
+        return v
 
     def update(self,
+        use_cpu: bool = False,
         eps: float = 1e-3,
         full_diag_eps: float = 1e-6,
-        use_cpu: bool = False
         ):
 
         self.U, self.L = self.pre_con_obj.get_batched_low_rank_observation_cov_basis(
             eps=eps,
-            use_cpu=use_cpu
+            use_cpu=use_cpu,
         )
-        self.noise_model_variance_obs_and_eps = self.pre_con_obj.log_noise_variance.exp() + full_diag_eps
-        self.sysmat = torch.diag( 1 / (self.L) ) + self.U.T @ self.U  / self.noise_model_variance_obs_and_eps
+        self.noise_model_variance_obs_and_eps = (
+                self.pre_con_obj.log_noise_variance.exp() + full_diag_eps)
+        self.sysmat = (
+                torch.diag(1 / self.L) + self.U.T @ self.U / self.noise_model_variance_obs_and_eps)

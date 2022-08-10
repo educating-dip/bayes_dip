@@ -1,6 +1,7 @@
 """
 Provides walnut projection data and ground truth.
 """
+from typing import List
 from math import ceil
 import torch
 from torch import Tensor
@@ -106,7 +107,7 @@ INNER_PART_START_1 = 72
 INNER_PART_END_0 = 424
 INNER_PART_END_1 = 424
 
-def get_walnut_2d_inner_patch_indices(patch_size):
+def get_walnut_2d_inner_patch_indices(patch_size: int) -> List:
 
     num_patches_0 = VOL_SZ[1] // patch_size
     num_patches_1 = VOL_SZ[2] // patch_size

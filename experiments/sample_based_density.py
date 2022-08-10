@@ -5,9 +5,9 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 import numpy as np
 import torch
-import tensorly as tl
+from torch import Tensor
 from torch.utils.data import DataLoader
-from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
+from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset, get_predefined_patch_idx_list
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts
@@ -16,13 +16,38 @@ from bayes_dip.marginal_likelihood_optim import LowRankPreC
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 from bayes_dip.data.datasets import get_walnut_2d_inner_patch_indices
 
+
+def _save_samples(i: int, samples: Tensor, chunk_size: int) -> None:
+    for j, start_i in enumerate(range(0, len(samples), chunk_size)):
+        sample_chunk = samples[start_i:start_i+chunk_size].clone()
+        torch.save(sample_chunk, f'samples_{i}_chunk_{j}.pt')
+
+
+def _load_samples(path: str, i: int, num_samples: int, restrict_to_num_samples=True) -> Tensor:
+    sample_chunks = []
+    num_loaded_samples = 0
+    j = 0
+    while num_loaded_samples < num_samples:
+        try:
+            chunk = torch.load(os.path.join(path, f'samples_{i}_chunk_{j}.pt'))
+        except FileNotFoundError:
+            raise RuntimeError(
+                    f'Failed to load {num_samples} samples from {path}, '
+                    f'only found {num_loaded_samples}.')
+        sample_chunks.append(chunk)
+        num_loaded_samples += chunk.shape[0]
+        j += 1
+    samples = torch.cat(sample_chunks)
+    if restrict_to_num_samples:
+        samples = samples[:num_samples]
+    return samples
+
+
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
 
     if cfg.use_double:
         torch.set_default_tensor_type(torch.DoubleTensor)
-
-    tl.set_backend('pytorch') # or any other backend
 
     dtype = torch.get_default_dtype()
     device = torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
@@ -145,55 +170,60 @@ def coordinator(cfg : DictConfig) -> None:
         cov_obs_mat_chol = torch.linalg.cholesky(cov_obs_mat)
 
         predictive_posterior = SampleBasedPredictivePosterior(observation_cov)
-        sample_kwargs = OmegaConf.to_object(cfg.inference.sampling)
-        if cfg.inference.sampling.use_conj_grad_inv:
-            low_rank_observation_cov = LowRankObservationCov(
-                    trafo=ray_trafo,
-                    image_cov=image_cov,
-                    low_rank_rank_dim=cfg.inference.cov_obs_mat.low_rank_rank_dim,
-                    oversampling_param=cfg.inference.cov_obs_mat.oversampling_param,
-                    vec_batch_size=cfg.inference.cov_obs_mat.batch_size,
-                    device=device
-            )
-            low_rank_preconditioner = LowRankPreC(
-                    pre_con_obj=low_rank_observation_cov
-            )
-            sample_kwargs['cg_kwargs']['precon_closure'] = (
-                    lambda v: low_rank_preconditioner.matmul(v.T, use_inverse=True).T)
-        samples = predictive_posterior.sample(
-                observation=observation,
-                num_samples=cfg.inference.num_samples,
-                cov_obs_mat_chol=cov_obs_mat_chol,
-                return_on_device='cpu',
-                **sample_kwargs)
+
+        if cfg.inference.load_samples_from_path is None:
+            sample_kwargs = OmegaConf.to_object(cfg.inference.sampling)
+            if cfg.inference.sampling.use_conj_grad_inv:
+                low_rank_observation_cov = LowRankObservationCov(
+                        trafo=ray_trafo,
+                        image_cov=image_cov,
+                        low_rank_rank_dim=cfg.inference.cov_obs_mat.low_rank_rank_dim,
+                        oversampling_param=cfg.inference.cov_obs_mat.oversampling_param,
+                        vec_batch_size=cfg.inference.cov_obs_mat.batch_size,
+                        device=device
+                )
+                low_rank_preconditioner = LowRankPreC(
+                        pre_con_obj=low_rank_observation_cov
+                )
+                sample_kwargs['cg_kwargs']['precon_closure'] = (
+                        lambda v: low_rank_preconditioner.matmul(v.T, use_inverse=True).T)
+            samples = predictive_posterior.sample_zero_mean(
+                    num_samples=cfg.inference.num_samples,
+                    cov_obs_mat_chol=cov_obs_mat_chol,
+                    return_on_device='cpu',
+                    **sample_kwargs)
+        else:
+            samples = _load_samples(
+                    path=cfg.inference.load_samples_from_path, i=i,
+                    num_samples=cfg.inference.num_samples)
 
         if cfg.inference.save_samples:
-            for j, start_i in enumerate(range(0, len(samples), cfg.inference.save_samples_chunk_size)):
-                sample_chunk = samples[start_i:start_i+cfg.inference.save_samples_chunk_size].clone()
-                torch.save(sample_chunk, f'samples_{i}_chunk_{j}.pt')
-
-        log_probs_unscaled, patch_diags = predictive_posterior.log_prob_patches(
-            observation=observation,
-            recon=recon,
-            ground_truth=ground_truth,
-            samples=samples,
-            patch_size=cfg.inference.patch_size,
-            batch_size=cfg.inference.batch_size,
-            noise_x_correction_term=noise_x_correction_term,
-            verbose=cfg.inference.verbose,
-            return_patch_diags=True,
-            unscaled=True)
+            _save_samples(i=i, samples=samples, chunk_size=cfg.inference.save_samples_chunk_size)
 
         all_patch_mask_inds = get_image_patch_mask_inds(
-                observation_cov.trafo.im_shape, patch_size=cfg.inference.patch_size, flatten=True)
+                observation_cov.trafo.im_shape, patch_size=cfg.inference.patch_size)
         patch_idx_list = cfg.inference.patch_idx_list
         if patch_idx_list is None:
             patch_idx_list = list(range(len(all_patch_mask_inds)))
         elif isinstance(patch_idx_list, str):
-            if patch_idx_list == 'walnut_inner':
-                patch_idx_list = get_walnut_2d_inner_patch_indices(patch_size=cfg.inference.patch_size)
-            else:
-                raise ValueError(f'Unknown patch_idx_list configuration: {patch_idx_list}')
+            patch_idx_list = get_predefined_patch_idx_list(
+                    name=patch_idx_list, patch_size=cfg.inference.patch_size)
+
+        patch_kwargs = {
+                'patch_size': cfg.inference.patch_size,
+                'patch_idx_list': patch_idx_list,
+                'batch_size': cfg.inference.batch_size,
+        }
+
+        log_probs_unscaled, patch_diags = predictive_posterior.log_prob_patches(
+            mean=recon,
+            ground_truth=ground_truth,
+            samples=samples,
+            patch_kwargs=patch_kwargs,
+            noise_x_correction_term=noise_x_correction_term,
+            verbose=cfg.inference.verbose,
+            return_patch_diags=True,
+            unscaled=True)
 
         total_num_pixels_in_patches = sum(len(all_patch_mask_inds[patch_idx]) for patch_idx in patch_idx_list)
         log_prob = np.sum(log_probs_unscaled) / total_num_pixels_in_patches

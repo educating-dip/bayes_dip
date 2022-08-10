@@ -1,3 +1,4 @@
+from typing import Optional, Dict
 import numpy as np
 import torch
 
@@ -35,20 +36,32 @@ def get_image_patch_mask_inds(image_shape, patch_size, flatten=True):
             patch_mask_inds.append(mask_inds)
     return patch_mask_inds
 
-def yield_padded_batched_images_patches(images, patch_size, patch_idx_list=None, batch_size=1, return_patch_numels=False):
+def yield_padded_batched_images_patches(
+        images, patch_kwargs: Optional[Dict] = None, return_patch_numels=False):
+
     assert images.shape[1] == 1
     assert images.ndim == 4
-    all_patch_mask_inds = get_image_patch_mask_inds(tuple(images.shape[2:]), patch_size=patch_size, flatten=True)
-    if patch_idx_list is None:
-        patch_idx_list = list(range(len(all_patch_mask_inds)))
-    for j in range(0, len(patch_idx_list), batch_size):
-        batch_patch_inds = patch_idx_list[j:j+batch_size]
+    patch_kwargs = patch_kwargs or {}
+    patch_kwargs.setdefault('patch_size', 1)
+    patch_kwargs.setdefault('patch_idx_list', None)
+    patch_kwargs.setdefault('batch_size', 1)
 
-        batch_len_mask_inds = [len(all_patch_mask_inds[patch_idx]) for patch_idx in batch_patch_inds]
+    all_patch_mask_inds = get_image_patch_mask_inds(
+            tuple(images.shape[2:]), patch_size=patch_kwargs['patch_size'])
+    if patch_kwargs['patch_idx_list'] is None:
+        patch_kwargs['patch_idx_list'] = list(range(len(all_patch_mask_inds)))
+
+    for j in range(0, len(patch_kwargs['patch_idx_list']), patch_kwargs['batch_size']):
+        batch_patch_inds = patch_kwargs['patch_idx_list'][j:j+patch_kwargs['batch_size']]
+
+        batch_len_mask_inds = [
+                len(all_patch_mask_inds[patch_idx]) for patch_idx in batch_patch_inds]
         max_len_mask_inds = max(batch_len_mask_inds)
 
         batch_samples_patches = torch.stack([
-                torch.nn.functional.pad(images.view(images.shape[0], -1)[:, all_patch_mask_inds[patch_idx]], (0, max_len_mask_inds - len_mask_inds))
+                torch.nn.functional.pad(
+                        images.view(images.shape[0], -1)[:, all_patch_mask_inds[patch_idx]],
+                        (0, max_len_mask_inds - len_mask_inds))
                 for patch_idx, len_mask_inds in zip(batch_patch_inds, batch_len_mask_inds)])
 
         if return_patch_numels:
@@ -57,5 +70,6 @@ def yield_padded_batched_images_patches(images, patch_size, patch_idx_list=None,
             yield batch_patch_inds, batch_samples_patches
 
 def is_invalid(x):
-    batch_invalid_values = torch.sum(torch.logical_not(torch.isfinite(x.view(x.shape[0], -1))), dim=1) != 0
+    batch_invalid_values = torch.sum(
+            torch.logical_not(torch.isfinite(x.view(x.shape[0], -1))), dim=1) != 0
     return batch_invalid_values

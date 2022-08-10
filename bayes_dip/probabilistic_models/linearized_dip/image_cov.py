@@ -21,7 +21,8 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         parameter_cov : :class:`bayes_dip.probabilistic_models.ParameterCov`
             Parameter space covariance module.
         neural_basis_expansion : :class:`bayes_dip.probabilistic_models.BaseNeuralBasisExpansion`
-            Class for Jacobian vector products (:meth:`jvp`) and vector Jacobian products (:meth:`vjp`).
+            Object for Jacobian vector products (:meth:`jvp`) and vector Jacobian products
+            (:meth:`vjp`).
         """
 
         super().__init__(inner_cov=parameter_cov)
@@ -73,7 +74,8 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         ----------
         num_samples : int
         return_weight_samples : bool
-            Whether to return parameters samples from Gaussian prior over nn weights. The default is `False`
+            Whether to return parameters samples from Gaussian prior over nn weights.
+            The default is `False`.
 
         Returns
         -------
@@ -84,8 +86,11 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
             ``weight_samples`` always has mean zero.
         """
 
-        weight_samples = self.inner_cov.sample(num_samples=num_samples)  # params ~ N(0, parameter_cov)
-        samples = self.lin_op(weight_samples)  # image = J_{params} @ params
+        # params ~ N(0, parameter_cov)
+        weight_samples = self.inner_cov.sample(num_samples=num_samples)
+        # image = J_{params} @ params
+        samples = self.lin_op(weight_samples)
+
         if mean is not None:
             samples = samples + mean
         return samples if not return_weight_samples else (samples, weight_samples)

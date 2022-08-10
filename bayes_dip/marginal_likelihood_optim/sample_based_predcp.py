@@ -1,6 +1,6 @@
 from typing import Sequence, Union
 import torch
-import torch.autograd as autograd
+from torch import autograd
 from torch import Tensor
 
 from ..probabilistic_models import ObservationCov
@@ -57,11 +57,13 @@ def sample_based_predcp_grads(
     )
 
     log_dets = [grad.abs().log() for grad in first_derivative_grads]
-    second_derivative_grads = [autograd.grad(log_det,
-        log_params, allow_unused=True, retain_graph=True)[0] for log_det, log_params in zip(log_dets, params_list_under_predcp)]
+    second_derivative_grads = [
+        autograd.grad(log_det, log_params, allow_unused=True, retain_graph=True)[0]
+        for log_det, log_params in zip(log_dets, params_list_under_predcp)]
 
     with torch.no_grad():
-        grads = compute_log_hyperparams_grads(params_list_under_predcp, first_derivative_grads, second_derivative_grads, scale)
+        grads = compute_log_hyperparams_grads(
+                params_list_under_predcp, first_derivative_grads, second_derivative_grads, scale)
         loss = scale * (loss - torch.stack(log_dets).sum().detach())
 
     return (grads, loss) if return_loss else grads

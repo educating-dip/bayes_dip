@@ -5,7 +5,6 @@ from omegaconf import DictConfig
 import numpy as np
 import torch
 import scipy.sparse
-import tensorly as tl
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
 from bayes_dip.utils import PSNR, SSIM, eval_mode
@@ -19,8 +18,6 @@ def coordinator(cfg : DictConfig) -> None:
 
     if cfg.use_double:
         torch.set_default_tensor_type(torch.DoubleTensor)
-
-    tl.set_backend('pytorch') # or any other backend
 
     dtype = torch.get_default_dtype()
     device = torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))

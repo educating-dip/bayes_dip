@@ -100,6 +100,7 @@ def cg(
     v_norm = torch.norm(v, 2, dim=0, keepdim=True)
     v_scaled = v.div(v_norm)
 
+    # pylint: disable=unbalanced-tuple-unpacking
     scaled_solve, residual_norm = linear_cg(closure, v_scaled, n_tridiag=0, tolerance=rtol,
                 eps=1e-10, stop_updating_after=1e-10, max_iter=max_niter,
                 max_tridiag_iter=max_niter-1, preconditioner=precon_closure,

@@ -32,7 +32,7 @@ class BaseNeuralBasisExpansion(ABC):
         self.slices_from_ordered_params = get_slices_from_ordered_params(
                 self.ordered_nn_params
             )
-        self.num_params = sum([param.data.numel() for param in self.ordered_nn_params])
+        self.num_params = sum(param.data.numel() for param in self.ordered_nn_params)
 
         self.nn_out_shape = nn_out_shape
         if self.nn_out_shape is None:

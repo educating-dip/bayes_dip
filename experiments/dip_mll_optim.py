@@ -178,8 +178,8 @@ def coordinator(cfg : DictConfig) -> None:
                 'include_predcp': cfg.mll_optim.include_predcp,
                 'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
                 }
-        
-        assert cfg.priors.use_gprior and not cfg.mll_optim.include_predcp
+
+        assert not (cfg.priors.use_gprior and cfg.mll_optim.include_predcp)
         marginal_likelihood_hyperparams_optim(
                 observation_cov=observation_cov,
                 observation=observation,

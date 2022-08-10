@@ -10,21 +10,16 @@ class BaseImageCov(nn.Module, ABC):
 
     @abstractmethod
     def forward(self,
-            v: Tensor
-            ) -> Tensor:
-
+            v: Tensor) -> Tensor:
         raise NotImplementedError
-    
+
     @abstractmethod
     def sample(self,
-            num_samples: int
-            ) -> Tensor:
-
+            num_samples: int) -> Tensor:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def shape(self,
+    def shape(self
             ) -> Tuple[int, int]:
-
         raise NotImplementedError

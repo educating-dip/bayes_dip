@@ -5,6 +5,8 @@ import warnings
 import torch
 from gpytorch.utils.linear_cg import settings, bool_compat, NumericalWarning, _default_preconditioner, _jit_linear_cg_updates, _jit_linear_cg_updates_no_precond
 
+# pylint: disable=all
+
 def linear_cg(
     matmul_closure,
     rhs,

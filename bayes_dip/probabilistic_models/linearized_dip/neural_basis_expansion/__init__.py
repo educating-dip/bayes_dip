@@ -3,7 +3,8 @@ Provides neural basis expansion class that allows for exact and approximate vjp 
 """
 
 from .base_neural_basis_expansion import BaseNeuralBasisExpansion
-from .neural_basis_expansion import NeuralBasisExpansion, MatmulNeuralBasisExpansion, GpriorNeuralBasisExpansion
+from .neural_basis_expansion import (
+        NeuralBasisExpansion, MatmulNeuralBasisExpansion, GpriorNeuralBasisExpansion)
 from .low_rank_neural_basis_expansion import LowRankNeuralBasisExpansion
 from .functorch_utils import (
         flatten_grad_functorch,

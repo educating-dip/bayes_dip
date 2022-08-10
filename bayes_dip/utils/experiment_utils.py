@@ -1,9 +1,11 @@
+from typing import List
 import os
 from torch.utils.data import Dataset, TensorDataset
 from bayes_dip.data import get_ray_trafo, SimulatedDataset
 from bayes_dip.data import (
         RectanglesDataset, get_mnist_testset, get_kmnist_testset,
         get_walnut_2d_observation, get_walnut_2d_ground_truth)
+from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
 
 def get_standard_ray_trafo(cfg):
@@ -89,3 +91,10 @@ def get_standard_dataset(cfg, ray_trafo, use_fixed_seeds_starting_from=1, device
         raise ValueError
 
     return dataset
+
+def get_predefined_patch_idx_list(name: str, patch_size: int) -> List:
+    if name == 'walnut_inner':
+        patch_idx_list = get_walnut_2d_inner_patch_indices(patch_size=patch_size)
+    else:
+        raise ValueError(f'Unknown patch_idx_list configuration: {name}')
+    return patch_idx_list

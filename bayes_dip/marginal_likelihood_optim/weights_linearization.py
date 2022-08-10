@@ -1,12 +1,13 @@
 import torch
-import torch.nn as nn
+from torch import nn
 from tqdm import tqdm
 from bayes_dip.dip import UNetReturnPreSigmoid
 from bayes_dip.probabilistic_models import NeuralBasisExpansion
-from ..utils import tv_loss, batch_tv_grad, PSNR, eval_mode
+from ..utils import tv_loss, batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-import
 
 def weights_linearization(
         trafo, neural_basis_expansion, map_weights, observation, ground_truth, optim_kwargs):
+    # pylint: disable=too-many-locals
 
     nn_model = neural_basis_expansion.nn_model
     nn_input = neural_basis_expansion.nn_input
@@ -25,12 +26,15 @@ def weights_linearization(
     with torch.no_grad():
         recon_no_activation = nn_model_no_sigmoid(nn_input, saturation_safety=True)
 
-    lin_weights_fd = nn.Parameter(torch.zeros_like(map_weights))  if optim_kwargs['simplified_eqn'] else map_weights.clone()
+    lin_weights_fd = (
+            nn.Parameter(torch.zeros_like(map_weights)) if optim_kwargs['simplified_eqn']
+            else map_weights.clone())
     optimizer = torch.optim.Adam([lin_weights_fd], lr=optim_kwargs['lr'], weight_decay=0)
 
     precision = 1.
 
-    with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar, \
+    with tqdm(range(optim_kwargs['iterations']),
+                miniters=optim_kwargs['iterations']//100) as pbar, \
             eval_mode(nn_model_no_sigmoid):
         for _ in pbar:
 
@@ -53,7 +57,9 @@ def weights_linearization(
             norm_grad = trafo.trafo_adjoint( observation - proj_lin_recon )
             tv_grad = batch_tv_grad(lin_recon)
 
-            # loss = torch.nn.functional.mse_loss(proj_lin_recon, observation.view(*proj_lin_recon.shape)) + optim_kwargs['gamma'] * tv_loss(lin_recon)
+            # loss = (torch.nn.functional.mse_loss(
+            #                 proj_lin_recon, observation.view(*proj_lin_recon.shape))
+            #         + optim_kwargs['gamma'] * tv_loss(lin_recon))
             v = - 2 / observation.numel() * precision * norm_grad + optim_kwargs['gamma'] * tv_grad
 
             if nn_model.use_sigmoid:
@@ -65,6 +71,8 @@ def weights_linearization(
             lin_weights_fd.grad = grads_vec + optim_kwargs['wd'] * lin_weights_fd.detach()
             optimizer.step()
 
-            pbar.set_description(f'psnr={PSNR(lin_recon.detach().cpu().numpy(), ground_truth.cpu().numpy()):.1f}', refresh=False)
+            pbar.set_description(
+                    f'psnr={PSNR(lin_recon.detach().cpu().numpy(),ground_truth.cpu().numpy()):.1f}',
+                    refresh=False)
 
     return lin_weights_fd.detach(), lin_recon.detach()

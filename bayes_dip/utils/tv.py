@@ -1,5 +1,5 @@
 import torch
-from torch import Tensor 
+from torch import Tensor
 
 def tv_loss(x: Tensor):
     """
@@ -23,5 +23,5 @@ def batch_tv_grad(x: Tensor):
     pad = torch.zeros((batch_size, 1, 1, x.shape[-1]), device = x.device)
     diff_y_pad = torch.cat([pad, sign_diff_y, pad], dim=-2)
     grad_tv_y = torch.diff(diff_y_pad, n=1, dim=-2)
-    
+
     return grad_tv_x + grad_tv_y

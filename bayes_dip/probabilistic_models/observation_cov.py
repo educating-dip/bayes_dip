@@ -103,7 +103,7 @@ class ObservationCov(BaseObservationCov):
 
                 if i+vec_batch_size > obs_numel:  # last batch
                     rows_batch = rows_batch[:obs_numel%vec_batch_size]
-                rows_batch = rows_batch.cpu()  # collect on CPU (saves memory while running the closure)
+                rows_batch = rows_batch.cpu()  # collect on CPU
                 rows.append(rows_batch)
 
         observation_cov_mat = torch.cat(rows, dim=0)

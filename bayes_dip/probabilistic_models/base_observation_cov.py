@@ -59,5 +59,4 @@ class BaseObservationCov(nn.Module, ABC):
         Tensor
             Output. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
         """
-
         raise NotImplementedError

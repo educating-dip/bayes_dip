@@ -334,7 +334,7 @@ class Concat(nn.Module):
 
     Crops to the central image parts if inputs have different image shapes.
     """
-    def forward(self, *inputs: Tensor) -> Tensor:  # pylint: disable=no-self-use
+    def forward(self, *inputs: Tensor) -> Tensor:
         """
         Parameters
         ----------

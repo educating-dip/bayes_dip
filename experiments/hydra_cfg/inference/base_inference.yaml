@@ -13,6 +13,7 @@ load_cov_obs_mat_from_path: null
 num_samples: 4096
 save_samples: False
 save_samples_chunk_size: 1024
+load_samples_from_path: null
 batch_size: 1
 verbose: True
 cov_obs_mat:

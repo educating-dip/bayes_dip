@@ -321,7 +321,8 @@ def get_projection_data(data_path, walnut_id, orbit_id,
     # transformation to apply to each image, we need to get the image from
     # the way the scanner reads it out into to way described in the projection
     # geometry
-    trafo = lambda image : np.transpose(np.flipud(image))
+    def trafo(image):
+        return np.transpose(np.flipud(image))
 
     # load flat-field and dark-fields
     # there are two flat-field images (taken before and after acquisition), we
