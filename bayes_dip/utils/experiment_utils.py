@@ -3,7 +3,8 @@ import os
 from torch.utils.data import Dataset, TensorDataset
 from bayes_dip.data import get_ray_trafo, SimulatedDataset
 from bayes_dip.data import (
-        RectanglesDataset, get_mnist_testset, get_kmnist_testset,
+        get_mnist_testset, get_kmnist_testset, get_mnist_trainset, get_kmnist_trainset,
+        RectanglesDataset,
         get_walnut_2d_observation, get_walnut_2d_ground_truth)
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
@@ -24,7 +25,7 @@ def get_standard_ray_trafo(cfg):
         raise ValueError
     return get_ray_trafo(cfg.dataset.name, kwargs=kwargs)
 
-def get_standard_dataset(cfg, ray_trafo, use_fixed_seeds_starting_from=1, device=None) -> Dataset:
+def get_standard_dataset(cfg, ray_trafo, fold='test', use_fixed_seeds_starting_from=1, device=None) -> Dataset:
     """
     Returns a dataset of tuples ``noisy_observation, x, filtbackproj``, where
         * `noisy_observation` has shape ``(1,) + obs_shape``
@@ -33,15 +34,25 @@ def get_standard_dataset(cfg, ray_trafo, use_fixed_seeds_starting_from=1, device
 
     Parameters
     ----------
+    fold : str, optional
+        Dataset fold, either ``'test'`` or ``'validation'``.
+        Only the (K)MNIST datasets support ``'validation'``, using the respective training set.
+        The default is ``'test'``.
     use_fixed_seeds_starting_from : int, optional
         Fixed seed for noise generation, only used in simulated datasets.
+        If ``fold == 'validation'``, `1000000` is added to the seed (if not `None`).
     device : str or torch.device, optional
         If specified, data will be moved to the device. `ray_trafo`
         (including `ray_trafo.fbp`) must support tensors on the device.
     """
+    assert fold in ('test', 'validation')
+
+    if fold == 'validation' and use_fixed_seeds_starting_from is not None:
+        use_fixed_seeds_starting_from = use_fixed_seeds_starting_from + 1000000
+
     if cfg.dataset.name == 'mnist':
 
-        image_dataset = get_mnist_testset()
+        image_dataset = get_mnist_testset() if fold == 'test' else get_mnist_trainset()
         dataset = SimulatedDataset(
                 image_dataset, ray_trafo,
                 white_noise_rel_stddev=cfg.dataset.noise_stddev,
@@ -50,7 +61,7 @@ def get_standard_dataset(cfg, ray_trafo, use_fixed_seeds_starting_from=1, device
 
     elif cfg.dataset.name == 'kmnist':
 
-        image_dataset = get_kmnist_testset()
+        image_dataset = get_kmnist_testset() if fold == 'test' else get_kmnist_trainset()
         dataset = SimulatedDataset(
                 image_dataset, ray_trafo,
                 white_noise_rel_stddev=cfg.dataset.noise_stddev,
@@ -63,7 +74,8 @@ def get_standard_dataset(cfg, ray_trafo, use_fixed_seeds_starting_from=1, device
                 (cfg.dataset.im_size, cfg.dataset.im_size),
                 num_rects=cfg.dataset.num_rects,
                 num_angle_modes=cfg.dataset.num_angle_modes,
-                angle_modes_sigma=cfg.dataset.angle_modes_sigma)
+                angle_modes_sigma=cfg.dataset.angle_modes_sigma,
+                fixed_seed=1 if fold == 'test' else 1000001)
         dataset = SimulatedDataset(
                 image_dataset, ray_trafo,
                 white_noise_rel_stddev=cfg.dataset.noise_stddev,
@@ -71,6 +83,9 @@ def get_standard_dataset(cfg, ray_trafo, use_fixed_seeds_starting_from=1, device
                 device=device)
 
     elif cfg.dataset.name == 'walnut':
+
+        if fold == 'validation':
+            raise ValueError('Walnut dataset has no validation fold implemented.')
 
         noisy_observation = get_walnut_2d_observation(
                 data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path),

@@ -26,7 +26,7 @@ def coordinator(cfg : DictConfig) -> None:
 
     # data: observation, ground_truth, filtbackproj
     dataset = get_standard_dataset(
-            cfg, ray_trafo, use_fixed_seeds_starting_from=cfg.seed,
+            cfg, ray_trafo, fold=cfg.dataset.fold, use_fixed_seeds_starting_from=cfg.seed,
             device=device)
 
     for i, data_sample in enumerate(islice(DataLoader(dataset), cfg.num_images)):
