@@ -75,17 +75,11 @@ def marginal_likelihood_hyperparams_optim(
     if optim_kwargs['predcp']['use_map_weights_mean']:
         # params ~ N(map_weights, parameter_cov)
         # E[f] == E[h(params)] == h(map_weights) == recon
-        predcp_mean_kwargs = {
-                'weight_mean': map_weights,
-                'image_mean': recon,
-        }
+        image_mean = recon
     else:
         # params ~ N(0, parameter_cov)
         # E[f] == E[h(params)] == h(0) == recon - J @ map_weights
-        predcp_mean_kwargs = {
-                'weight_mean': 0.,
-                'image_mean': recon - observation_cov.image_cov.lin_op(map_weights[None]),
-        }
+        image_mean = recon - observation_cov.image_cov.lin_op(map_weights[None])
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
     if optim_kwargs['include_predcp']:
@@ -98,17 +92,17 @@ def marginal_likelihood_hyperparams_optim(
             optimizer.zero_grad()
 
             if optim_kwargs['include_predcp']:
-                predcp_grads, predcp_loss = sample_based_predcp_grads(
+                predcp_grads, predcp_shifted_loss = sample_based_predcp_grads(
                     image_cov=observation_cov.image_cov,
                     params_list_under_predcp=params_list_under_predcp,
+                    image_mean=image_mean,
                     num_samples=optim_kwargs['predcp']['num_samples'],
                     scale=optim_kwargs['predcp']['scale'],
-                    **predcp_mean_kwargs,
                     )
 
                 _add_grads(params=params_list_under_predcp, grad_dict=predcp_grads)
             else:
-                predcp_loss = torch.zeros(1, device=observation_cov.device)
+                predcp_shifted_loss = torch.zeros(1, device=observation_cov.device)
 
             loss = torch.zeros(1, device=observation_cov.device)
 
@@ -166,7 +160,7 @@ def marginal_likelihood_hyperparams_optim(
 
             writer.add_scalar('observation_error_norm', observation_error_norm.item(), i)
             writer.add_scalar('weights_prior_norm', weights_prior_norm.item(), i)
-            writer.add_scalar('predcp', -predcp_loss.item(), i)
+            writer.add_scalar('predcp_shifted', -predcp_shifted_loss.item(), i)
             writer.add_scalar('observation_noise_variance',
                     torch.exp(observation_cov.log_noise_variance).item(), i)
             if not isinstance(observation_cov, MatmulObservationCov):

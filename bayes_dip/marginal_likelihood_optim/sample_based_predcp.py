@@ -1,4 +1,4 @@
-from typing import Sequence, Union
+from typing import Sequence
 import torch
 from torch import autograd
 from torch import Tensor
@@ -25,8 +25,7 @@ def sample_based_predcp_grads(
         image_mean: Tensor,
         num_samples: int = 100,
         scale: float = 1.,
-        weight_mean: Union[Tensor, float, None] = None,
-        return_loss: bool = True):
+        return_shifted_loss: bool = True):
 
     x_samples, weight_samples = image_cov.sample(
         num_samples=num_samples,
@@ -34,23 +33,15 @@ def sample_based_predcp_grads(
         mean=image_mean,
         )
 
-    # weight_samples return from image_cov has zero mean, so add weight_mean;
-    # it affects only the loss, not the gradients
-    assert not (return_loss and weight_mean is None), (
-            '`weight_mean` required for loss computation. To use zero weight mean, pass '
-            '``weight_mean=0.`` and make sure `image_mean` is consistent with it; alternatively, '
-            'pass ``return_loss=False`` to disable loss computation '
-            '(gradients will not be affected by `weight_mean`).')
-    if weight_mean is not None:
-        weight_samples = weight_samples + weight_mean
+    # the mean of weight_samples does not change the gradients (the mean is zero here)
 
     with torch.no_grad():
         tv_x_samples = batch_tv_grad(x_samples)
         jac_tv_x_samples = image_cov.lin_op_transposed(tv_x_samples)
 
-    loss = (weight_samples * jac_tv_x_samples).sum(dim=1).mean(dim=0)
+    shifted_loss = (weight_samples * jac_tv_x_samples).sum(dim=1).mean(dim=0)
     first_derivative_grads = autograd.grad(
-        loss,
+        shifted_loss,
         params_list_under_predcp,
         allow_unused=True,
         create_graph=True,
@@ -65,6 +56,8 @@ def sample_based_predcp_grads(
     with torch.no_grad():
         grads = compute_log_hyperparams_grads(
                 params_list_under_predcp, first_derivative_grads, second_derivative_grads, scale)
-        loss = scale * (loss - torch.stack(log_dets).sum().detach())
+        shifted_loss = scale * (shifted_loss - torch.stack(log_dets).sum().detach())
 
-    return (grads, loss) if return_loss else grads
+    return (grads, shifted_loss) if return_shifted_loss else grads
+
+# TODO do not pass mean
