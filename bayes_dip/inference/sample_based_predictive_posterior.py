@@ -61,7 +61,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         num_batches = ceil(num_samples / vec_batch_size)
         image_samples = []
         residual_norm_list = []
-        assert not (use_conj_grad_inv and cov_obs_mat_chol is None)
+        assert use_conj_grad_inv or cov_obs_mat_chol is not None
         return_on_device = (
                 self.observation_cov.device if return_on_device is None else return_on_device)
         with torch.no_grad():
