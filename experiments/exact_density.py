@@ -67,7 +67,7 @@ def coordinator(cfg : DictConfig) -> None:
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.nn_model) 
+                reconstructor.nn_model)
         parameter_cov = ParameterCov(
                 reconstructor.nn_model,
                 prior_assignment_dict,
@@ -112,7 +112,7 @@ def coordinator(cfg : DictConfig) -> None:
 
         torch.save({
             'log_prob': log_prob,
-            'cov': cov,
+            'cov': cov.detach().cpu(),
             'noise_x_correction_term': noise_x_correction_term,
         }, f'exact_predictive_posterior_{i}.pt')
 
