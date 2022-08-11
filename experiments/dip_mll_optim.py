@@ -1,4 +1,5 @@
 import os
+from warnings import warn
 from itertools import islice
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -40,8 +41,13 @@ def coordinator(cfg : DictConfig) -> None:
 
         if cfg.load_dip_params_from_path is not None:
             # assert that sample data matches with that from the dip to be loaded
-            sample_dict = torch.load(os.path.join(cfg.load_dip_params_from_path, 'sample_{}.pt'.format(i)), map_location=device)
-            assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+            try:
+                sample_dict = torch.load(os.path.join(cfg.load_dip_params_from_path, 'sample_{}.pt'.format(i)), map_location=device)
+                assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+            except FileNotFoundError:
+                warn(f'Did not find sample data in {cfg.load_dip_params_from_path} from where the '
+                        'DIP params will be loaded, so could not verify the DIP was trained on the '
+                        'same sample data')
 
         torch.save({'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth},
                 f'sample_{i}.pt')
