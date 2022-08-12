@@ -11,6 +11,5 @@ sampling:
   vec_batch_size: 32
   cg_kwargs:
     max_niter: 150
-sampling:
   cg_preconditioner:
     batch_size: 32
