@@ -172,7 +172,11 @@ def coordinator(cfg : DictConfig) -> None:
         predictive_posterior = SampleBasedPredictivePosterior(observation_cov)
 
         if cfg.inference.load_samples_from_path is None:
-            sample_kwargs = OmegaConf.to_object(cfg.inference.sampling)
+            sample_kwargs = {
+                'vec_batch_size': cfg.inference.sampling.vec_batch_size,
+                'use_conj_grad_inv': cfg.inference.sampling.use_conj_grad_inv,
+                'cg_kwargs': OmegaConf.to_object(cfg.inference.sampling.cg_kwargs),
+            }
             if cfg.inference.sampling.use_conj_grad_inv:
                 low_rank_observation_cov = LowRankObservationCov(
                         trafo=ray_trafo,
