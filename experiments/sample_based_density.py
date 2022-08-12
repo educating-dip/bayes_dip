@@ -111,7 +111,7 @@ def coordinator(cfg : DictConfig) -> None:
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
-        ) if cfg.priors.use_gprior else GpriorNeuralBasisExpansion(
+        ) if not cfg.priors.use_gprior else GpriorNeuralBasisExpansion(
                     trafo=ray_trafo,
                     nn_model=reconstructor.nn_model,
                     nn_input=filtbackproj,
