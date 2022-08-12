@@ -2,6 +2,7 @@ defaults:
   - base_inference
 
 low_rank_neural_basis_expansion:
+  low_rank_rank_dim: 500
   use_cpu: True
 save_samples_chunk_size: 1024
 verbose: False
@@ -9,3 +10,5 @@ cov_obs_mat:
   batch_size: 16
 sampling:
   vec_batch_size: 16
+  cg_preconditioner:
+    low_rank_rank_dim: 1000
