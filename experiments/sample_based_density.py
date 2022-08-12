@@ -177,9 +177,9 @@ def coordinator(cfg : DictConfig) -> None:
                 low_rank_observation_cov = LowRankObservationCov(
                         trafo=ray_trafo,
                         image_cov=image_cov,
-                        low_rank_rank_dim=cfg.inference.cov_obs_mat.low_rank_rank_dim,
-                        oversampling_param=cfg.inference.cov_obs_mat.oversampling_param,
-                        vec_batch_size=cfg.inference.cov_obs_mat.batch_size,
+                        low_rank_rank_dim=cfg.inference.sampling.cg_preconditioner.low_rank_rank_dim,
+                        oversampling_param=cfg.inference.sampling.cg_preconditioner.oversampling_param,
+                        vec_batch_size=cfg.inference.sampling.cg_preconditioner.batch_size,
                         device=device
                 )
                 low_rank_preconditioner = LowRankPreC(

@@ -21,8 +21,6 @@ cov_obs_mat:
   eps: 0.001
   eps_min_for_auto: 1e-6
   include_zero_for_auto: True
-  low_rank_rank_dim: 200
-  oversampling_param: 5
   batch_size: 1
 sampling:
   vec_batch_size: 1
@@ -31,3 +29,7 @@ sampling:
     rtol: 1e-1
     max_niter: 50
     ignore_numerical_warning: False
+  cg_preconditioner:
+    low_rank_rank_dim: 400
+    oversampling_param: 5
+    batch_size: 1
