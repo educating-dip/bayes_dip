@@ -137,7 +137,7 @@ class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
         self.func_model_with_input, _ = ftch.make_functional(self.nn_model)
         self.matrix = self.get_matrix()
 
-    def jvp(self, v: Tensor) -> Tensor:
+    def jvp(self, v: Tensor, sub_slice: slice = None) -> Tensor:
         """
         Parameters
         ----------
@@ -149,13 +149,13 @@ class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
         Tensor
             Output. Shape: ``(batch_size, *self.nn_out_shape)``
         """
-
+        matrix = self.matrix if sub_slice is None else self.matrix[:, sub_slice]
         v_transpose = v.T
-        jvp = (self.matrix @ v_transpose).T
+        jvp = (matrix @ v_transpose).T
         return jvp.view(
             v.shape[0], *self.nn_out_shape)
 
-    def vjp(self, v: Tensor) -> Tensor:
+    def vjp(self, v: Tensor, sub_slice: slice = None) -> Tensor:
         """
         Parameters
         ----------
@@ -167,7 +167,8 @@ class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
         Tensor
             Output. Shape: ``(batch_size, self.num_params)``
         """
-        return v.view(v.shape[0], -1) @ self.matrix
+        matrix = self.matrix if sub_slice is None else self.matrix[:, sub_slice]
+        return v.view(v.shape[0], -1) @ matrix
 
     def get_matrix(self) -> Tensor:
 

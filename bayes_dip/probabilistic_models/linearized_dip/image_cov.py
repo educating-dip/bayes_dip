@@ -1,9 +1,11 @@
 """Provides :class:`ImageCov`"""
 from typing import Tuple, Union, Optional
+import torch
 from torch import Tensor
+from torch import nn
 from ..base_image_cov import BaseImageCov
 from ..linear_sandwich_cov import LinearSandwichCov
-from .neural_basis_expansion import BaseNeuralBasisExpansion
+from .neural_basis_expansion import BaseNeuralBasisExpansion, MatmulNeuralBasisExpansion
 from .parameter_cov import ParameterCov
 
 class ImageCov(BaseImageCov, LinearSandwichCov):
@@ -31,7 +33,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
 
     forward = LinearSandwichCov.forward  # lin_op @ parameter_cov @ lin_op_transposed
 
-    def lin_op(self, v: Tensor) -> Tensor:
+    def lin_op(self, v: Tensor, **kwargs) -> Tensor:
         """
         Parameters
         ----------
@@ -44,9 +46,9 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
             Output. Shape: ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:])``
         """
 
-        return self.neural_basis_expansion.jvp(v).squeeze(dim=1)
+        return self.neural_basis_expansion.jvp(v, **kwargs).squeeze(dim=1)
 
-    def lin_op_transposed(self, v: Tensor) -> Tensor:
+    def lin_op_transposed(self, v: Tensor, **kwargs) -> Tensor:
         """
         Parameters
         ----------
@@ -59,13 +61,13 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
             Output. Shape: ``(batch_size, self.neural_basis_expansion.num_params)``
         """
 
-        return self.neural_basis_expansion.vjp(v.unsqueeze(dim=1))
+        return self.neural_basis_expansion.vjp(v.unsqueeze(dim=1), **kwargs)
 
     def sample(self,
         num_samples: int = 10,
         return_weight_samples: bool = False,
         mean: Optional[Tensor] = None,
-        **kwargs,
+        sample_only_from_prior: nn.Module = None,
         ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
 
         """
@@ -88,9 +90,23 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         """
 
         # params ~ N(0, parameter_cov)
-        weight_samples = self.inner_cov.sample(num_samples=num_samples, **kwargs)
-        # image = J_{params} @ params
-        samples = self.lin_op(weight_samples)
+        weight_samples = self.inner_cov.sample(
+                num_samples=num_samples, sample_only_from_prior=sample_only_from_prior)
+
+        if sample_only_from_prior is None:
+            samples = self.lin_op(weight_samples)
+        else:
+            weight_sub_slice = self.inner_cov.params_slices_per_prior[sample_only_from_prior]
+            # image = J_{params} @ params
+            if isinstance(self.neural_basis_expansion, MatmulNeuralBasisExpansion):
+                samples = self.lin_op(
+                        weight_samples,
+                        sub_slice=weight_sub_slice)
+            else:
+                weight_samples_full = torch.zeros(
+                        num_samples, self.inner_cov.shape[0], device=weight_samples.device)
+                weight_samples_full[weight_sub_slice] = weight_samples
+                samples = self.lin_op(weight_samples_full)
 
         if mean is not None:
             samples = samples + mean

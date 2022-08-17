@@ -3,7 +3,7 @@ import torch
 from torch import autograd
 from torch import Tensor
 
-from ..probabilistic_models import BaseImageCov, GPprior
+from ..probabilistic_models import BaseImageCov, ImageCov, ParameterCov, GPprior, MatmulNeuralBasisExpansion
 from ..utils import batch_tv_grad
 
 def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
@@ -31,10 +31,18 @@ def sample_based_predcp_grads(
 
     Assumes that each prior in prior_list_under_predcp has distinct parameters (i.e. no shared
     parameter between priors).
+
+    `image_cov.inner_cov` should be a ParameterCov instance.
     """
+
+    assert isinstance(image_cov.inner_cov, ParameterCov)
 
     grads = {}
     total_shifted_loss = torch.zeros((1,), device=image_cov.inner_cov.device)
+
+    lin_op_supports_sub_slicing = (
+            isinstance(image_cov, ImageCov) and
+            isinstance(image_cov.neural_basis_expansion, MatmulNeuralBasisExpansion))
 
     for prior in prior_list_under_predcp:
         x_samples, weight_samples = image_cov.sample(
@@ -46,7 +54,14 @@ def sample_based_predcp_grads(
 
         with torch.no_grad():
             tv_x_samples = batch_tv_grad(x_samples)
-            jac_tv_x_samples = image_cov.lin_op_transposed(tv_x_samples)
+            if lin_op_supports_sub_slicing:
+                jac_tv_x_samples = image_cov.lin_op_transposed(
+                        tv_x_samples, sub_slice=image_cov.inner_cov.params_slices_per_prior[prior])
+            else:
+                jac_tv_x_samples = image_cov.lin_op_transposed(
+                        tv_x_samples)
+                jac_tv_x_samples = jac_tv_x_samples[
+                        :, image_cov.inner_cov.params_slices_per_prior[prior]]
 
         # could restrict weight_samples and jac_tv_x_samples to just the prior, since
         # dot product will be zero anyways

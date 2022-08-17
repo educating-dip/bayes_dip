@@ -89,38 +89,49 @@ class ParameterCov(nn.Module):
 
     def forward(self,
             v: Tensor,
+            only_prior: nn.Module = None,
             **kwargs
         ) -> Tensor:
 
-        v_parameter_cov_mul = []
-        params_cnt = 0
-        for (prior_type, priors), len_params in zip(
-                self.priors_per_prior_type.items(), self.params_numel_per_prior_type.values()
-            ):
+        if only_prior is None:
+            v_parameter_cov_mul = []
+            params_cnt = 0
+            for (prior_type, priors), len_params in zip(
+                    self.priors_per_prior_type.items(), self.params_numel_per_prior_type.values()
+                ):
 
-            v_parameter_cov_mul.append(prior_type.batched_cov_mul(
-                    priors=priors,
-                    v=v[:, params_cnt:params_cnt+len_params],
-                    **kwargs
+                v_parameter_cov_mul.append(prior_type.batched_cov_mul(
+                        priors=priors,
+                        v=v[:, params_cnt:params_cnt+len_params],
+                        **kwargs
+                    )
                 )
-            )
-            params_cnt += len_params
+                params_cnt += len_params
 
-        return torch.cat(v_parameter_cov_mul, dim=-1)
+            out = torch.cat(v_parameter_cov_mul, dim=-1)
+        else:
+            out = type(only_prior).batched_cov_mul(
+                priors=[only_prior],
+                v=v,
+                **kwargs
+            )
+
+        return out
 
     def sample(self,
         num_samples: int = 10,
         mean: Optional[Tensor] = None,
         sample_only_from_prior: nn.Module = None,
         ) -> Tensor:
-        samples = torch.randn(num_samples, self.shape[0],
+        num_params = (
+                self.shape[0] if sample_only_from_prior is None else
+                (self.params_slices_per_prior[sample_only_from_prior].stop -
+                 self.params_slices_per_prior[sample_only_from_prior].start))
+        samples = torch.randn(
+            num_samples, num_params,
             device=self.device
             )
-        samples = self.forward(samples, use_cholesky=True)
-        if sample_only_from_prior is not None:
-            # zero all values except those in self.params_slices_per_prior[sample_only_from_prior]
-            samples[:, :self.params_slices_per_prior[sample_only_from_prior].start] = 0.
-            samples[:, self.params_slices_per_prior[sample_only_from_prior].stop:] = 0.
+        samples = self.forward(samples, use_cholesky=True, only_prior=sample_only_from_prior)
         if mean is not None:
             samples = samples + mean
         return samples
