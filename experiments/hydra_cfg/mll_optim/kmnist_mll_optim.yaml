@@ -10,5 +10,5 @@ linear_cg:
     oversampling_param: 5
     vec_batch_size: 32
 predcp:
-  num_samples: 50
+  num_samples: 500
   scale: 1.
