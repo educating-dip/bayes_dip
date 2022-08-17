@@ -3,7 +3,8 @@ import torch
 from torch import autograd
 from torch import Tensor
 
-from ..probabilistic_models import BaseImageCov, ImageCov, ParameterCov, GPprior, MatmulNeuralBasisExpansion
+from ..probabilistic_models import (
+        BaseImageCov, ImageCov, ParameterCov, GPprior, MatmulNeuralBasisExpansion)
 from ..utils import batch_tv_grad
 
 def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
@@ -76,15 +77,19 @@ def sample_based_predcp_grads(
         )
 
         log_det = first_derivative_grads[0].abs().log()  # log_lengthscale
-        second_derivative_grads = autograd.grad(log_det, (prior.log_lengthscale, prior.log_variance), retain_graph=True)
+        second_derivative_grads = autograd.grad(
+                log_det, (prior.log_lengthscale, prior.log_variance), retain_graph=True)
 
         with torch.no_grad():
-            grads_for_prior = {}
-            grads_for_prior[prior.log_lengthscale] = -(-first_derivative_grads[0] + second_derivative_grads[0]) * scale
-            grads_for_prior[prior.log_variance] = -(-first_derivative_grads[1] + second_derivative_grads[1]) * scale
+            grads_for_prior = {
+                prior.log_lengthscale:
+                    -(-first_derivative_grads[0] + second_derivative_grads[0]) * scale,
+                prior.log_variance:
+                    -(-first_derivative_grads[1] + second_derivative_grads[1]) * scale,
+                }
             shifted_loss = scale * (shifted_loss - log_det)
 
-        assert all(k not in grads for k in grads_for_prior.keys())
+        assert all(param not in grads for param in grads_for_prior)
         grads.update(grads_for_prior)
         total_shifted_loss += shifted_loss
 

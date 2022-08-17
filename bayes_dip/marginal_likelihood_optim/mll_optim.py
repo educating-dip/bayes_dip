@@ -11,7 +11,7 @@ import tensorboardX
 
 from .observation_cov_log_det_grad import approx_observation_cov_log_det_grads
 from .sample_based_predcp import sample_based_predcp_grads
-from .utils import get_ordered_nn_params_vec, get_params_list_under_GPpriors
+from .utils import get_ordered_nn_params_vec
 from ..probabilistic_models import (
         ObservationCov, MatmulObservationCov, BaseGaussPrior, GPprior, IsotropicPrior, NormalPrior)
 
@@ -95,7 +95,8 @@ def marginal_likelihood_hyperparams_optim(
                     prior_list_under_predcp=inner_cov.priors_per_prior_type[GPprior],
                     image_mean=image_mean,
                     num_samples=optim_kwargs['predcp']['num_samples'],
-                    scale=optim_kwargs['predcp']['scale'] * observation.numel() * optim_kwargs['predcp']['gamma'],
+                    scale=(optim_kwargs['predcp']['scale'] *
+                            observation.numel() * optim_kwargs['predcp']['gamma']),
                     )
 
                 params_under_predcp = []

@@ -25,7 +25,8 @@ def get_standard_ray_trafo(cfg):
         raise ValueError
     return get_ray_trafo(cfg.dataset.name, kwargs=kwargs)
 
-def get_standard_dataset(cfg, ray_trafo, fold='test', use_fixed_seeds_starting_from=1, device=None) -> Dataset:
+def get_standard_dataset(
+        cfg, ray_trafo, fold='test', use_fixed_seeds_starting_from=1, device=None) -> Dataset:
     """
     Returns a dataset of tuples ``noisy_observation, x, filtbackproj``, where
         * `noisy_observation` has shape ``(1,) + obs_shape``
