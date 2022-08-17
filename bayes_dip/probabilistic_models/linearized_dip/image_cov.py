@@ -105,7 +105,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
             else:
                 weight_samples_full = torch.zeros(
                         num_samples, self.inner_cov.shape[0], device=weight_samples.device)
-                weight_samples_full[weight_sub_slice] = weight_samples
+                weight_samples_full[:, weight_sub_slice] = weight_samples
                 samples = self.lin_op(weight_samples_full)
 
         if mean is not None:
