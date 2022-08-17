@@ -170,6 +170,8 @@ def coordinator(cfg : DictConfig) -> None:
             cg_preconditioner = LowRankPreC(
                     pre_con_obj=low_rank_observation_cov
             )
+        predcp_kwargs = OmegaConf.to_object(cfg.mll_optim.predcp)
+        predcp_kwargs['gamma'] = cfg.dip.optim.gamma
         marglik_optim_kwargs = {
                 'iterations': cfg.mll_optim.iterations,
                 'lr': cfg.mll_optim.lr,
@@ -182,7 +184,7 @@ def coordinator(cfg : DictConfig) -> None:
                 },
                 'min_log_variance': cfg.mll_optim.min_log_variance,
                 'include_predcp': cfg.mll_optim.include_predcp,
-                'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
+                'predcp': predcp_kwargs,
                 }
 
         assert not (cfg.priors.use_gprior and cfg.mll_optim.include_predcp)

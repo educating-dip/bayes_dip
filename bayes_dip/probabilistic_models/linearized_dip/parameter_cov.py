@@ -22,9 +22,10 @@ class ParameterCov(nn.Module):
         self.hyperparams_init_dict = hyperparams_init_dict
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.priors = self._create_prior_dict(nn_model)
-        self.params_per_prior_type = self._ordered_params_under_prior()
+        self.params_per_prior_type = self._ordered_params_per_prior_type()
         self.priors_per_prior_type = self._ordered_priors_per_prior_type()
         self.params_numel_per_prior_type = self._params_numel_per_prior_type()
+        self.params_slices_per_prior = self._params_slices_per_prior()
 
     @property
     def ordered_nn_params(self, ):
@@ -49,7 +50,7 @@ class ParameterCov(nn.Module):
 
         return nn.ModuleDict(priors)
 
-    def _ordered_params_under_prior(self, ):
+    def _ordered_params_per_prior_type(self, ):
 
         params_per_prior_type = {}
         for _, prior in self.priors.items():
@@ -75,6 +76,17 @@ class ParameterCov(nn.Module):
 
         return params_numel_per_prior_type
 
+    def _params_slices_per_prior(self, ):
+        params_slices_per_prior = {}
+        params_cnt = 0
+        for _, priors in self.priors_per_prior_type.items():
+            for prior in priors:
+                params_numel = sum(p.data.numel() for p in prior.get_params_under_prior())
+                params_slices_per_prior[prior] = slice(params_cnt, params_cnt + params_numel)
+                params_cnt += params_numel
+
+        return params_slices_per_prior
+
     def forward(self,
             v: Tensor,
             **kwargs
@@ -99,11 +111,16 @@ class ParameterCov(nn.Module):
     def sample(self,
         num_samples: int = 10,
         mean: Optional[Tensor] = None,
+        sample_only_from_prior: nn.Module = None,
         ) -> Tensor:
         samples = torch.randn(num_samples, self.shape[0],
             device=self.device
             )
         samples = self.forward(samples, use_cholesky=True)
+        if sample_only_from_prior is not None:
+            # zero all values except those in self.params_slices_per_prior[sample_only_from_prior]
+            samples[:, :self.params_slices_per_prior[sample_only_from_prior].start] = 0.
+            samples[:, self.params_slices_per_prior[sample_only_from_prior].stop:] = 0.
         if mean is not None:
             samples = samples + mean
         return samples

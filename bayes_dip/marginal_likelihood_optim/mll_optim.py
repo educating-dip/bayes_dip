@@ -82,8 +82,6 @@ def marginal_likelihood_hyperparams_optim(
         image_mean = recon - observation_cov.image_cov.lin_op(map_weights[None])
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
-    if optim_kwargs['include_predcp']:
-        params_list_under_predcp = get_params_list_under_GPpriors(inner_cov)
 
     with tqdm(range(optim_kwargs['iterations']), desc='marginal_likelihood_hyperparams_optim',
             miniters=optim_kwargs['iterations']//100) as pbar:
@@ -94,13 +92,16 @@ def marginal_likelihood_hyperparams_optim(
             if optim_kwargs['include_predcp']:
                 predcp_grads, predcp_shifted_loss = sample_based_predcp_grads(
                     image_cov=observation_cov.image_cov,
-                    params_list_under_predcp=params_list_under_predcp,
+                    prior_list_under_predcp=inner_cov.priors_per_prior_type[GPprior],
                     image_mean=image_mean,
                     num_samples=optim_kwargs['predcp']['num_samples'],
-                    scale=optim_kwargs['predcp']['scale'],
+                    scale=optim_kwargs['predcp']['scale'] * observation.numel() * optim_kwargs['predcp']['gamma'],
                     )
 
-                _add_grads(params=params_list_under_predcp, grad_dict=predcp_grads)
+                params_under_predcp = []
+                for prior_under_predcp in inner_cov.priors_per_prior_type[GPprior]:
+                    params_under_predcp += list(prior_under_predcp.parameters())
+                _add_grads(params=params_under_predcp, grad_dict=predcp_grads)
             else:
                 predcp_shifted_loss = torch.zeros(1, device=observation_cov.device)
 

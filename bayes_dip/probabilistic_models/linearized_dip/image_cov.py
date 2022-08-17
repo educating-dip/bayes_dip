@@ -65,6 +65,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         num_samples: int = 10,
         return_weight_samples: bool = False,
         mean: Optional[Tensor] = None,
+        **kwargs,
         ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
 
         """
@@ -87,7 +88,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         """
 
         # params ~ N(0, parameter_cov)
-        weight_samples = self.inner_cov.sample(num_samples=num_samples)
+        weight_samples = self.inner_cov.sample(num_samples=num_samples, **kwargs)
         # image = J_{params} @ params
         samples = self.lin_op(weight_samples)
 

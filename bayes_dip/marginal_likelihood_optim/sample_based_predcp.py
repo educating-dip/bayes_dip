@@ -3,7 +3,7 @@ import torch
 from torch import autograd
 from torch import Tensor
 
-from ..probabilistic_models import BaseImageCov
+from ..probabilistic_models import BaseImageCov, GPprior
 from ..utils import batch_tv_grad
 
 def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
@@ -21,43 +21,56 @@ def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
 
 def sample_based_predcp_grads(
         image_cov: BaseImageCov,
-        params_list_under_predcp: Sequence,
+        prior_list_under_predcp: Sequence[GPprior],
         image_mean: Tensor,
         num_samples: int = 100,
         scale: float = 1.,
         return_shifted_loss: bool = True):
+    """
+    Compute PredCP gradients.
 
-    x_samples, weight_samples = image_cov.sample(
-        num_samples=num_samples,
-        return_weight_samples=True,
-        mean=image_mean,
+    Assumes that each prior in prior_list_under_predcp has distinct parameters (i.e. no shared
+    parameter between priors).
+    """
+
+    grads = {}
+    total_shifted_loss = torch.zeros((1,), device=image_cov.inner_cov.device)
+
+    for prior in prior_list_under_predcp:
+        x_samples, weight_samples = image_cov.sample(
+            num_samples=num_samples,
+            return_weight_samples=True,
+            mean=image_mean,
+            sample_only_from_prior=prior,  # params under other priors assumed to be deterministic
+            )
+
+        with torch.no_grad():
+            tv_x_samples = batch_tv_grad(x_samples)
+            jac_tv_x_samples = image_cov.lin_op_transposed(tv_x_samples)
+
+        # could restrict weight_samples and jac_tv_x_samples to just the prior, since
+        # dot product will be zero anyways
+
+        shifted_loss = (weight_samples * jac_tv_x_samples).sum(dim=1).mean(dim=0)
+        first_derivative_grads = autograd.grad(
+            shifted_loss,
+            (prior.log_lengthscale, prior.log_variance),
+            allow_unused=True,
+            create_graph=True,
+            retain_graph=True
         )
 
-    # the mean of weight_samples does not change the gradients (the mean is zero here)
+        log_det = first_derivative_grads[0].abs().log()  # log_lengthscale
+        second_derivative_grads = autograd.grad(log_det, (prior.log_lengthscale, prior.log_variance), retain_graph=True)
 
-    with torch.no_grad():
-        tv_x_samples = batch_tv_grad(x_samples)
-        jac_tv_x_samples = image_cov.lin_op_transposed(tv_x_samples)
+        with torch.no_grad():
+            grads_for_prior = {}
+            grads_for_prior[prior.log_lengthscale] = -(-first_derivative_grads[0] + second_derivative_grads[0]) * scale
+            grads_for_prior[prior.log_variance] = -(-first_derivative_grads[1] + second_derivative_grads[1]) * scale
+            shifted_loss = scale * (shifted_loss - log_det)
 
-    shifted_loss = (weight_samples * jac_tv_x_samples).sum(dim=1).mean(dim=0)
-    first_derivative_grads = autograd.grad(
-        shifted_loss,
-        params_list_under_predcp,
-        allow_unused=True,
-        create_graph=True,
-        retain_graph=True
-    )
+        assert all(k not in grads for k in grads_for_prior.keys())
+        grads.update(grads_for_prior)
+        total_shifted_loss += shifted_loss
 
-    log_dets = [grad.abs().log() for grad in first_derivative_grads]
-    second_derivative_grads = [
-        autograd.grad(log_det, log_params, allow_unused=True, retain_graph=True)[0]
-        for log_det, log_params in zip(log_dets, params_list_under_predcp)]
-
-    with torch.no_grad():
-        grads = compute_log_hyperparams_grads(
-                params_list_under_predcp, first_derivative_grads, second_derivative_grads, scale)
-        shifted_loss = scale * (shifted_loss - torch.stack(log_dets).sum().detach())
-
-    return (grads, shifted_loss) if return_shifted_loss else grads
-
-# TODO do not pass mean
+    return (grads, total_shifted_loss) if return_shifted_loss else grads

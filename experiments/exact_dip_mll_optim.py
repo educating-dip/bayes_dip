@@ -147,12 +147,14 @@ def coordinator(cfg : DictConfig) -> None:
             torch.save(lin_recon.cpu(),
                     f'lin_recon_{i}.pt'
             )
+        predcp_kwargs = OmegaConf.to_object(cfg.mll_optim.predcp)
+        predcp_kwargs['gamma'] = cfg.dip.optim.gamma
         marglik_optim_kwargs = {
                 'iterations': cfg.mll_optim.iterations,
                 'lr': cfg.mll_optim.lr,
                 'min_log_variance': cfg.mll_optim.min_log_variance,
                 'include_predcp': cfg.mll_optim.include_predcp,
-                'predcp': OmegaConf.to_object(cfg.mll_optim.predcp)
+                'predcp': predcp_kwargs,
                 }
 
         marginal_likelihood_hyperparams_optim(
