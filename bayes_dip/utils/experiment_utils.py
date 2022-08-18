@@ -1,5 +1,7 @@
 from typing import List
 import os
+from warnings import warn
+import torch
 from torch.utils.data import Dataset, TensorDataset
 from bayes_dip.data import get_ray_trafo, SimulatedDataset
 from bayes_dip.data import (
@@ -114,3 +116,14 @@ def get_predefined_patch_idx_list(name: str, patch_size: int) -> List:
     else:
         raise ValueError(f'Unknown patch_idx_list configuration: {name}')
     return patch_idx_list
+
+def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True):
+    _, _, filtbackproj = data_sample
+    try:
+        sample_dict = torch.load(os.path.join(path, f'sample_{i}.pt'), map_location='cpu')
+        assert torch.allclose(
+                sample_dict['filtbackproj'].float(), filtbackproj.cpu().float(), atol=1e-6)
+    except FileNotFoundError as e:
+        if raise_if_file_not_found:
+            raise e
+        warn(f'Did not find sample {i} in {path}, so could not verify it matches.')

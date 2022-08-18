@@ -45,11 +45,7 @@ def approx_observation_cov_log_det_grads(
         return observation_cov(v.T.reshape(num_probes, 1, *observation_cov.trafo.obs_shape)
                 ).view(num_probes, observation_cov.shape[0]).T
 
-    if precon is None:
-        precon_closure = None
-    else:
-        def precon_closure(v):
-            return precon.matmul(v.T, use_inverse=True).T
+    precon_closure = None if precon is None else precon.get_closure()
 
     grads = {}
 

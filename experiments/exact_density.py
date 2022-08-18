@@ -2,19 +2,21 @@ import os
 from itertools import islice
 import hydra
 from omegaconf import DictConfig
-import numpy as np
 import torch
-import scipy.sparse
 from torch.utils.data import DataLoader
-from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
+from bayes_dip.utils.experiment_utils import (
+        get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
-from bayes_dip.probabilistic_models import ParameterCov, ImageCov, MatmulObservationCov, MatmulNeuralBasisExpansion, get_image_noise_correction_term
+from bayes_dip.probabilistic_models import (
+        ParameterCov, ImageCov, MatmulObservationCov, MatmulNeuralBasisExpansion,
+        get_image_noise_correction_term)
 from bayes_dip.inference import ExactPredictivePosterior
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
+#     pylint: disable=too-many-locals
 
     if cfg.use_double:
         torch.set_default_tensor_type(torch.DoubleTensor)
@@ -40,8 +42,7 @@ def coordinator(cfg : DictConfig) -> None:
         observation, ground_truth, filtbackproj = data_sample
 
         # assert that sample data matches with that from [exact_]dip_mll_optim.py
-        sample_dict = torch.load(os.path.join(cfg.inference.load_path, 'sample_{}.pt'.format(i)), map_location=device)
-        assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+        assert_sample_matches(data_sample, cfg.inference.load_path, i)
 
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
@@ -57,12 +58,12 @@ def coordinator(cfg : DictConfig) -> None:
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
-                load_params_path=os.path.join(cfg.inference.load_path, 'dip_model_{}.pt'.format(i)))
+                load_params_path=os.path.join(cfg.inference.load_path, f'dip_model_{i}.pt'))
 
         with torch.no_grad(), eval_mode(reconstructor.nn_model):
-            recon = reconstructor.nn_model(filtbackproj)
+            recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
 
-        print('DIP reconstruction of sample {:d}'.format(i))
+        print(f'DIP reconstruction of sample {i:d}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
@@ -117,4 +118,4 @@ def coordinator(cfg : DictConfig) -> None:
         }, f'exact_predictive_posterior_{i}.pt')
 
 if __name__ == '__main__':
-    coordinator()
+    coordinator()  # pylint: disable=no-value-for-parameter

@@ -7,14 +7,18 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
-from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset, get_predefined_patch_idx_list
+from bayes_dip.utils.experiment_utils import (
+        get_standard_ray_trafo, get_standard_dataset, assert_sample_matches,
+        get_predefined_patch_idx_list)
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts
-from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov, GpriorNeuralBasisExpansion, get_image_noise_correction_term
+from bayes_dip.probabilistic_models import (
+        get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
+from bayes_dip.probabilistic_models import (
+        NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov,
+        ImageCov, ObservationCov, GpriorNeuralBasisExpansion, get_image_noise_correction_term)
 from bayes_dip.marginal_likelihood_optim import LowRankPreC
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
-from bayes_dip.data.datasets import get_walnut_2d_inner_patch_indices
 
 
 def _save_samples(i: int, samples: Tensor, chunk_size: int) -> None:
@@ -30,10 +34,10 @@ def _load_samples(path: str, i: int, num_samples: int, restrict_to_num_samples=T
     while num_loaded_samples < num_samples:
         try:
             chunk = torch.load(os.path.join(path, f'samples_{i}_chunk_{j}.pt'))
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             raise RuntimeError(
                     f'Failed to load {num_samples} samples from {path}, '
-                    f'only found {num_loaded_samples}.')
+                    f'only found {num_loaded_samples}.') from e
         sample_chunks.append(chunk)
         num_loaded_samples += chunk.shape[0]
         j += 1
@@ -45,6 +49,7 @@ def _load_samples(path: str, i: int, num_samples: int, restrict_to_num_samples=T
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
+    # pylint: disable=too-many-locals,too-many-statements
 
     if cfg.use_double:
         torch.set_default_tensor_type(torch.DoubleTensor)
@@ -70,8 +75,7 @@ def coordinator(cfg : DictConfig) -> None:
         observation, ground_truth, filtbackproj = data_sample
 
         # assert that sample data matches with that from [exact_]dip_mll_optim.py
-        sample_dict = torch.load(os.path.join(cfg.inference.load_path, 'sample_{}.pt'.format(i)), map_location=device)
-        assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
+        assert_sample_matches(data_sample, cfg.inference.load_path, i)
 
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
@@ -87,19 +91,19 @@ def coordinator(cfg : DictConfig) -> None:
         reconstructor = DeepImagePriorReconstructor(
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
-                load_params_path=os.path.join(cfg.inference.load_path, 'dip_model_{}.pt'.format(i)))
+                load_params_path=os.path.join(cfg.inference.load_path, f'dip_model_{i}.pt'))
 
         with torch.no_grad(), eval_mode(reconstructor.nn_model):
-            recon = reconstructor.nn_model(filtbackproj)
+            recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
 
-        print('DIP reconstruction of sample {:d}'.format(i))
+        print(f'DIP reconstruction of sample {i:d}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.nn_model) if not cfg.priors.use_gprior else get_default_unet_gprior_dicts(
-                        nn_model=reconstructor.nn_model,
-        )
+        prior_assignment_dict, hyperparams_init_dict = (
+                get_default_unet_gaussian_prior_dicts(reconstructor.nn_model)
+                if not cfg.priors.use_gprior else
+                get_default_unet_gprior_dicts(reconstructor.nn_model))
         parameter_cov = ParameterCov(
                 reconstructor.nn_model,
                 prior_assignment_dict,
@@ -179,18 +183,17 @@ def coordinator(cfg : DictConfig) -> None:
             }
             if cfg.inference.sampling.use_conj_grad_inv:
                 low_rank_observation_cov = LowRankObservationCov(
-                        trafo=ray_trafo,
-                        image_cov=image_cov,
-                        low_rank_rank_dim=cfg.inference.sampling.cg_preconditioner.low_rank_rank_dim,
-                        oversampling_param=cfg.inference.sampling.cg_preconditioner.oversampling_param,
-                        vec_batch_size=cfg.inference.sampling.cg_preconditioner.batch_size,
-                        device=device
+                    trafo=ray_trafo,
+                    image_cov=image_cov,
+                    low_rank_rank_dim=cfg.inference.sampling.cg_preconditioner.low_rank_rank_dim,
+                    oversampling_param=cfg.inference.sampling.cg_preconditioner.oversampling_param,
+                    vec_batch_size=cfg.inference.sampling.cg_preconditioner.batch_size,
+                    device=device
                 )
                 low_rank_preconditioner = LowRankPreC(
                         pre_con_obj=low_rank_observation_cov
                 )
-                sample_kwargs['cg_kwargs']['precon_closure'] = (
-                        lambda v: low_rank_preconditioner.matmul(v.T, use_inverse=True).T)
+                sample_kwargs['cg_kwargs']['precon_closure'] = low_rank_preconditioner.get_closure()
             samples = predictive_posterior.sample_zero_mean(
                     num_samples=cfg.inference.num_samples,
                     cov_obs_mat_chol=cov_obs_mat_chol,
@@ -229,7 +232,8 @@ def coordinator(cfg : DictConfig) -> None:
             return_patch_diags=True,
             unscaled=True)
 
-        total_num_pixels_in_patches = sum(len(all_patch_mask_inds[patch_idx]) for patch_idx in patch_idx_list)
+        total_num_pixels_in_patches = sum(
+                len(all_patch_mask_inds[patch_idx]) for patch_idx in patch_idx_list)
         log_prob = np.sum(log_probs_unscaled) / total_num_pixels_in_patches
         print('log_prob:', log_prob)
 
@@ -241,4 +245,4 @@ def coordinator(cfg : DictConfig) -> None:
         }, f'sample_based_predictive_posterior_{i}.pt')
 
 if __name__ == '__main__':
-    coordinator()
+    coordinator()  # pylint: disable=no-value-for-parameter

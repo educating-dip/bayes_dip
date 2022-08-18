@@ -1,5 +1,7 @@
 iterations: 2000
 lr: 0.01
+init_load_path: null
+init_load_iter: null
 num_probes: 50
 linear_cg:
   max_iter: 150

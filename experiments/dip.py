@@ -34,7 +34,10 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation, ground_truth, filtbackproj = data_sample
 
-        torch.save({'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth},
+        torch.save(
+                {'observation': observation,
+                 'filtbackproj': filtbackproj,
+                 'ground_truth': ground_truth},
                 f'sample_{i}.pt')
 
         observation = observation.to(dtype=dtype, device=device)
@@ -54,7 +57,8 @@ def coordinator(cfg : DictConfig) -> None:
                 device=device, net_kwargs=net_kwargs,
                 load_params_path=cfg.load_pretrained_dip_params)
         if cfg.load_dip_params_from_path is not None:
-            print(f'ignoring dip.load_params_from_path={cfg.load_dip_params_from_path}, recomputing DIP')
+            print(f'ignoring dip.load_params_from_path={cfg.load_dip_params_from_path}, '
+                   'recomputing DIP')
 
         optim_kwargs = {
                 'lr': cfg.dip.optim.lr,
@@ -70,12 +74,13 @@ def coordinator(cfg : DictConfig) -> None:
                 log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
                 optim_kwargs=optim_kwargs)
 
-        torch.save(reconstructor.nn_model.state_dict(),
-                './dip_model_{}.pt'.format(i))
+        torch.save(
+                reconstructor.nn_model.state_dict(),
+                f'dip_model_{i}.pt')
 
-        print('DIP reconstruction of sample {:d}'.format(i))
+        print(f'DIP reconstruction of sample {i:d}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
 if __name__ == '__main__':
-    coordinator()
+    coordinator()  # pylint: disable=no-value-for-parameter

@@ -1,20 +1,25 @@
 import os
-from warnings import warn
 from itertools import islice
 import hydra
 from omegaconf import DictConfig, OmegaConf
 import torch
 from torch.utils.data import DataLoader
-from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset
+from bayes_dip.utils.experiment_utils import (
+        get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts
-from bayes_dip.probabilistic_models import NeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov
-from bayes_dip.probabilistic_models.linearized_dip.neural_basis_expansion import GpriorNeuralBasisExpansion
-from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, LowRankPreC, weights_linearization, get_ordered_nn_params_vec
+from bayes_dip.probabilistic_models import (
+        get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
+from bayes_dip.probabilistic_models import (
+        NeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov,
+        GpriorNeuralBasisExpansion)
+from bayes_dip.marginal_likelihood_optim import (
+        marginal_likelihood_hyperparams_optim, LowRankPreC, weights_linearization,
+        get_ordered_nn_params_vec)
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
+    # pylint: disable=too-many-locals,too-many-statements
 
     if cfg.use_double:
         torch.set_default_tensor_type(torch.DoubleTensor)
@@ -39,17 +44,19 @@ def coordinator(cfg : DictConfig) -> None:
 
         observation, ground_truth, filtbackproj = data_sample
 
-        if cfg.load_dip_params_from_path is not None:
-            # assert that sample data matches with that from the dip to be loaded
-            try:
-                sample_dict = torch.load(os.path.join(cfg.load_dip_params_from_path, 'sample_{}.pt'.format(i)), map_location=device)
-                assert torch.allclose(sample_dict['filtbackproj'].float(), filtbackproj.float(), atol=1e-6)
-            except FileNotFoundError:
-                warn(f'Did not find sample data in {cfg.load_dip_params_from_path} from where the '
-                        'DIP params will be loaded, so could not verify the DIP was trained on the '
-                        'same sample data')
+        load_dip_params_from_path = cfg.load_dip_params_from_path
+        if cfg.mll_optim.init_load_path is not None and load_dip_params_from_path is None:
+            load_dip_params_from_path = cfg.mll_optim.init_load_path
 
-        torch.save({'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth},
+        if load_dip_params_from_path is not None:
+            # assert that sample data matches with that from the dip to be loaded
+            assert_sample_matches(
+                    data_sample, load_dip_params_from_path, i, raise_if_file_not_found=False)
+
+        torch.save(
+                {'observation': observation,
+                 'filtbackproj': filtbackproj,
+                 'ground_truth': ground_truth},
                 f'sample_{i}.pt')
 
         observation = observation.to(dtype=dtype, device=device)
@@ -67,7 +74,7 @@ def coordinator(cfg : DictConfig) -> None:
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
                 load_params_path=cfg.load_pretrained_dip_params)
-        if cfg.load_dip_params_from_path is None:
+        if load_dip_params_from_path is None:
             optim_kwargs = {
                     'lr': cfg.dip.optim.lr,
                     'iterations': cfg.dip.optim.iterations,
@@ -81,9 +88,10 @@ def coordinator(cfg : DictConfig) -> None:
                     log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
                     optim_kwargs=optim_kwargs)
         else:
-            reconstructor.load_params(
-                    os.path.join(cfg.load_dip_params_from_path, f'dip_model_{i}.pt'))
-            recon = reconstructor.nn_model(filtbackproj).detach()
+            dip_params_filepath = os.path.join(load_dip_params_from_path, f'dip_model_{i}.pt')
+            print(f'loading DIP network parameters from {dip_params_filepath}')
+            reconstructor.load_params(dip_params_filepath)
+            recon = reconstructor.nn_model(filtbackproj).detach()  # pylint: disable=not-callable
         torch.save(reconstructor.nn_model.state_dict(),
                 f'dip_model_{i}.pt')
         torch.save(recon.cpu(),
@@ -94,29 +102,31 @@ def coordinator(cfg : DictConfig) -> None:
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.nn_model) if not cfg.priors.use_gprior else get_default_unet_gprior_dicts(
-                        nn_model=reconstructor.nn_model,
-                )
+        prior_assignment_dict, hyperparams_init_dict = (
+                get_default_unet_gaussian_prior_dicts(reconstructor.nn_model)
+                if not cfg.priors.use_gprior else
+                get_default_unet_gprior_dicts(reconstructor.nn_model))
         parameter_cov = ParameterCov(
                 reconstructor.nn_model,
                 prior_assignment_dict,
                 hyperparams_init_dict,
                 device=device
         )
-        neural_basis_expansion = NeuralBasisExpansion(
-                nn_model=reconstructor.nn_model,
-                nn_input=filtbackproj,
-                ordered_nn_params=parameter_cov.ordered_nn_params,
-                nn_out_shape=filtbackproj.shape,
-        ) if not cfg.priors.use_gprior else GpriorNeuralBasisExpansion(
+        neural_basis_expansion = (
+                NeuralBasisExpansion(
+                    nn_model=reconstructor.nn_model,
+                    nn_input=filtbackproj,
+                    ordered_nn_params=parameter_cov.ordered_nn_params,
+                    nn_out_shape=filtbackproj.shape,
+                ) if not cfg.priors.use_gprior else
+                GpriorNeuralBasisExpansion(
                     trafo=ray_trafo,
                     nn_model=reconstructor.nn_model,
                     nn_input=filtbackproj,
                     ordered_nn_params=parameter_cov.ordered_nn_params,
                     nn_out_shape=filtbackproj.shape,
                     scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-                )
+                ))
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion
@@ -126,18 +136,27 @@ def coordinator(cfg : DictConfig) -> None:
                 image_cov=image_cov,
                 device=device
         )
+        if cfg.mll_optim.init_load_path is not None:
+            # assert that sample data matches with that from the initial checkpoint to be loaded
+            assert_sample_matches(data_sample, cfg.mll_optim.init_load_path, i)
+            init_load_filepath = os.path.join(cfg.mll_optim.init_load_path,
+                    (f'observation_cov_{i}.pt' if cfg.mll_optim.init_load_iter is None else
+                     f'observation_cov_{i}_iter_{cfg.mll_optim.init_load_iter}.pt'))
+            print(f'loading initial MLL hyperparameters from {init_load_filepath}')
+            observation_cov.load_state_dict(torch.load(init_load_filepath))
         linearized_weights = None
         if cfg.mll_optim.use_linearized_weights:
-            if cfg.load_dip_params_from_path is not None:
+            if load_dip_params_from_path is not None:
                 try:
                     linearized_weights = torch.load(
-                            os.path.join(cfg.load_dip_params_from_path, f'lin_weights_{i}.pt'))
+                            os.path.join(load_dip_params_from_path, f'lin_weights_{i}.pt'))
                     lin_recon = torch.load(
-                            os.path.join(cfg.load_dip_params_from_path, f'lin_recon_{i}.pt'))
+                            os.path.join(load_dip_params_from_path, f'lin_recon_{i}.pt'))
                 except FileNotFoundError:
                     pass
             if linearized_weights is None:
-                weights_linearization_optim_kwargs = OmegaConf.to_object(cfg.mll_optim.weights_linearization)
+                weights_linearization_optim_kwargs = OmegaConf.to_object(
+                        cfg.mll_optim.weights_linearization)
                 weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
                 map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
                 linearized_weights, lin_recon = weights_linearization(
@@ -148,7 +167,7 @@ def coordinator(cfg : DictConfig) -> None:
                         ground_truth=ground_truth,
                         optim_kwargs=weights_linearization_optim_kwargs,
                 )
-            print('linearized weights reconstruction of sample {:d}'.format(i))
+            print(f'linearized weights reconstruction of sample {i:d}')
             print('PSNR:', PSNR(lin_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             print('SSIM:', SSIM(lin_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             torch.save(linearized_weights,
@@ -203,4 +222,4 @@ def coordinator(cfg : DictConfig) -> None:
 
 
 if __name__ == '__main__':
-    coordinator()
+    coordinator()  # pylint: disable=no-value-for-parameter

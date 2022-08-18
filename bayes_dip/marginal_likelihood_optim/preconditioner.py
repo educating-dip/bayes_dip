@@ -1,5 +1,6 @@
 
 from abc import ABC, abstractmethod
+from typing import Callable
 import torch
 from torch import Tensor
 from ..probabilistic_models import LowRankObservationCov
@@ -31,6 +32,9 @@ class BasePreC(ABC):
         use_cpu: bool
         ) -> Tensor:
         raise NotImplementedError
+
+    def get_closure(self) -> Callable[[Tensor], Tensor]:
+        return lambda v: self.matmul(v.T, use_inverse=True).T
 
 class LowRankPreC(BasePreC):
 
