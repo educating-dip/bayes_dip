@@ -10,6 +10,13 @@ if "%SPHINXBUILD%" == "" (
 set SOURCEDIR=.
 set BUILDDIR=_build
 
+:: for apidoc
+set PYTHONSOURCEDIR=../
+set APIDOCDIR=_apidoc
+set EXCLUDE=""
+
+if "%1" == "" goto help
+
 %SPHINXBUILD% >NUL 2>NUL
 if errorlevel 9009 (
 	echo.
@@ -23,9 +30,13 @@ if errorlevel 9009 (
 	exit /b 1
 )
 
-if "%1" == "" goto help
-
-%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+if "%1" == "clean" (
+	%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+	rm -rf %APIDOCDIR%/*.rst
+) else (
+	sphinx-apidoc -f -e -o %APIDOCDIR% %PYTHONSOURCEDIR% %EXCLUDE% --no-toc
+	%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+)
 goto end
 
 :help
