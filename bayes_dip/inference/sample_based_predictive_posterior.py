@@ -9,29 +9,80 @@ from .base_predictive_posterior import BasePredictivePosterior
 from .utils import yield_padded_batched_images_patches, get_image_patch_mask_inds, is_invalid
 from ..utils import cg
 
-def predictive_cov_image_patch_norm(v, predictive_cov_image_patch):
+def predictive_cov_image_patch_norm(v : Tensor, predictive_cov_image_patch : Tensor) -> Tensor:
+    """
+    Return the norm ``< cov^(-1) v , v >``.
+
+    Parameters
+    ----------
+    v : Tensor
+        Vector(s). Shape: ``(*, num_pixels)``.
+    predictive_cov_image_patch : Tensor
+        Covariance matrix/matrices. Shape: ``(*, num_pixels, num_pixels)``.
+
+    Returns
+    -------
+    norm : Tensor
+        Norm. Shape: ``(*,)``.
+    """
     v_out = torch.linalg.solve(predictive_cov_image_patch, v)
     norm = torch.sum(v * v_out, dim=-1)
     return norm
 
 def predictive_cov_image_patch_log_prob_unscaled_batched(
-        recon_masked, ground_truth_masked, predictive_cov_image_patch):
+        recon_masked : Tensor,
+        ground_truth_masked : Tensor,
+        predictive_cov_image_patch : Tensor) -> Tensor:
+    """
+    Return the log probabilities for a batch of patches.
 
-    approx_slogdet = torch.slogdet(predictive_cov_image_patch)
-    assert torch.all(approx_slogdet[0] > 0.)
-    approx_log_det = approx_slogdet[1]
+    Parameters
+    ----------
+    recon_masked : Tensor
+        Reconstruction patches. Shape: ``(batch_size, num_pixels)``.
+    ground_truth_masked : Tensor
+        Ground truth patches. Shape: ``(batch_size, num_pixels)``.
+    predictive_cov_image_patch : Tensor
+        Predictive posterior covariance for the patches.
+        Shape: ``(batch_size, num_pixels, num_pixels)``.
+
+    Returns
+    -------
+    log_prob_unscaled : Tensor
+        Log probabilities of the patches.
+        Shape: ``(batch_size,)``.
+    """
+
+    slogdet = torch.slogdet(predictive_cov_image_patch)
+    assert torch.all(slogdet[0] > 0.)
+    log_det = slogdet[1]
     diff = (ground_truth_masked - recon_masked).view(ground_truth_masked.shape[0], -1)
     norm = predictive_cov_image_patch_norm(diff, predictive_cov_image_patch)
-    approx_log_prob_unscaled = (
-            -0.5 * norm - 0.5 * approx_log_det +
+    log_prob_unscaled = (
+            -0.5 * norm - 0.5 * log_det +
             -0.5 * np.log(2. * np.pi) * np.prod(ground_truth_masked.shape[1:]))
-    return approx_log_prob_unscaled
+    return log_prob_unscaled
 
 def approx_predictive_cov_image_patch_from_zero_mean_samples_batched(
-        samples, noise_x_correction_term=None):
+        samples : Tensor, noise_x_correction_term : Optional[float] = None) -> Tensor:
+    """
+    Estimate the (co-)variances of image pixels from zero mean samples.
+
+    Parameters
+    ----------
+    samples : Tensor
+        Image (or patch) samples with mean zero.
+        Shape: ``(batch_size, mc_samples, num_pixels)``.
+    noise_x_correction_term : float, optional
+        If specified, this value is added to the diagonal of each covariance matrix.
+
+    Returns
+    -------
+    cov : Tensor
+        Covariance estimate, shape: ``(batch_size, num_pixels, num_pixels)``.
+    """
 
     batch_size, mc_samples, im_numel = samples.shape
-    samples = samples.view(batch_size, mc_samples, -1)  # batch x samples x image
     samples = samples.view(batch_size * mc_samples, -1)
 
     prods = torch.bmm(samples[:, :, None], samples[:, None, :]).view(
@@ -55,6 +106,41 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         return_residual_norm_list: bool = False,
         return_on_device = None,
         ) -> Tensor:
+        """
+        Return samples from the Gaussian given by the predictive posterior covariance and mean zero.
+
+        Parameters
+        ----------
+        num_samples : int
+            Number of samples.
+        cov_obs_mat_chol : Tensor, optional
+            Cholesky factor of the observation covariance matrix.
+            Required if ``not use_conj_grad_inv``.
+        vec_batch_size : int, optional
+            Batch size (number of images per batch). The default is `1`.
+        use_conj_grad_inv : bool, optional
+            Whether to use CG instead of `cov_obs_mat_chol` for solving the linear system with the
+            observation covariance matrix. The default is `False`.
+        cg_kwargs : dict, optional
+            Keyword arguments passed to :func:`bayes_dip.utils.cg`.
+        return_residual_norm_list : bool, optional
+            Whether to return the list of residual norms in case of `use_conj_grad_inv`.
+            The default is `False`.
+        return_on_device : str or torch.device, optional
+            Device on which samples are collected. This option only affects the storage of the
+            samples to be returned, not their computation.
+            If `None` (the default), ``self.observation_cov.device`` is used.
+
+        Returns
+        -------
+        samples : Tensor
+            Samples from the Gaussian given by the predictive posterior covariance and mean zero.
+            Shape: ``(n, 1, *im_shape)``, where `n` is
+            ``ceil(num_samples / vec_batch_size) * vec_batch_size``.
+        residual_norm_list : list of scalar, optional
+            Residual norms of CG solutions, only returned if
+            ``use_conj_grad_inv and return_residual_norm_list``.
+        """
         # pylint: disable=arguments-differ
         # pylint: disable=too-many-locals
 
@@ -62,6 +148,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         image_samples = []
         residual_norm_list = []
         assert use_conj_grad_inv or cov_obs_mat_chol is not None
+        cg_kwargs = cg_kwargs or {}
         return_on_device = (
                 self.observation_cov.device if return_on_device is None else return_on_device)
         with torch.no_grad():
@@ -89,12 +176,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                                 vec_batch_size, 1, *self.observation_cov.trafo.obs_shape)).view(
                                         vec_batch_size, self.observation_cov.shape[0]).T
                     samples_T, residual_norm = cg(
-                            observation_cov_closure, samples.T,
-                            precon_closure=cg_kwargs['precon_closure'],
-                            max_niter=cg_kwargs['max_niter'],
-                            rtol=cg_kwargs['rtol'],
-                            ignore_numerical_warning=cg_kwargs['ignore_numerical_warning']
-                        )
+                            observation_cov_closure, samples.T, **cg_kwargs)
                     residual_norm_list.append(residual_norm)
                     samples = samples_T.T
 
@@ -108,22 +190,50 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                 image_samples if not (use_conj_grad_inv and return_residual_norm_list)
                 else (image_samples, residual_norm_list))
 
-    # TODO document, esp. padding with 1. diagonal elements in return value
     def yield_covariances_patches(self,
-            num_samples: Optional[int] = 10000,
             samples: Tensor = None,
             patch_kwargs: Optional[Dict] = None,
-            cov_obs_mat_chol: Optional[Tensor] = None,
             noise_x_correction_term: float = 1e-6,
             sample_kwargs: Optional[Dict] = None,
             device = None) -> Tensor:
+        """
+        Yield posterior covariance matrices for image patches.
+
+        Parameters
+        ----------
+        samples : Tensor, optional
+            Precomputed samples, e.g. drawn by :meth:`sample_zero_mean`.
+            If not specified, ``samples_kwargs['num_samples']`` samples are drawn in this function.
+        patch_kwargs : dict, optional
+            Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
+        noise_x_correction_term : float, optional
+            Noise amount that is assumed to be present in ground truth. The default is `1e-6`.
+        sample_kwargs : dict, optional
+            Keyword arguments passed to :meth:`sample_zero_mean`. Required if ``samples is None``.
+        device : str or torch.device, optional
+            Device. If `None` (the default), ``self.observation_cov.device`` is used.
+
+        Yields
+        ------
+        batch_patch_inds : list of int
+            Indices of the patches (for the currently yielded batch).
+        batch_predictive_cov_image_patch : Tensor
+            Covariance matrices.
+            Shape: ``(batch_size, max(batch_len_mask_inds), max(batch_len_mask_inds))``, where
+            `batch_size` is ``patch_kwargs['batch_size']`` for all batches except for the
+            potentially shorter last batch. If a patch has less than ``max(batch_len_mask_inds)``
+            pixels, the covariance matrix is padded with the identity, i.e. ones on the diagonal and
+            zeros for the other entries.
+        batch_len_mask_inds : list of int
+            Numbers of pixels in the patches.
+        """
         # pylint: disable=too-many-arguments
 
         device = self.observation_cov.device if device is None else device
         if samples is None:
             sample_kwargs = sample_kwargs or {}
-            samples = self.sample_zero_mean(num_samples=num_samples,
-                    cov_obs_mat_chol=cov_obs_mat_chol, return_on_device='cpu', **sample_kwargs)
+            sample_kwargs.setdefault('return_on_device', 'cpu')
+            samples = self.sample_zero_mean(**sample_kwargs)
         for batch_patch_inds, batch_samples_patches, batch_len_mask_inds in (
                 yield_padded_batched_images_patches(samples,
                         patch_kwargs=patch_kwargs, return_patch_numels=True)):
@@ -159,6 +269,44 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             patch_kwargs: Optional[Dict] = None,
             unscaled: bool = False,
             **kwargs):
+        """
+        Return the patch-based approximate log probability.
+
+        By default, a patch size of `1` pixel, i.e. just the pixel-wise variance is used,
+        neglecting correlations between different pixels.
+
+        Parameters
+        ----------
+        mean : Tensor
+            Mean of the posterior image distribution.
+        ground_truth : Tensor
+            Ground truth.
+        noise_x_correction_term : float, optional
+            Noise amount that is assumed to be present in ground truth. Can help to stabilize
+            computations. The default is `1e-6`.
+        patch_kwargs : dict, optional
+            Keyword arguments specifying how to split the image into patches.
+
+            Items:
+                ``'patch_size'`` : int, optional
+                    The default is `1`.
+                ``'patch_idx_list'`` : list of int, optional
+                    Patch indices. If `None`, all patches are used.
+                ``'batch_size'`` : int, optional
+                    The default is `1`.
+        unscaled : bool, optional
+            If `False`, the sum of the (unscaled) patch log probabilities is divided by the total
+            number of pixels in the patches.
+            Otherwise, the sum of the unscaled patch log probabilities is returned.
+            The default is `False`.
+        kwargs : dict, optional
+            Keyword arguments forwarded to :meth:`log_prob_patches`.
+
+        Returns
+        -------
+        log_probability : float-like
+            Log probability, optionally scaled; see the `unscaled` argument.
+        """
         # pylint: disable=arguments-differ
 
         patch_kwargs = patch_kwargs or {}
@@ -185,15 +333,49 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
     def log_prob_patches(self,
             mean: Tensor,
             ground_truth: Tensor,
-            num_samples: Optional[int] = 10000,
             samples: Tensor = None,
             patch_kwargs: Optional[Dict] = None,
-            cov_obs_mat_chol: Optional[Tensor] = None,
             noise_x_correction_term: float = 1e-6,
             verbose: bool = True,
             unscaled: bool = False,
             return_patch_diags: bool = False,
             sample_kwargs: Optional[Dict] = None) -> Tensor:
+        """
+        Return log probabilities for patches.
+
+        Parameters
+        ----------
+        mean : Tensor
+            Mean of the posterior image distribution.
+        ground_truth : Tensor
+            Ground truth.
+        samples : Tensor, optional
+            Precomputed samples, e.g. drawn by :meth:`sample_zero_mean`.
+            If not specified, ``samples_kwargs['num_samples']`` samples are drawn in this function.
+        patch_kwargs : dict, optional
+            Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
+        noise_x_correction_term : float, optional
+            Noise amount that is assumed to be present in ground truth. Can help to stabilize
+            computations. The default is `1e-6`.
+        verbose : bool, optional
+            Whether to print information. The default is `True`.
+        unscaled : bool, optional
+            If `False`, the unscaled patch log probabilities are divided by the number of pixels in
+            the respective patch. Otherwise the unscaled patch log probabilities are returned.
+            The default is `False`.
+        return_patch_diags : bool, optional
+            If `True`, return the diagonals of the covariance matrices.
+            The default is `False`.
+        sample_kwargs : dict, optional
+            Keyword arguments passed to :meth:`sample_zero_mean`. Required if ``samples is None``.
+
+        Returns
+        -------
+        log_probabilities : list of float
+            Log probabilities for the patches, optionally scaled; see the `unscaled` argument.
+        patch_diags : list of Tensor, optional
+            Diagonals of the covariance matrices for the patches.
+        """
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-locals
 
@@ -202,8 +384,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
 
         if samples is None:
             sample_kwargs = sample_kwargs or {}
-            samples = self.sample_zero_mean(num_samples=num_samples,
-                    cov_obs_mat_chol=cov_obs_mat_chol, return_on_device='cpu', **sample_kwargs)
+            sample_kwargs.setdefault('return_on_device', 'cpu')
+            samples = self.sample_zero_mean(**sample_kwargs)
         log_probs = []
         patch_diags = []
         all_patch_mask_inds = get_image_patch_mask_inds(
@@ -212,7 +394,6 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                 self.yield_covariances_patches(
                         samples=samples,
                         patch_kwargs=patch_kwargs,
-                        cov_obs_mat_chol=cov_obs_mat_chol,
                         noise_x_correction_term=noise_x_correction_term)):
 
             if return_patch_diags:
