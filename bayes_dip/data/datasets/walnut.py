@@ -42,6 +42,12 @@ def get_walnut_2d_observation(
         Scaling factor to multiply with.
         The default is `DEFAULT_WALNUT_SCALING_FACTOR`, scaling image values to
         approximately `[0., 1.]`.
+
+    Returns
+    -------
+    observation : Tensor
+        Projection data. Shape: ``(1, 1, obs_numel)``, where
+        ``obs_numel = ceil(1200 / angular_sub_sampling) * ceil(768 / proj_col_sub_sampling)``.
     """
 
     walnut_kwargs = dict(
@@ -86,6 +92,11 @@ def get_walnut_2d_ground_truth(
         Scaling factor to multiply with.
         The default is `DEFAULT_WALNUT_SCALING_FACTOR`, scaling image values to
         approximately `[0., 1.]`.
+
+    Returns
+    -------
+    ground_truth : Tensor
+        Ground truth. Shape: ``(1, 501, 501)``.
     """
 
     slice_ind = get_single_slice_ind(
@@ -107,8 +118,20 @@ INNER_PART_START_1 = 72
 INNER_PART_END_0 = 424
 INNER_PART_END_1 = 424
 
-def get_walnut_2d_inner_patch_indices(patch_size: int) -> List:
+def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
+    """
+    Return patch indices for the inner part of the walnut image (that contains the walnut).
 
+    Parameters
+    ----------
+    patch_size : int
+        Side length of the patches (patches are square).
+
+    Returns
+    -------
+    patch_idx_list : list of int
+        Indices of the patches.
+    """
     num_patches_0 = VOL_SZ[1] // patch_size
     num_patches_1 = VOL_SZ[2] // patch_size
     start_patch_0 = INNER_PART_START_0 // patch_size

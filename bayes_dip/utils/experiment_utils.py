@@ -1,9 +1,14 @@
-from typing import List
+"""
+Utilities for experiments.
+"""
+
+from typing import List, Optional
 import os
 from warnings import warn
 import torch
 from torch.utils.data import Dataset, TensorDataset
-from bayes_dip.data import get_ray_trafo, SimulatedDataset
+from omegaconf import DictConfig
+from bayes_dip.data import get_ray_trafo, SimulatedDataset, BaseRayTrafo
 from bayes_dip.data import (
         get_mnist_testset, get_kmnist_testset, get_mnist_trainset, get_kmnist_trainset,
         RectanglesDataset,
@@ -11,7 +16,8 @@ from bayes_dip.data import (
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
 
-def get_standard_ray_trafo(cfg):
+def get_standard_ray_trafo(cfg: DictConfig) -> BaseRayTrafo:
+    """Return the ray transform by hydra config."""
     kwargs = {}
     kwargs['angular_sub_sampling'] = cfg.trafo.angular_sub_sampling
     if cfg.dataset.name in ('mnist', 'kmnist', 'rectangles'):
@@ -28,9 +34,10 @@ def get_standard_ray_trafo(cfg):
     return get_ray_trafo(cfg.dataset.name, kwargs=kwargs)
 
 def get_standard_dataset(
-        cfg, ray_trafo, fold='test', use_fixed_seeds_starting_from=1, device=None) -> Dataset:
+        cfg: DictConfig, ray_trafo: BaseRayTrafo, fold: str = 'test',
+        use_fixed_seeds_starting_from: Optional[int] = 1, device=None) -> Dataset:
     """
-    Returns a dataset of tuples ``noisy_observation, x, filtbackproj``, where
+    Return a dataset of tuples ``noisy_observation, x, filtbackproj``, where
         * `noisy_observation` has shape ``(1,) + obs_shape``
         * `x` is the ground truth (label) and has shape ``(1,) + im_shape``
         * ``filtbackproj = FBP(noisy_observation)`` has shape ``(1,) + im_shape``
@@ -47,6 +54,11 @@ def get_standard_dataset(
     device : str or torch.device, optional
         If specified, data will be moved to the device. `ray_trafo`
         (including `ray_trafo.fbp`) must support tensors on the device.
+
+    Returns
+    -------
+    dataset : torch.utils.data.Dataset
+        Dataset.
     """
     assert fold in ('test', 'validation')
 
@@ -110,14 +122,43 @@ def get_standard_dataset(
 
     return dataset
 
-def get_predefined_patch_idx_list(name: str, patch_size: int) -> List:
+def get_predefined_patch_idx_list(name: str, patch_size: int) -> List[int]:
+    """
+    Return a predefined list of patch indices.
+
+    Parameters
+    ----------
+    name : str
+        Name of the patch index list.
+    patch_size : int
+        Side length of the patches (patches are square).
+
+    Returns
+    -------
+    patch_idx_list : list of int
+        Indices of the patches.
+    """
     if name == 'walnut_inner':
         patch_idx_list = get_walnut_2d_inner_patch_indices(patch_size=patch_size)
     else:
         raise ValueError(f'Unknown patch_idx_list configuration: {name}')
     return patch_idx_list
 
-def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True):
+def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) -> None:
+    """
+    Assert that the saved data for sample `i` in `path` matches the passed `data_sample`.
+
+    Parameters
+    ----------
+    data_sample : 3-tuple of Tensor
+        Sample data ``(observation, ground_truth, filtbackproj)``. Only `filtbackproj` is used.
+    path : str
+        Hydra output directory of a previous run.
+    i : int
+        Sample index.
+    raise_if_file_not_found : bool, optional
+        If `False`, warn instead of raising a `FileNotFoundError`. The default is `True`.
+    """
     _, _, filtbackproj = data_sample
     try:
         sample_dict = torch.load(os.path.join(path, f'sample_{i}.pt'), map_location='cpu')

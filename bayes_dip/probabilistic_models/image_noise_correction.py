@@ -1,3 +1,6 @@
+"""
+Provides :func:`get_image_noise_correction_term`.
+"""
 import numpy as np
 import scipy.sparse
 import torch
@@ -7,6 +10,22 @@ from bayes_dip.probabilistic_models.observation_cov import ObservationCov
 
 def get_trafo_t_trafo_pseudo_inv_diag_mean(
         trafo: MatmulRayTrafo, n_eigenvecs: int = 100) -> float:
+    """
+    Compute ``diag(mean(pinv(ray_trafo.T @ ray_trafo)))`` with the pseudo-inverse being approximated
+    with a truncated SVD.
+
+    Parameters
+    ----------
+    trafo : MatmulRayTrafo
+        Ray transform.
+    n_eigenvecs : int, optional
+        Number of eigenvectors in the truncated SVD.
+
+    Returns
+    -------
+    diag_mean : float
+        Mean of the diagonal of the pseudo-inverse of ``ray_trafo.T @ ray_trafo``.
+    """
 
     trafo_mat = trafo.matrix
     if trafo_mat.is_sparse:
@@ -32,6 +51,23 @@ def get_trafo_t_trafo_pseudo_inv_diag_mean(
 
 
 def get_image_noise_correction_term(observation_cov: ObservationCov) -> float:
+    """
+    Return an image noise correction term computed as
+    ``diag(mean(pinv(ray_trafo.T @ ray_trafo))) * noise_variance``.
+
+    This can be interpreted as a projection of the `noise_variance` in observation space to image
+    space.
+
+    Parameters
+    ----------
+    observation_cov : ObservationCov
+        Observation covariance module.
+
+    Returns
+    -------
+    image_noise_correction_term : float
+        Image noise correction term.
+    """
     diag_mean = get_trafo_t_trafo_pseudo_inv_diag_mean(observation_cov.trafo)
     image_noise_correction_term = diag_mean * observation_cov.log_noise_variance.exp().item()
     return image_noise_correction_term

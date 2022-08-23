@@ -22,7 +22,8 @@ from .network import UNet
 class DeepImagePriorReconstructor():
     """
     CT reconstructor applying DIP with TV regularization (see [2]_).
-    The DIP was introduced in [1].
+    The DIP was introduced in [1]_.
+
     .. [1] V. Lempitsky, A. Vedaldi, and D. Ulyanov, 2018, "Deep Image Prior".
            IEEE/CVF Conference on Computer Vision and Pattern Recognition.
            https://doi.org/10.1109/CVPR.2018.00984
@@ -39,6 +40,8 @@ class DeepImagePriorReconstructor():
             net_kwargs=None,
             load_params_path: Optional[str] = None):
         """
+        Parameters
+        ----------
         ray_trafo : :class:`bayes_dip.data.BaseRayTrafo`
             Ray transform.
         torch_manual_seed : int or None, optional

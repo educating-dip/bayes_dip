@@ -117,7 +117,21 @@ class UNetReturnPreSigmoid(nn.Module):
     def forward(self,
             x: Tensor,
             saturation_safety: bool = False) -> Tensor:
+        """
+        Parameters
+        ----------
+        x : Tensor
+            Network input.
+        saturation_safety : bool, optional
+            If ``self.unet.use_sigmoid``, this option controls whether the pre-sigmoid activations
+            are clamped to ``(-self.sigmoid_saturation_thresh, self.sigmoid_saturation_thresh)``.
+            The default is `False`.
 
+        Returns
+        -------
+        Tensor
+            Pre-sigmoid activations of the network.
+        """
         return self.unet(x, saturation_safety=saturation_safety, return_pre_sigmoid=True)
 
 

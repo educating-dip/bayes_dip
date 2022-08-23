@@ -10,6 +10,7 @@ Welcome to Bayes-DIP's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   _apidoc/bayes_dip.rst
 
 
 Indices and tables

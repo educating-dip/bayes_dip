@@ -46,12 +46,12 @@ nn_model = UNet(
     sigmoid_saturation_thresh=9
     ).to(device)
 
-include_bias = True
-# n_params = 2140 if not include_biases else 2158
+exclude_bias = True
+# n_params = 2140 if exclude_bias else 2158
 # n_params = np.sum([param.data.numel() for param in nn_model.parameters()])
 
 nn_input = torch.randn((1, 1, 28, 28), device=device)
-ordered_nn_params = get_params_from_nn_module(nn_model, include_bias=include_bias)
+ordered_nn_params = get_params_from_nn_module(nn_model, exclude_bias=exclude_bias)
 neural_basis_expansion = NeuralBasisExpansion(
     nn_model=nn_model,
     nn_input=nn_input,
@@ -69,6 +69,7 @@ out = neural_basis_expansion.vjp(v_out)
 print(out.shape)
 print(out.requires_grad)
 out.sum().backward()
+assert torch.allclose(v_out.grad, neural_basis_expansion.jvp(torch.ones_like(out)))
 
 v_params.requires_grad_(True)
 # _, out = neural_basis_expansion.jvp_with_out(v_params)
@@ -76,6 +77,7 @@ out = neural_basis_expansion.jvp(v_params)
 print(out.shape)
 print(out.requires_grad)
 out.sum().backward()
+assert torch.allclose(v_params.grad, neural_basis_expansion.vjp(torch.ones_like(out)), atol=1e-5)
 
 low_rank_neural_basis_expansion = LowRankNeuralBasisExpansion(
     neural_basis_expansion=neural_basis_expansion,

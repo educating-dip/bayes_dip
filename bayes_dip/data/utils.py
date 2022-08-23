@@ -1,7 +1,40 @@
-from .trafo import (
-        get_walnut_2d_ray_trafo, get_parallel_beam_2d_matmul_ray_trafo)
+"""
+Provides data utilities.
+"""
 
-def get_ray_trafo(name, kwargs):
+from .trafo import (
+        get_walnut_2d_ray_trafo, get_parallel_beam_2d_matmul_ray_trafo, BaseRayTrafo)
+
+def get_ray_trafo(name : str, kwargs : dict) -> BaseRayTrafo:
+    """
+    Return the ray transform by setting name and keyword arguments.
+
+    Parameters
+    ----------
+    name : str
+        Name of the setting, one of: ``'mnist', 'kmnist', 'rectangles', 'walnut'``.
+    kwargs : dict
+        Keyword arguments, specific to the setting. Passed as a dictionary.
+
+        For the settings ``'mnist', 'kmnist', 'rectangles'``, the arguments are:
+
+            ``'im_shape'`` : tuple of int
+                Image shape.
+            ``'num_angles'`` : int
+                Number of projection angles.
+            ``'angular_sub_sampling'`` : int
+                Sub-sampling factor for the projection angles.
+                To disable sub-sampling, set this to ``1``.
+
+        For the setting ``'walnut'``, the arguments are those of
+        :func:`bayes_dip.data.trafo.walnut_2d_ray_trafo.get_walnut_2d_ray_trafo`,
+        but with all arguments being required.
+
+    Returns
+    -------
+    ray_trafo : BaseRayTrafo
+        Ray transform.
+    """
     if name == 'mnist':
         ray_trafo = get_parallel_beam_2d_matmul_ray_trafo(
                 im_shape=kwargs['im_shape'], num_angles=kwargs['num_angles'],

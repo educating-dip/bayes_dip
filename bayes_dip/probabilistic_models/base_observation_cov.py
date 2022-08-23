@@ -43,6 +43,7 @@ class BaseObservationCov(nn.Module, ABC):
 
     @property
     def shape(self) -> Tuple[int, int]:
+        """Shape of the (theoretical) matrix representation."""
         return (np.prod(self.trafo.obs_shape),) * 2
 
     @abstractmethod
