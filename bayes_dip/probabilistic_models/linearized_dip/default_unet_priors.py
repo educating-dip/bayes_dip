@@ -16,7 +16,8 @@ def get_default_unet_gaussian_prior_dicts(
         normal_prior_hyperparams_init: Optional[Dict] = None,
         ) -> Tuple[Dict[str, Tuple[Callable, List[str]]], Dict[str, Dict]]:
     """
-    Return default prior assignment and hyperparameter initialization dictionaries for the U-Net.
+    Return default prior assignment and hyperparameter initialization dictionaries for the
+    linearized DIP with GP/Normal priors for the U-Net.
 
     One prior is assigned per convolutional block (not layer).
     GP priors are placed over 3x3 convolutions and Normal priors are placed over 1x1 convolutions.
@@ -36,18 +37,17 @@ def get_default_unet_gaussian_prior_dicts(
     -------
     prior_assignment_dict : dict
         Dictionary defining priors over the convolutional modules of the network.
-        E.g., for a U-Net with 4 scales and no skip connections the prior assignment is:
+        E.g., for a U-Net with 3 scales, no skip connections and without norm layers the prior
+        assignment is:
 
         .. code-block:: python
 
             prior_assignment_dict = {
                 'inc': (get_GPprior_RadialBasisFuncCov, ['inc.conv.0']),
-                'down_0': (get_GPprior_RadialBasisFuncCov, ['down.0.conv.0', 'down.0.conv.3']),
-                'down_1': (get_GPprior_RadialBasisFuncCov, ['down.1.conv.0', 'down.1.conv.3']),
-                'down_2': (get_GPprior_RadialBasisFuncCov, ['down.2.conv.0', 'down.2.conv.3']),
-                'up_0': (get_GPprior_RadialBasisFuncCov, ['up.0.conv.1', 'up.0.conv.4']),
-                'up_1': (get_GPprior_RadialBasisFuncCov, ['up.1.conv.1', 'up.1.conv.4']),
-                'up_2': (get_GPprior_RadialBasisFuncCov, ['up.2.conv.1', 'up.2.conv.4']),
+                'down_0': (get_GPprior_RadialBasisFuncCov, ['down.0.conv.0', 'down.0.conv.2']),
+                'down_1': (get_GPprior_RadialBasisFuncCov, ['down.1.conv.0', 'down.1.conv.2']),
+                'up_0': (get_GPprior_RadialBasisFuncCov, ['up.0.conv.0', 'up.0.conv.2']),
+                'up_1': (get_GPprior_RadialBasisFuncCov, ['up.1.conv.0', 'up.1.conv.2']),
                 'outc': (NormalPrior, ['outc.conv']),
             }
     hyperparams_init_dict : dict
@@ -118,6 +118,39 @@ def get_default_unet_gprior_dicts(
         nn_model: UNet,
         gprior_hyperparams_init: Optional[Dict] = None,
         ) -> Tuple[Dict[str, Tuple[Callable, List[str]]], Dict[str, Dict]]:
+    """
+    Return default prior assignment and hyperparameter initialization dictionaries for the isotropic
+    g-prior for the U-Net.
+
+    A single isotropic prior is assigned to all convolutional modules.
+
+    Parameters
+    ----------
+    nn_model : :class:`bayes_dip.dip.network.unet.UNet`
+        Network.
+    gprior_hyperparams_init : dict, optional
+        Custom initial value for the variance of the isotropic prior.
+        The default is ``{'variance': 1.}``.
+
+    Returns
+    -------
+    prior_assignment_dict : dict
+        Dictionary defining the single isotropic g-prior over all modules.
+        E.g., for a U-Net with 3 scales, no skip connections and without norm layers the prior
+        assignment is:
+
+        .. code-block:: python
+
+            prior_assignment_dict = {
+                'gprior': (IsotropicPrior, ['inc.conv.0', 'down.0.conv.0', 'down.0.conv.2',
+                        'down.1.conv.0', 'down.1.conv.2', 'up.0.conv.0', 'up.0.conv.2',
+                        'up.1.conv.0', 'up.1.conv.2', 'outc.conv']),
+            }
+    hyperparams_init_dict : dict
+        Dictionary defining the initial variance value for the isotropic g-prior.
+        It has the same single key as `prior_assignment_dict`, containing `gprior_hyperparams_init`
+        (filled with the default initial value if not passed).
+    """
 
     if gprior_hyperparams_init is None:
         gprior_hyperparams_init = {}
