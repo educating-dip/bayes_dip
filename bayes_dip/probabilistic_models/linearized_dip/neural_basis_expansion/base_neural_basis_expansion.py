@@ -1,7 +1,7 @@
 from typing import Optional, Sequence, Tuple
 from abc import ABC, abstractmethod
 import torch
-from torch import nn
+from torch import nn, Tensor
 import numpy as np
 
 from bayes_dip.utils import eval_mode
@@ -50,3 +50,49 @@ class BaseNeuralBasisExpansion(ABC):
     @abstractmethod
     def vjp(self, v):
         raise NotImplementedError
+
+class BaseMatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
+
+    @property
+    @abstractmethod
+    def matrix(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_matrix(self) -> Tensor:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_matrix(self) -> None:
+        raise NotImplementedError
+
+    def jvp(self, v: Tensor, sub_slice: slice = None) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, self.num_params)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, *self.nn_out_shape)``
+        """
+        matrix = self.matrix if sub_slice is None else self.matrix[:, sub_slice]
+        jvp = (matrix @ v.T).T
+        return jvp.view(v.shape[0], *self.nn_out_shape)
+
+    def vjp(self, v: Tensor, sub_slice: slice = None) -> Tensor:
+        """
+        Parameters
+        ----------
+        v : Tensor
+            Input. Shape: ``(batch_size, *self.nn_out_shape)``
+
+        Returns
+        -------
+        Tensor
+            Output. Shape: ``(batch_size, self.num_params)``
+        """
+        matrix = self.matrix if sub_slice is None else self.matrix[:, sub_slice]
+        return v.view(v.shape[0], -1) @ matrix

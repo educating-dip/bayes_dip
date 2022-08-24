@@ -112,21 +112,18 @@ def coordinator(cfg : DictConfig) -> None:
                 hyperparams_init_dict,
                 device=device
         )
-        neural_basis_expansion = (
-                NeuralBasisExpansion(
-                    nn_model=reconstructor.nn_model,
-                    nn_input=filtbackproj,
-                    ordered_nn_params=parameter_cov.ordered_nn_params,
-                    nn_out_shape=filtbackproj.shape,
-                ) if not cfg.priors.use_gprior else
-                GpriorNeuralBasisExpansion(
+        neural_basis_expansion = NeuralBasisExpansion(
+                nn_model=reconstructor.nn_model,
+                nn_input=filtbackproj,
+                ordered_nn_params=parameter_cov.ordered_nn_params,
+                nn_out_shape=filtbackproj.shape,
+        )
+        if cfg.priors.use_gprior:
+            neural_basis_expansion = GpriorNeuralBasisExpansion(
+                    neural_basis_expansion=neural_basis_expansion,
                     trafo=ray_trafo,
-                    nn_model=reconstructor.nn_model,
-                    nn_input=filtbackproj,
-                    ordered_nn_params=parameter_cov.ordered_nn_params,
-                    nn_out_shape=filtbackproj.shape,
                     scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-                ))
+            )
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion

@@ -5,7 +5,7 @@ from torch import Tensor
 from torch import nn
 from ..base_image_cov import BaseImageCov
 from ..linear_sandwich_cov import LinearSandwichCov
-from .neural_basis_expansion import BaseNeuralBasisExpansion, MatmulNeuralBasisExpansion
+from .neural_basis_expansion import BaseNeuralBasisExpansion, BaseMatmulNeuralBasisExpansion
 from .parameter_cov import ParameterCov
 
 class ImageCov(BaseImageCov, LinearSandwichCov):
@@ -98,7 +98,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         else:
             weight_sub_slice = self.inner_cov.params_slices_per_prior[sample_only_from_prior]
             # image = J_{params} @ params
-            if isinstance(self.neural_basis_expansion, MatmulNeuralBasisExpansion):
+            if isinstance(self.neural_basis_expansion, BaseMatmulNeuralBasisExpansion):
                 samples = self.lin_op(
                         weight_samples,
                         sub_slice=weight_sub_slice)

@@ -4,7 +4,8 @@ Provides the Linearized DIP.
 
 from .neural_basis_expansion import (
         NeuralBasisExpansion, LowRankNeuralBasisExpansion, MatmulNeuralBasisExpansion,
-        GpriorNeuralBasisExpansion)
+        GpriorNeuralBasisExpansion, MatmulGpriorNeuralBasisExpansion,
+        BaseNeuralBasisExpansion, BaseMatmulNeuralBasisExpansion)
 from .default_unet_priors import (
         get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
 from .parameter_cov import ParameterCov

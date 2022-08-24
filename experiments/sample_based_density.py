@@ -47,6 +47,20 @@ def _load_samples(path: str, i: int, num_samples: int, restrict_to_num_samples=T
     return samples
 
 
+def _save_cov_obs_mat(i: int, cov_obs_mat: Tensor) -> None:
+    torch.save(cov_obs_mat.cpu(), f'cov_obs_mat_{i}.pt')
+
+
+def _load_cov_obs_mat(path: str, i: int, device=None, dtype=None) -> Tensor:
+    cov_obs_mat = torch.load(
+            os.path.join(path, f'cov_obs_mat_{i}.pt'), map_location=device)
+    if dtype == torch.float64 and cov_obs_mat.dtype == torch.float32:
+        warn('Loaded cov_obs_mat with dtype float32 while expecting float64; will convert but '
+                'results are probably inaccurate or unstable')
+    cov_obs_mat = cov_obs_mat.to(dtype=dtype)
+    return cov_obs_mat
+
+
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
     # pylint: disable=too-many-locals,too-many-statements
@@ -115,12 +129,11 @@ def coordinator(cfg : DictConfig) -> None:
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
-        ) if not cfg.priors.use_gprior else GpriorNeuralBasisExpansion(
+        )
+        if cfg.priors.use_gprior:
+            neural_basis_expansion = GpriorNeuralBasisExpansion(
+                    neural_basis_expansion=neural_basis_expansion,
                     trafo=ray_trafo,
-                    nn_model=reconstructor.nn_model,
-                    nn_input=filtbackproj,
-                    ordered_nn_params=parameter_cov.ordered_nn_params,
-                    nn_out_shape=filtbackproj.shape,
                     scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
             )
         if cfg.inference.use_low_rank_neural_basis_expansion:
@@ -155,14 +168,10 @@ def coordinator(cfg : DictConfig) -> None:
             cov_obs_mat = observation_cov.assemble_observation_cov(
                     vec_batch_size=cfg.inference.cov_obs_mat.batch_size)
         else:
-            cov_obs_mat = torch.load(
-                    os.path.join(cfg.inference.load_cov_obs_mat_from_path, f'cov_obs_mat_{i}.pt'),
-                    map_location=observation_cov.device)
-            if cfg.use_double and cov_obs_mat.dtype == torch.float32:
-                warn('Loaded cov_obs_mat with dtype float32 but running with use_double=True')
-            cov_obs_mat = cov_obs_mat.to(dtype=dtype)
+            cov_obs_mat = _load_cov_obs_mat(
+                    path=cfg.inference.load_cov_obs_mat_from_path, i=i, device=device, dtype=dtype)
         if cfg.inference.save_cov_obs_mat:
-            torch.save(cov_obs_mat.cpu(), f'cov_obs_mat_{i}.pt')
+            _save_cov_obs_mat(i=i, cov_obs_mat=cov_obs_mat)
         eps = ObservationCov.get_stabilizing_eps(
                 cov_obs_mat,
                 eps_mode=cfg.inference.cov_obs_mat.eps_mode,

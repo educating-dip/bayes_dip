@@ -4,7 +4,7 @@ from torch import autograd
 from torch import Tensor
 
 from ..probabilistic_models import (
-        BaseImageCov, ImageCov, ParameterCov, GPprior, MatmulNeuralBasisExpansion)
+        BaseImageCov, ImageCov, ParameterCov, GPprior, BaseMatmulNeuralBasisExpansion)
 from ..utils import batch_tv_grad
 
 def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
@@ -43,7 +43,7 @@ def sample_based_predcp_grads(
 
     lin_op_supports_sub_slicing = (
             isinstance(image_cov, ImageCov) and
-            isinstance(image_cov.neural_basis_expansion, MatmulNeuralBasisExpansion))
+            isinstance(image_cov.neural_basis_expansion, BaseMatmulNeuralBasisExpansion))
 
     for prior in prior_list_under_predcp:
         x_samples, weight_samples = image_cov.sample(

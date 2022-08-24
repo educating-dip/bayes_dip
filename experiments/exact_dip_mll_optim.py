@@ -8,9 +8,11 @@ from bayes_dip.utils.experiment_utils import (
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import (
-        MatmulNeuralBasisExpansion, ParameterCov, ImageCov, MatmulObservationCov)
+        get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
+from bayes_dip.probabilistic_models import (
+        MatmulNeuralBasisExpansion, ParameterCov, ImageCov, MatmulObservationCov,
+        MatmulGpriorNeuralBasisExpansion)
 from bayes_dip.marginal_likelihood_optim import (
         marginal_likelihood_hyperparams_optim, weights_linearization, get_ordered_nn_params_vec)
 
@@ -99,8 +101,10 @@ def coordinator(cfg : DictConfig) -> None:
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
-                reconstructor.nn_model)
+        prior_assignment_dict, hyperparams_init_dict = (
+                get_default_unet_gaussian_prior_dicts(reconstructor.nn_model)
+                if not cfg.priors.use_gprior else
+                get_default_unet_gprior_dicts(reconstructor.nn_model))
         parameter_cov = ParameterCov(
                 reconstructor.nn_model,
                 prior_assignment_dict,
@@ -113,6 +117,12 @@ def coordinator(cfg : DictConfig) -> None:
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
         )
+        if cfg.priors.use_gprior:
+            matmul_neural_basis_expansion = MatmulGpriorNeuralBasisExpansion(
+                    neural_basis_expansion=matmul_neural_basis_expansion,
+                    trafo=ray_trafo,
+                    scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
+            )
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=matmul_neural_basis_expansion

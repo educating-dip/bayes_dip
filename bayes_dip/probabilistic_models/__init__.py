@@ -3,7 +3,8 @@ Provides probabilistic models.
 """
 from .linearized_dip import (
         NeuralBasisExpansion, LowRankNeuralBasisExpansion, MatmulNeuralBasisExpansion,
-        GpriorNeuralBasisExpansion,
+        GpriorNeuralBasisExpansion, MatmulGpriorNeuralBasisExpansion,
+        BaseNeuralBasisExpansion, BaseMatmulNeuralBasisExpansion,
         get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts,
         ParameterCov, ImageCov,
         BaseGaussPrior, GPprior, IsotropicPrior, NormalPrior, LowRankObservationCov

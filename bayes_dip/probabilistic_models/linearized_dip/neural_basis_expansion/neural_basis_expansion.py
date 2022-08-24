@@ -1,11 +1,11 @@
 from typing import Callable
 import functorch as ftch
 import torch
-from torch import Tensor
+from torch import nn, Tensor
 from torch import autograd
 
 from bayes_dip.utils.utils import CustomAutogradModule
-from .base_neural_basis_expansion import BaseNeuralBasisExpansion
+from .base_neural_basis_expansion import BaseNeuralBasisExpansion, BaseMatmulNeuralBasisExpansion
 from .functorch_utils import unflatten_nn_functorch, flatten_grad_functorch
 from ..utils import get_inds_from_ordered_params
 
@@ -129,46 +129,20 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         """
         return self._vjp(v)
 
-class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
+class MatmulNeuralBasisExpansion(BaseMatmulNeuralBasisExpansion):
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, nn_model: nn.Module, *args, **kwargs) -> None:
 
-        self.func_model_with_input, _ = ftch.make_functional(self.nn_model)
-        self.matrix = self.get_matrix()
+        self.func_model_with_input, _ = ftch.make_functional(nn_model)
+        super().__init__(nn_model=nn_model, *args, **kwargs)
+        self.update_matrix()
 
-    def jvp(self, v: Tensor, sub_slice: slice = None) -> Tensor:
-        """
-        Parameters
-        ----------
-        v : Tensor
-            Input. Shape: ``(batch_size, self.num_params)``
+    @property
+    def matrix(self):
+        return self._matrix
 
-        Returns
-        -------
-        Tensor
-            Output. Shape: ``(batch_size, *self.nn_out_shape)``
-        """
-        matrix = self.matrix if sub_slice is None else self.matrix[:, sub_slice]
-        v_transpose = v.T
-        jvp = (matrix @ v_transpose).T
-        return jvp.view(
-            v.shape[0], *self.nn_out_shape)
-
-    def vjp(self, v: Tensor, sub_slice: slice = None) -> Tensor:
-        """
-        Parameters
-        ----------
-        v : Tensor
-            Input. Shape: ``(batch_size, *self.nn_out_shape)``
-
-        Returns
-        -------
-        Tensor
-            Output. Shape: ``(batch_size, self.num_params)``
-        """
-        matrix = self.matrix if sub_slice is None else self.matrix[:, sub_slice]
-        return v.view(v.shape[0], -1) @ matrix
+    def update_matrix(self) -> None:
+        self._matrix = self.get_matrix()
 
     def get_matrix(self) -> Tensor:
 
@@ -191,6 +165,3 @@ class MatmulNeuralBasisExpansion(BaseNeuralBasisExpansion):
             )
 
         return matrix
-
-    def update_matrix(self) -> None:
-        self.matrix = self.get_matrix()
