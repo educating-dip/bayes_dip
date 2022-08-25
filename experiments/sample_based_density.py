@@ -17,7 +17,7 @@ from bayes_dip.probabilistic_models import (
 from bayes_dip.probabilistic_models import (
         NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov,
         ImageCov, ObservationCov, GpriorNeuralBasisExpansion, get_image_noise_correction_term)
-from bayes_dip.marginal_likelihood_optim import LowRankPreC
+from bayes_dip.marginal_likelihood_optim import LowRankObservationCovPreconditioner
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 
 
@@ -190,17 +190,22 @@ def coordinator(cfg : DictConfig) -> None:
                 'use_conj_grad_inv': cfg.inference.sampling.use_conj_grad_inv,
                 'cg_kwargs': OmegaConf.to_object(cfg.inference.sampling.cg_kwargs),
             }
+            update_kwargs = {'batch_size': cfg.inference.sampling.cg_preconditioner.batch_size}
             if cfg.inference.sampling.use_conj_grad_inv:
                 low_rank_observation_cov = LowRankObservationCov(
-                    trafo=ray_trafo,
-                    image_cov=image_cov,
-                    low_rank_rank_dim=cfg.inference.sampling.cg_preconditioner.low_rank_rank_dim,
-                    oversampling_param=cfg.inference.sampling.cg_preconditioner.oversampling_param,
-                    vec_batch_size=cfg.inference.sampling.cg_preconditioner.batch_size,
-                    device=device
+                        trafo=ray_trafo,
+                        image_cov=image_cov,
+                        low_rank_rank_dim=(
+                                cfg.inference.sampling.cg_preconditioner.low_rank_rank_dim),
+                        oversampling_param=(
+                                cfg.inference.sampling.cg_preconditioner.oversampling_param),
+                        requires_grad=False,
+                        device=device,
+                        **update_kwargs,
                 )
-                low_rank_preconditioner = LowRankPreC(
-                        pre_con_obj=low_rank_observation_cov
+                low_rank_preconditioner = LowRankObservationCovPreconditioner(
+                        low_rank_observation_cov=low_rank_observation_cov,
+                        default_update_kwargs=update_kwargs,
                 )
                 sample_kwargs['cg_kwargs']['precon_closure'] = low_rank_preconditioner.get_closure()
             samples = predictive_posterior.sample_zero_mean(

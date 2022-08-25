@@ -6,7 +6,7 @@ from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, ParameterCov, NeuralBasisExpansion, ImageCov, ObservationCov, LowRankObservationCov
 from bayes_dip.marginal_likelihood_optim.observation_cov_log_det_grad import approx_observation_cov_log_det_grads
 from bayes_dip.probabilistic_models.linearized_dip.utils import get_inds_from_ordered_params
-from bayes_dip.marginal_likelihood_optim import LowRankPreC
+from bayes_dip.marginal_likelihood_optim import LowRankObservationCovPreconditioner
 
 @pytest.fixture(scope='function')
 def observation_cov():
@@ -103,16 +103,16 @@ def test_approx_observation_log_det_grads(observation_cov):
 def test_approx_observation_log_det_grads_with_preconditioner(observation_cov):
     torch.manual_seed(1)
     low_rank_observation_cov = LowRankObservationCov(
-                trafo=observation_cov.trafo,
-                image_cov=observation_cov.image_cov,
-                low_rank_rank_dim=200,
-                oversampling_param=5,
-                vec_batch_size=1,
-                device=observation_cov.device
-        )
-    low_rank_preconditioner =  LowRankPreC(
-                pre_con_obj=low_rank_observation_cov
-        )
+            trafo=observation_cov.trafo,
+            image_cov=observation_cov.image_cov,
+            low_rank_rank_dim=200,
+            oversampling_param=5,
+			requires_grad=False,
+            device=observation_cov.device
+    )
+    low_rank_preconditioner =  LowRankObservationCovPreconditioner(
+            low_rank_observation_cov=low_rank_observation_cov
+    )
     grads, _ = approx_observation_cov_log_det_grads(
             observation_cov=observation_cov,
             precon=low_rank_preconditioner,

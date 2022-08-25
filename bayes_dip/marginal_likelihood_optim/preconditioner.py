@@ -1,18 +1,18 @@
 
 from abc import ABC, abstractmethod
-from typing import Callable
+from typing import Callable, Optional
+from functools import partial
 import torch
 from torch import Tensor
 from ..probabilistic_models import LowRankObservationCov
 
-class BasePreC(ABC):
+class BasePreconditioner(ABC):
 
     def __init__(self,
-        use_cpu: bool = False
+        **update_kwargs,
         ) -> None:
 
-        super().__init__()
-        self.update(use_cpu=use_cpu)
+        self.update(**update_kwargs)
 
     @abstractmethod
     def sample(self,
@@ -29,62 +29,39 @@ class BasePreC(ABC):
 
     @abstractmethod
     def update(self,
-        use_cpu: bool
+        **kwargs
         ) -> Tensor:
         raise NotImplementedError
 
     def get_closure(self) -> Callable[[Tensor], Tensor]:
-        return lambda v: self.matmul(v.T, use_inverse=True).T
+        return partial(self.matmul, use_inverse=True)
 
-class LowRankPreC(BasePreC):
+class LowRankObservationCovPreconditioner(BasePreconditioner):
 
     def __init__(self,
-        pre_con_obj: LowRankObservationCov
-        ):
+        low_rank_observation_cov: LowRankObservationCov,
+        default_update_kwargs: Optional[dict] = None,
+        ):  # pylint: disable=super-init-not-called
 
-        self.pre_con_obj = pre_con_obj
-        super().__init__()
+        self.low_rank_observation_cov = low_rank_observation_cov
+        self.default_update_kwargs = default_update_kwargs or {}
+        # do not call super().__init__(), low_rank_observation_cov should be updated already
 
     def sample(self,
         num_samples: int = 10,
-        ):
-
-        normal_std = torch.randn(
-            self.pre_con_obj.shape[0], num_samples,
-            device=self.pre_con_obj.device
-            )
-        normal_low_rank = torch.randn(
-            self.pre_con_obj.low_rank_rank_dim, num_samples,
-            device=self.pre_con_obj.device
-            )
-        samples = normal_std * torch.exp(self.pre_con_obj.log_noise_variance).pow(0.5) + (
-            self.pre_con_obj.U * self.pre_con_obj.L.pow(0.5) ) @ normal_low_rank
-        return samples
+        ) -> Tensor:
+        return self.low_rank_observation_cov.sample(num_samples=num_samples)
 
     def matmul(self,
         v: Tensor,
         use_inverse: bool = False,
-        ):
+        ) -> Tensor:
 
-        if not use_inverse:
-            v = (self.pre_con_obj.U @ (self.L[:, None] * (self.U.T @ v))
-                    + self.noise_model_variance_obs_and_eps * v)
-        else:
-            v = (v / self.noise_model_variance_obs_and_eps) - (self.U @ torch.linalg.solve(
-                    self.sysmat, self.U.T @ v.T / (self.noise_model_variance_obs_and_eps ** 2))).T
+        with torch.no_grad():
+            v = self.low_rank_observation_cov.matmul(v, use_inverse=use_inverse)
         return v
 
-    def update(self,
-        use_cpu: bool = False,
-        eps: float = 1e-3,
-        full_diag_eps: float = 1e-6,
-        ):
-
-        self.U, self.L = self.pre_con_obj.get_batched_low_rank_observation_cov_basis(
-            eps=eps,
-            use_cpu=use_cpu,
-        )
-        self.noise_model_variance_obs_and_eps = (
-                self.pre_con_obj.log_noise_variance.exp() + full_diag_eps)
-        self.sysmat = (
-                torch.diag(1 / self.L) + self.U.T @ self.U / self.noise_model_variance_obs_and_eps)
+    def update(self, **kwargs) -> None:
+        merged_kwargs = self.default_update_kwargs.copy()
+        merged_kwargs.update(kwargs)
+        self.low_rank_observation_cov.update(**merged_kwargs)

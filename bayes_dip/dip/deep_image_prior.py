@@ -27,7 +27,7 @@ class DeepImagePriorReconstructor():
     .. [1] V. Lempitsky, A. Vedaldi, and D. Ulyanov, 2018, "Deep Image Prior".
            IEEE/CVF Conference on Computer Vision and Pattern Recognition.
            https://doi.org/10.1109/CVPR.2018.00984
-    .. [2] D. Otero Baguer, J. Leuschner, M. Schmidt, 2020, "Computed
+    .. [2] D. Otero Baguer, J. Leuschner, and M. Schmidt, 2020, "Computed
            Tomography Reconstruction Using Deep Image Prior and Learned
            Reconstruction Methods". Inverse Problems.
            https://doi.org/10.1088/1361-6420/aba415

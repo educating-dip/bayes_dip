@@ -22,7 +22,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
             neural_basis_expansion: NeuralBasisExpansion,
             oversampling_param: int,
             low_rank_rank_dim: int,
-            load_approx_basis_from: Optional[str] = None,
+            load_from_file: Optional[str] = None,
             device=None,
             vec_batch_size: int = 1,
             use_cpu: bool = False) -> None:
@@ -58,20 +58,21 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         self.low_rank_rank_dim = low_rank_rank_dim
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
 
-        if not load_approx_basis_from:
+        if load_from_file is None:
             self.jac_U, self.jac_S, self.jac_Vh = self.get_batched_low_rank_jac(
                     vec_batch_size=vec_batch_size, use_cpu=use_cpu)
         else:
-            #TODO: load U, S and Vh
-            self.load_approx_basis(load_approx_basis_from)
-            raise NotImplementedError
+            self.load(load_from_file)
 
-    def load_approx_basis(self, path):
-        pass
+    def load(self, filepath: str):
+        jac_dict = torch.load(filepath, map_location=self.device)
+        self.jac_U, self.jac_S, self.jac_Vh = (
+                jac_dict['jac_U'], jac_dict['jac_S'], jac_dict['jac_Vh'])
 
-    def save_approx_basis(self, ):
-        #TODO: save basis save_approx_basis
-        pass
+    def save(self, filepath: str):
+        torch.save(
+                {'jac_U': self.jac_U.cpu(), 'jac_S': self.jac_S.cpu(), 'jac_Vh': self.jac_Vh.cpu()},
+                filepath)
 
     def _assemble_random_matrix(self, ) -> Tensor:
         total_low_rank_rank_dim = self.low_rank_rank_dim + self.oversampling_param
