@@ -11,7 +11,7 @@ linear_cg:
   preconditioner:
     low_rank_rank_dim: 200
     oversampling_param: 5
-    vec_batch_size: 1
+    batch_size: 1
 min_log_variance: -4.5
 include_predcp: True
 predcp:

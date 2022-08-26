@@ -23,7 +23,7 @@ cov_obs_mat:
   include_zero_for_auto: True
   batch_size: 1
 sampling:
-  vec_batch_size: 1
+  batch_size: 1
   use_conj_grad_inv: False
   cg_kwargs:
     rtol: 1e-1

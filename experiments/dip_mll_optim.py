@@ -175,7 +175,7 @@ def coordinator(cfg : DictConfig) -> None:
             )
         cg_preconditioner = None
         if cfg.mll_optim.linear_cg.use_preconditioner:
-            update_kwargs = {'batch_size': cfg.mll_optim.linear_cg.preconditioner.vec_batch_size}
+            update_kwargs = {'batch_size': cfg.mll_optim.linear_cg.preconditioner.batch_size}
             low_rank_observation_cov = LowRankObservationCov(
                     trafo=ray_trafo,
                     image_cov=image_cov,

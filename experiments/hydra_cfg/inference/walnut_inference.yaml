@@ -9,6 +9,6 @@ verbose: False
 cov_obs_mat:
   batch_size: 16
 sampling:
-  vec_batch_size: 16
+  batch_size: 16
   cg_preconditioner:
     low_rank_rank_dim: 1000

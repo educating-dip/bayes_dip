@@ -8,7 +8,7 @@ linear_cg:
   preconditioner:
     low_rank_rank_dim: 250
     oversampling_param: 5
-    vec_batch_size: 32
+    batch_size: 32
 predcp:
   num_samples: 20
   scale: 1.

@@ -8,7 +8,7 @@ low_rank_neural_basis_expansion:
 cov_obs_mat:
   batch_size: 32
 sampling:
-  vec_batch_size: 32
+  batch_size: 32
   cg_kwargs:
     max_niter: 150
   cg_preconditioner:

@@ -24,7 +24,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
             low_rank_rank_dim: int,
             load_from_file: Optional[str] = None,
             device=None,
-            vec_batch_size: int = 1,
+            batch_size: int = 1,
             use_cpu: bool = False) -> None:
 
 
@@ -40,7 +40,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
             Oversampling parameter.
         low_rank_rank_dim : int
             Low rank dimension. Extracting leading singular vectors.
-        vec_batch_size : int
+        batch_size : int
             Batch size. The default is `1`.
         use_cpu : bool, optional
             Whether to perform SVD on CPU. The default is False.
@@ -60,7 +60,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         if load_from_file is None:
             self.jac_U, self.jac_S, self.jac_Vh = self.get_batched_low_rank_jac(
-                    vec_batch_size=vec_batch_size, use_cpu=use_cpu)
+                    batch_size=batch_size, use_cpu=use_cpu)
         else:
             self.load(load_from_file)
 
@@ -83,7 +83,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         return random_matrix
 
     def get_batched_low_rank_jac(self,
-            vec_batch_size: int = 1, use_cpu: bool = False) -> Tuple[Tensor, Tensor, Tensor]:
+            batch_size: int = 1, use_cpu: bool = False) -> Tuple[Tensor, Tensor, Tensor]:
 
         random_matrix = self._assemble_random_matrix() # draw a Gaussian random matrix Omega
 
@@ -94,12 +94,12 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         # Identifying a subspace that captures most of the action of the Jacobian. Constructing a
         # matrix Q whose columns form an orthonormal basis for the range of Y = Jac @ Omega.
-        num_batches = ceil(total_low_rank_rank_dim / vec_batch_size)
+        num_batches = ceil(total_low_rank_rank_dim / batch_size)
         low_rank_jac_v_mat = []
         for i in tqdm(range(num_batches), miniters=num_batches//100,
                 desc='get_batched_jac_low_rank forward'):
             rnd_vect = random_matrix[
-                    :, i * vec_batch_size:(i * vec_batch_size) + vec_batch_size]
+                    :, i * batch_size:(i * batch_size) + batch_size]
             low_rank_jac_v_mat_row = self.neural_basis_expansion.jvp(rnd_vect.T)
             low_rank_jac_v_mat.append(
                     low_rank_jac_v_mat_row.cpu() if use_cpu else low_rank_jac_v_mat_row)
@@ -119,7 +119,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         qT_low_rank_jac_mat = []
         for i in tqdm(range(num_batches), miniters=num_batches//100,
                 desc='get_batched_jac_low_rank backward'):
-            qT_i = Q[:, i * vec_batch_size:(i * vec_batch_size) + vec_batch_size].T
+            qT_i = Q[:, i * batch_size:(i * batch_size) + batch_size].T
             qT_low_rank_jac_mat_row = self.neural_basis_expansion.vjp(
                     qT_i.view(qT_i.shape[0], *self.nn_out_shape).to(self.device))
             qT_low_rank_jac_mat_row.detach()

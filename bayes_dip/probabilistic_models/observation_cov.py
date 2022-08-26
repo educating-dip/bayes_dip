@@ -58,14 +58,14 @@ class ObservationCov(BaseObservationCov):
         return v
 
     def assemble_observation_cov(self,
-        vec_batch_size: int = 1,
+        batch_size: int = 1,
         use_noise_variance: bool = True,
         sub_slice_batches: Optional[slice] = None,
         ) -> Tensor:
         """
         Parameters
         ----------
-        vec_batch_size : int, optional
+        batch_size : int, optional
             Batch size. The default is `1`.
         use_noise_variance : bool, optional
             Whether to include the noise variance diagonal term. The default is `True`.
@@ -84,26 +84,26 @@ class ObservationCov(BaseObservationCov):
         if sub_slice_batches is None:
             sub_slice_batches = slice(None)
         rows = []
-        v = torch.empty((vec_batch_size, 1, *self.trafo.obs_shape), device=self.device)
+        v = torch.empty((batch_size, 1, *self.trafo.obs_shape), device=self.device)
 
         with torch.no_grad():
-            for i in tqdm(np.array(range(0, obs_numel, vec_batch_size))[sub_slice_batches],
-                        desc='get_prior_cov_obs_mat', miniters=obs_numel//vec_batch_size//100
+            for i in tqdm(np.array(range(0, obs_numel, batch_size))[sub_slice_batches],
+                        desc='get_prior_cov_obs_mat', miniters=obs_numel//batch_size//100
                     ):
 
                 v[:] = 0.
-                # set v.view(vec_batch_size, -1) to be a subset of rows of torch.eye(obs_numel);
+                # set v.view(batch_size, -1) to be a subset of rows of torch.eye(obs_numel);
                 # in last batch, it may contain some additional (zero) rows
-                v.view(vec_batch_size, -1)[:, i:i+vec_batch_size].fill_diagonal_(1.)
+                v.view(batch_size, -1)[:, i:i+batch_size].fill_diagonal_(1.)
 
                 rows_batch = self.forward(
                     v,
                     use_noise_variance=use_noise_variance)
 
-                rows_batch = rows_batch.view(vec_batch_size, -1)
+                rows_batch = rows_batch.view(batch_size, -1)
 
-                if i+vec_batch_size > obs_numel:  # last batch
-                    rows_batch = rows_batch[:obs_numel%vec_batch_size]
+                if i+batch_size > obs_numel:  # last batch
+                    rows_batch = rows_batch[:obs_numel%batch_size]
                 rows_batch = rows_batch.cpu()  # collect on CPU
                 rows.append(rows_batch)
 

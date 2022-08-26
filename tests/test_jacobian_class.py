@@ -81,7 +81,7 @@ assert torch.allclose(v_params.grad, neural_basis_expansion.vjp(torch.ones_like(
 
 low_rank_neural_basis_expansion = LowRankNeuralBasisExpansion(
     neural_basis_expansion=neural_basis_expansion,
-    vec_batch_size=1,
+    batch_size=1,
     oversampling_param=5,
     low_rank_rank_dim=5,
     device=device,

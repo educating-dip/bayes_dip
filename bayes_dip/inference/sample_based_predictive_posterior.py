@@ -100,7 +100,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
     def sample_zero_mean(self,
         num_samples: int,
         cov_obs_mat_chol: Optional[Tensor] = None,
-        vec_batch_size: int = 1,
+        batch_size: int = 1,
         use_conj_grad_inv: bool = False,
         cg_kwargs: Optional[Dict] = None,
         return_residual_norm_list: bool = False,
@@ -116,7 +116,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         cov_obs_mat_chol : Tensor, optional
             Cholesky factor of the observation covariance matrix.
             Required if ``not use_conj_grad_inv``.
-        vec_batch_size : int, optional
+        batch_size : int, optional
             Batch size (number of images per batch). The default is `1`.
         use_conj_grad_inv : bool, optional
             Whether to use CG instead of `cov_obs_mat_chol` for solving the linear system with the
@@ -136,7 +136,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         samples : Tensor
             Samples from the Gaussian given by the predictive posterior covariance and mean zero.
             Shape: ``(n, 1, *im_shape)``, where `n` is
-            ``ceil(num_samples / vec_batch_size) * vec_batch_size``.
+            ``ceil(num_samples / batch_size) * batch_size``.
         residual_norm_list : list of scalar, optional
             Residual norms of CG solutions, only returned if
             ``use_conj_grad_inv and return_residual_norm_list``.
@@ -144,7 +144,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         # pylint: disable=arguments-differ
         # pylint: disable=too-many-locals
 
-        num_batches = ceil(num_samples / vec_batch_size)
+        num_batches = ceil(num_samples / batch_size)
         image_samples = []
         residual_norm_list = []
         assert use_conj_grad_inv or cov_obs_mat_chol is not None
@@ -156,7 +156,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                     miniters=num_batches//100):
 
                 x_samples = self.observation_cov.image_cov.sample(
-                    num_samples=vec_batch_size,
+                    num_samples=batch_size,
                     return_weight_samples=False
                     )
                 samples = self.observation_cov.trafo(x_samples)
@@ -164,7 +164,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                 noise_term = (self.observation_cov.log_noise_variance.exp()**.5) * torch.randn_like(
                         samples)
 
-                samples = (noise_term - samples).view(vec_batch_size, -1)
+                samples = (noise_term - samples).view(batch_size, -1)
 
                 if not use_conj_grad_inv:
                     samples = torch.linalg.solve_triangular(
@@ -173,15 +173,15 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                 else:
                     def observation_cov_closure(v):
                         return self.observation_cov(v.T.reshape(
-                                vec_batch_size, 1, *self.observation_cov.trafo.obs_shape)).view(
-                                        vec_batch_size, self.observation_cov.shape[0]).T
+                                batch_size, 1, *self.observation_cov.trafo.obs_shape)).view(
+                                        batch_size, self.observation_cov.shape[0]).T
                     samples_T, residual_norm = cg(
                             observation_cov_closure, samples.T, **cg_kwargs)
                     residual_norm_list.append(residual_norm)
                     samples = samples_T.T
 
                 delta_x = self.observation_cov.trafo.trafo_adjoint(samples.view(
-                        vec_batch_size, 1, *self.observation_cov.trafo.obs_shape))
+                        batch_size, 1, *self.observation_cov.trafo.obs_shape))
                 delta_x = self.observation_cov.image_cov(delta_x)
                 image_samples.append((x_samples + delta_x).to(device=return_on_device))
             image_samples = torch.cat(image_samples, axis=0)

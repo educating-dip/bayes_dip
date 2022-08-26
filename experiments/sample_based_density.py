@@ -139,7 +139,7 @@ def coordinator(cfg : DictConfig) -> None:
         if cfg.inference.use_low_rank_neural_basis_expansion:
             neural_basis_expansion = LowRankNeuralBasisExpansion(
                 neural_basis_expansion=neural_basis_expansion,
-                vec_batch_size=cfg.inference.low_rank_neural_basis_expansion.batch_size,
+                batch_size=cfg.inference.low_rank_neural_basis_expansion.batch_size,
                 oversampling_param=cfg.inference.low_rank_neural_basis_expansion.oversampling_param,
                 low_rank_rank_dim=cfg.inference.low_rank_neural_basis_expansion.low_rank_rank_dim,
                 device=device,
@@ -166,7 +166,7 @@ def coordinator(cfg : DictConfig) -> None:
 
         if cfg.inference.load_cov_obs_mat_from_path is None:
             cov_obs_mat = observation_cov.assemble_observation_cov(
-                    vec_batch_size=cfg.inference.cov_obs_mat.batch_size)
+                    batch_size=cfg.inference.cov_obs_mat.batch_size)
         else:
             cov_obs_mat = _load_cov_obs_mat(
                     path=cfg.inference.load_cov_obs_mat_from_path, i=i, device=device, dtype=dtype)
@@ -186,7 +186,7 @@ def coordinator(cfg : DictConfig) -> None:
 
         if cfg.inference.load_samples_from_path is None:
             sample_kwargs = {
-                'vec_batch_size': cfg.inference.sampling.vec_batch_size,
+                'batch_size': cfg.inference.sampling.batch_size,
                 'use_conj_grad_inv': cfg.inference.sampling.use_conj_grad_inv,
                 'cg_kwargs': OmegaConf.to_object(cfg.inference.sampling.cg_kwargs),
             }
