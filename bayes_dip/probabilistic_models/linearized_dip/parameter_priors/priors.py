@@ -330,11 +330,6 @@ class IsotropicPrior(BaseGaussPrior):
             ):
         return self._log_variance
 
-    @log_variance.setter
-    def log_variance(self, value
-            ):
-        self._log_variance.data[:] = np.log(value)
-
     def _init_parameters(self,
             init_hyperparams: Dict,
             ) -> None:

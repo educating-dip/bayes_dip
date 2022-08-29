@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from tqdm import tqdm
 from bayes_dip.dip import UNetReturnPreSigmoid
-from bayes_dip.probabilistic_models import NeuralBasisExpansion
+from bayes_dip.probabilistic_models import NeuralBasisExpansion, GpriorNeuralBasisExpansion
 from ..utils import batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-import
 
 def weights_linearization(
@@ -20,6 +20,13 @@ def weights_linearization(
                 ordered_nn_params=neural_basis_expansion.ordered_nn_params,
                 nn_out_shape=nn_input.shape,
         )
+        if optim_kwargs['use_gprior']: 
+            neural_basis_expansion = GpriorNeuralBasisExpansion(
+                neural_basis_expansion=neural_basis_expansion,
+                trafo=trafo,
+                scale_kwargs=optim_kwargs['gprior_scale_kwargs'],
+                device=observation.device,
+            )
     else:
         nn_model_no_sigmoid = nn_model
 

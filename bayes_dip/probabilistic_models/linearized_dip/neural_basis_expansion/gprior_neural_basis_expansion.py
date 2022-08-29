@@ -6,8 +6,10 @@ from torch import Tensor
 import numpy as np
 from tqdm import tqdm
 
-from bayes_dip.data.trafo import BaseRayTrafo, MatmulRayTrafo
-from .neural_basis_expansion import BaseNeuralBasisExpansion, BaseMatmulNeuralBasisExpansion
+from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
+from bayes_dip.data.trafo.matmul_ray_trafo  import MatmulRayTrafo
+from .neural_basis_expansion import BaseNeuralBasisExpansion
+from .base_neural_basis_expansion import BaseMatmulNeuralBasisExpansion
 
 def compute_scale(
         neural_basis_expansion: BaseNeuralBasisExpansion,

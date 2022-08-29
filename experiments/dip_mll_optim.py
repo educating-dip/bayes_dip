@@ -155,6 +155,8 @@ def coordinator(cfg : DictConfig) -> None:
                 weights_linearization_optim_kwargs = OmegaConf.to_object(
                         cfg.mll_optim.weights_linearization)
                 weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
+                weights_linearization_optim_kwargs['use_gprior'] = cfg.priors.use_gprior
+                weights_linearization_optim_kwargs['gprior_scale_kwargs'] = OmegaConf.to_object(cfg.priors.gprior.scale)
                 map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
                 linearized_weights, lin_recon = weights_linearization(
                         trafo=ray_trafo,
