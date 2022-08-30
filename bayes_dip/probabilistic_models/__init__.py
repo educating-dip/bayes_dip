@@ -13,4 +13,5 @@ from .base_image_cov import BaseImageCov
 from .linear_sandwich_cov import LinearSandwichCov
 from .base_observation_cov import BaseObservationCov
 from .observation_cov import ObservationCov, MatmulObservationCov
-from .image_noise_correction import get_image_noise_correction_term
+from .image_noise_correction import (
+        get_image_noise_correction_term, get_trafo_t_trafo_pseudo_inv_diag_mean)
