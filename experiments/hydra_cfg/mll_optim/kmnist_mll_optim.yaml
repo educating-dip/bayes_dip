@@ -7,7 +7,7 @@ linear_cg:
   max_iter: 50
   preconditioner:
     low_rank_rank_dim: 200
-    oversampling_param: 5
+    oversampling_param: 10
     batch_size: 32
 predcp:
   num_samples: 500

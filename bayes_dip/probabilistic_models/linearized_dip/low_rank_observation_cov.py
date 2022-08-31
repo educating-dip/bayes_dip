@@ -154,7 +154,7 @@ class LowRankObservationCov(BaseObservationCov):
             Whether to compute QR on CPU.
             The default is `False`.
         eps : float, optional
-            Minumum value eigenvalues.
+            Minimum value eigenvalues.
             The default is `1e-3`.
         verbose : bool, optional
             If `True`, print eigenvalue information. The default is `True`.
@@ -171,6 +171,7 @@ class LowRankObservationCov(BaseObservationCov):
         """
 
         num_batches = ceil((self.low_rank_rank_dim + self.oversampling_param) / batch_size)
+        # step 2 in Algorithm 4.1 of Halko et al.
         v_cov_obs_mat = []
         # image_cov might require grads (shared module), so disable grads if not self.requires_grad
         with torch.set_grad_enabled(self.requires_grad):
@@ -194,18 +195,24 @@ class LowRankObservationCov(BaseObservationCov):
                     v = v[:eff_batch_size]
                 v_cov_obs_mat.append(v)
         v_cov_obs_mat = torch.cat(v_cov_obs_mat)
-        v_cov_obs_mat = v_cov_obs_mat.view(*v_cov_obs_mat.shape[:1], -1).T
-        Q, _ = torch.linalg.qr(v_cov_obs_mat.cpu() if use_cpu else v_cov_obs_mat)
+        v_cov_obs_mat = v_cov_obs_mat.view(*v_cov_obs_mat.shape[:1], -1).T  # new shape: (dy, L)
+        # step 3 in Algorithm 4.1 of Halko et al.
+        Q, _ = torch.linalg.qr(
+                v_cov_obs_mat.cpu() if use_cpu else v_cov_obs_mat)  # shape: (dy, L), assuming L<=dy
         Q = Q if not use_cpu else Q.to(self.device)
-        B = torch.linalg.solve(self.random_matrix @ Q, v_cov_obs_mat.T @ Q)
+        Q = Q[:, :self.low_rank_rank_dim]
+        # step 1 in Algorithm 5.6 of Halko et al.
+        B = torch.linalg.lstsq(self.random_matrix @ Q, v_cov_obs_mat.T @ Q).solution
+        # step 2 in Algorithm 5.6 of Halko et al.
         L, V = torch.linalg.eig(B)
+        # step 3 in Algorithm 5.6 of Halko et al.
         U = Q @ V.real
         if verbose:
             print(
-                    f'L.min: {L.real[:self.low_rank_rank_dim].min()}, '
-                    f'L.max: {L.real[:self.low_rank_rank_dim].max()}, '
-                    f'L.num_vals_below_{eps}: {(L.real[:self.low_rank_rank_dim] < eps).sum()}\n')
-        return U[:, :self.low_rank_rank_dim], L.real[:self.low_rank_rank_dim].clamp(min=eps)
+                    f'L.min: {L.real.min()}, '
+                    f'L.max: {L.real.max()}, '
+                    f'L.num_vals_below_{eps}: {(L.real < eps).sum()}\n')
+        return U[:, :self.low_rank_rank_dim], L.real.clamp(min=eps)
 
     def forward(self,
             v: Tensor,

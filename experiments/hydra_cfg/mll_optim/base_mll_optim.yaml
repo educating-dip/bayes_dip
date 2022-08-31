@@ -10,9 +10,9 @@ linear_cg:
   use_preconditioner: True
   preconditioner:
     low_rank_rank_dim: 200
-    oversampling_param: 5
+    oversampling_param: 10
     batch_size: 1
-min_log_variance: -4.5
+min_log_variance: -6.9
 include_predcp: True
 predcp:
   num_samples: 50
