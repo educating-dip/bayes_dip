@@ -37,7 +37,7 @@ def get_original_cwd() -> str:
         cwd = os.getcwd()
     return cwd
 
-def list_norm_layer_params(nn_model : nn.Module) -> List[str]:
+def list_norm_layer_params(nn_model: nn.Module) -> List[str]:
     """
     Return a list of names of all parameters from `GroupNorm`, `BatchNorm2d` and `InstanceNorm2d`
     layers in a model.
@@ -52,7 +52,7 @@ def list_norm_layer_params(nn_model : nn.Module) -> List[str]:
     return norm_layer_params
 
 def get_params_from_nn_module(
-        nn_model : nn.Module, exclude_norm_layers : bool = True, exclude_bias : bool = True
+        nn_model: nn.Module, exclude_norm_layers: bool = True, exclude_bias: bool = True
         ) -> List[str]:
     """
     Return names of parameters in a model, optionally excluding norm layers' and/or bias parameters.

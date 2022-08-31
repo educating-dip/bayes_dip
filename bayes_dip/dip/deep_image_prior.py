@@ -51,7 +51,7 @@ class DeepImagePriorReconstructor():
             The default is `1`.
         device : str or torch.device, optional
             Device for the reconstruction.
-            If `None` (the default), `cuda:0` is chosen if available or `cpu` otherwise.
+            If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
         net_kwargs : dict, optional
             Network architecture keyword arguments.
         load_params_path : str, optional

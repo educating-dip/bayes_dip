@@ -28,7 +28,7 @@ class BaseObservationCov(nn.Module, ABC):
         init_noise_variance : float, optional
             Initial value for noise variance parameter. The default is `1.`.
         device : str or torch.device, optional
-            Device. If `None` (the default), `cuda:0` is chosen if available or `cpu` otherwise.
+            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
         """
 
         super().__init__()

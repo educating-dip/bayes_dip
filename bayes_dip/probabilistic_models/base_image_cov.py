@@ -14,8 +14,8 @@ class BaseImageCov(nn.Module, ABC):
         """
         Multiply with the covariance "matrix".
 
-        I.e., evaluate ``(cov @ v.flatten()).view(*v.shape)`` where ``cov`` is a matrix
-        representation of `self`.
+        I.e., evaluate ``(cov @ v.view(v.shape[0], -1).T).T.view(*v.shape)`` where `cov` is a
+        matrix representation of `self`.
 
         Parameters
         ----------
