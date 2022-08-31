@@ -31,5 +31,5 @@ sampling:
     ignore_numerical_warning: False
   cg_preconditioner:
     low_rank_rank_dim: 400
-    oversampling_param: 5
+    oversampling_param: 10
     batch_size: 1

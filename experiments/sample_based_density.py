@@ -84,7 +84,7 @@ def coordinator(cfg : DictConfig) -> None:
             continue
 
         if cfg.seed is not None:
-            torch.manual_seed(cfg.seed + i)  # for reproducible noise in simulate
+            torch.manual_seed(cfg.seed + i)
 
         observation, ground_truth, filtbackproj = data_sample
 
