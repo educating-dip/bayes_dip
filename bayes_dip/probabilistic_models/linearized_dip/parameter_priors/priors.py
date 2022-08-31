@@ -330,6 +330,10 @@ class IsotropicPrior(BaseGaussPrior):
             ):
         return self._log_variance
 
+    @log_variance.setter 
+    def log_variance(self, value): 
+        self._log_variance.data[:] = value
+
     def _init_parameters(self,
             init_hyperparams: Dict,
             ) -> None:
@@ -370,7 +374,7 @@ class IsotropicPrior(BaseGaussPrior):
         prior = priors[0]
 
         scale = prior.log_variance.exp() if not use_cholesky \
-            else prior.log_variance.exp().pow(0.5)
+            else (.5*prior.log_variance).exp()
         if use_inverse:
             scale = (scale + eps).pow(-1)
         return scale * v
