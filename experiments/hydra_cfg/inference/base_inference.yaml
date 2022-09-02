@@ -28,6 +28,7 @@ sampling:
   cg_kwargs:
     rtol: 1e-1
     max_niter: 50
+    use_log_re_variant: False
     ignore_numerical_warning: False
   cg_preconditioner:
     low_rank_rank_dim: 400

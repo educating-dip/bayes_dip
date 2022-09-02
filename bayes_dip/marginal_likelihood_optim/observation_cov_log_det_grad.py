@@ -12,6 +12,7 @@ def approx_observation_cov_log_det_grads(
         max_cg_iter: int = 50,
         cg_rtol: float = 1e-3,
         num_probes: int = 1,
+        use_log_re_variant: bool = False,
         ignore_numerical_warning: bool = False,
         ) -> Dict[nn.Parameter, Tensor]:
     """
@@ -53,7 +54,7 @@ def approx_observation_cov_log_det_grads(
     with torch.no_grad():
         v_obs_left_flat, residual_norm = cg(
                 observation_cov_closure, v_flat, precon_closure=precon_closure,
-                max_niter=max_cg_iter, rtol=cg_rtol,
+                max_niter=max_cg_iter, rtol=cg_rtol, use_log_re_variant=use_log_re_variant,
                 ignore_numerical_warning=ignore_numerical_warning
             )
         v_left = trafo.trafo_adjoint_flat(v_obs_left_flat)  # (im_numel, num_probes)

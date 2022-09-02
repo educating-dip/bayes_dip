@@ -8,6 +8,7 @@ linear_cg:
   rtol: 1e-1
   update_freq: 100
   use_preconditioner: True
+  use_log_re_variant: False
   preconditioner:
     low_rank_rank_dim: 200
     oversampling_param: 10

@@ -15,6 +15,7 @@ import torch
 from torch import nn
 from torch import Tensor
 from .linear_cg_gpytorch import linear_cg
+from .linear_cg_gpytorch_log_cg_re import linear_log_cg_re
 try:
     import hydra.utils
     HYDRA_AVAILABLE = True
@@ -133,6 +134,7 @@ def cg(
         precon_closure: Optional[Callable] = None,
         max_niter: int = 10,
         rtol: float = 1e-6,
+        use_log_re_variant: bool = False,
         ignore_numerical_warning: bool = False,
         ) -> Tensor:
     """
@@ -156,6 +158,9 @@ def cg(
     rtol : float, optional
         Tolerance at which to stop early (before `max_niter`), see `tolerance` argument to
         :func:`linear_cg`. The default is `1e-6`.
+    use_log_re_variant : bool, optional
+        Whether to use the low precision arithmetic variant by Maddox et al.,
+        :meth:`linear_log_cg_re`.
     ignore_numerical_warning : bool, optional
         Not implemented yet. Should control whether numerical warnings are ignored.
         The default is `False`.
@@ -171,16 +176,14 @@ def cg(
     if ignore_numerical_warning:
         raise NotImplementedError
 
-    v_norm = torch.norm(v, 2, dim=0, keepdim=True)
-    v_scaled = v.div(v_norm)
+    cg_func = linear_cg if not use_log_re_variant else linear_log_cg_re
 
     # pylint: disable=unbalanced-tuple-unpacking
-    scaled_solve, residual_norm = linear_cg(closure, v_scaled, n_tridiag=0, tolerance=rtol,
+    solve, residual_norm = cg_func(closure, v, tolerance=rtol,
                 eps=1e-10, stop_updating_after=1e-10, max_iter=max_niter,
                 max_tridiag_iter=max_niter-1, preconditioner=precon_closure,
             )
 
-    solve = scaled_solve * v_norm
     return solve, residual_norm
 
 def bisect_left(a, x, lo=0, hi=None, *, key=None):

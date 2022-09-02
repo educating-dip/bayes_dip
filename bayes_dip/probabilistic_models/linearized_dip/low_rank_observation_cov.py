@@ -177,7 +177,7 @@ class LowRankObservationCov(BaseObservationCov):
         with torch.set_grad_enabled(self.requires_grad):
             for i in tqdm(range(num_batches), miniters=num_batches//100,
                     desc='get_cov_obs_low_rank'):
-                rnd_vect = self.random_matrix[i * batch_size:(i+1) * batch_size, :].unsqueeze(dim=1)
+                rnd_vect = self.random_matrix[i * batch_size:(i+1) * batch_size, None, None, :]
                 eff_batch_size = rnd_vect.shape[0]
                 if eff_batch_size < batch_size:
                     rnd_vect = torch.cat(
