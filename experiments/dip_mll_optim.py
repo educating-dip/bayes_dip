@@ -201,6 +201,7 @@ def coordinator(cfg : DictConfig) -> None:
                     'preconditioner': cg_preconditioner,
                     'max_iter': cfg.mll_optim.linear_cg.max_iter,
                     'rtol': cfg.mll_optim.linear_cg.rtol,
+                    'use_log_re_variant': cfg.mll_optim.linear_cg.use_log_re_variant,
                     'update_freq': cfg.mll_optim.linear_cg.update_freq,
                 },
                 'min_log_variance': cfg.mll_optim.min_log_variance,
