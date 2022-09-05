@@ -102,25 +102,29 @@ def initialize_log_re(A, b, preconditioner, x0, max_iters):
     u_all = torch.zeros(size=(max_iters,) + b.shape, dtype=x0.dtype, device=x0.device)
     return (x0, r0, log_gamma0, p0, u_all, torch.tensor(0, dtype=torch.int32))
 
+def re_orthogonalization(v, k, u_all): 
+    for i in range(k - 1):
+        dotprod = torch.sum(v * u_all[i], dim=-2) * u_all[i]
+        v = v - dotprod
+    return v
 
 def take_cg_step_log_re(state, A, preconditioner):
     x0, r0, log_gamma0, p0, u_all, k = state
     has_converged = torch.linalg.norm(r0, axis=0) < torch.tensor(1.e-8, dtype=p0.dtype)
     Ap0 = A(p0)
-
     alpha = update_alpha_log_unclipped(log_gamma0, p0, Ap0, has_converged)
+
     x1 = x0 + alpha * p0
     r1 = r0 - alpha * Ap0
-    for i in range(k - 1):
-        dotprod = torch.sum(r1 * u_all[i], dim=-2) * u_all[i]
-        r1 = r1 - dotprod
+    
     z1 = preconditioner(r1)
+    z1 = re_orthogonalization(v=z1, k=k, u_all=u_all)
+
     log_gamma1, beta = update_log_gamma_beta_unclipped(
         r1, z1, log_gamma0, has_converged)
-    u_all[k] = r1 / torch.sqrt(torch.exp(log_gamma1))
+    u_all[k] = z1 / torch.sqrt(torch.exp(log_gamma1))
     p1 = z1 + beta * p0
     # print_progress(k, alpha, r1, torch.exp(log_gamma1), beta)
-
     return (x1, r1, log_gamma1, p1, u_all, k + 1)
 
 
