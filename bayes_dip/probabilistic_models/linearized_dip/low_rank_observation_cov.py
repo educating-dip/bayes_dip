@@ -136,7 +136,7 @@ class LowRankObservationCov(BaseObservationCov):
 
     def get_low_rank_observation_cov_basis(self,
         use_cpu: bool = False,
-        eps: float = 1e-3,
+        eps: float = 1e-1,
         verbose: bool = True,
         batch_size: int = 1,
         ):
@@ -278,7 +278,7 @@ class LowRankObservationCov(BaseObservationCov):
 
     def update(self,
         use_cpu: bool = False,
-        eps: float = 1e-3,
+        eps: float = 1e-1,
         full_diag_eps: float = 1e-6,
         batch_size: int = 1,
         ) -> None:
