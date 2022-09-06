@@ -102,11 +102,11 @@ def initialize_log_re(A, b, preconditioner, x0, max_iters):
     u_all = torch.zeros(size=(max_iters,) + b.shape, dtype=x0.dtype, device=x0.device)
     return (x0, r0, log_gamma0, p0, u_all, torch.tensor(0, dtype=torch.int32))
 
-def re_orthogonalization(v, k, u_all): 
-    for i in range(k - 1):
-        dotprod = torch.sum(v * u_all[i], dim=-2) * u_all[i]
-        v = v - dotprod
-    return v
+def re_orthogonalization(x, k, u_all):
+    for i in range(k):
+        dotprod = torch.sum(x * u_all[i], dim=-2) * u_all[i]
+        x = x - dotprod
+    return x 
 
 def take_cg_step_log_re(state, A, preconditioner):
     x0, r0, log_gamma0, p0, u_all, k = state
@@ -116,17 +116,16 @@ def take_cg_step_log_re(state, A, preconditioner):
 
     x1 = x0 + alpha * p0
     r1 = r0 - alpha * Ap0
-    
+
+    r1 = re_orthogonalization(r1, k, u_all)
     z1 = preconditioner(r1)
-    z1 = re_orthogonalization(v=z1, k=k, u_all=u_all)
 
     log_gamma1, beta = update_log_gamma_beta_unclipped(
         r1, z1, log_gamma0, has_converged)
-    u_all[k] = z1 / torch.sqrt(torch.exp(log_gamma1))
+    u_all[k] = r1 / r1.norm(dim=0)
     p1 = z1 + beta * p0
     # print_progress(k, alpha, r1, torch.exp(log_gamma1), beta)
     return (x1, r1, log_gamma1, p1, u_all, k + 1)
-
 
 def update_alpha_log_unclipped(log_gamma, p, Ap, has_converged):
     log_alpha_abs, sign = compute_robust_denom_unclipped(p, Ap)
@@ -134,7 +133,6 @@ def update_alpha_log_unclipped(log_gamma, p, Ap, has_converged):
     alpha = torch.exp(log_gamma - log_denom)
     alpha = torch.where(has_converged, torch.zeros_like(alpha), alpha)
     return alpha
-
 
 def compute_robust_denom_unclipped(p, Ap):
     p_abs = torch.clip(torch.abs(p), min=torch.tensor(1.e-8, device=p.device))
@@ -151,9 +149,9 @@ def update_log_gamma_beta_unclipped(r, z, log_gamma0, has_converged):
     return log_gamma1, beta
 
 
-def update_log_gamma_unclipped(r, z):
-    r_abs = torch.abs(r)
-    z_abs = torch.abs(z)
+def update_log_gamma_unclipped(r, z, min_val=1e-45):
+    r_abs = torch.abs(r).clip(min=min_val)
+    z_abs = torch.abs(z).clip(min=min_val)
     sign = torch.sign(r) * torch.sign(z)
     log_gamma_abs = torch.log(r_abs) + torch.log(z_abs)
     log_gamma = logsumexp(tensor=log_gamma_abs, dim=0, mask=sign)
@@ -170,7 +168,8 @@ def cond_fun(state, tolerance, max_iters):
     return flag
 
 
-def logsumexp(tensor, dim=-1, mask=None, return_sign=False):
+def logsumexp(tensor, dim=-1, mask=None, return_sign=False, min_val=1e-45):
     max_entry = torch.max(tensor, dim, keepdim=True)[0]
     summ = torch.sum((tensor - max_entry).exp() * mask, dim)
-    return max_entry + summ.log()
+    out = max_entry + summ.clip(min=min_val).log()
+    return out 
