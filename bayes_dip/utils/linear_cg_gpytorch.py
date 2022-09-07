@@ -3,7 +3,13 @@ Clone of gpytorch.utils.linear_cg also returning the residual.
 """
 import warnings
 import torch
-from gpytorch.utils.linear_cg import settings, bool_compat, NumericalWarning, _default_preconditioner, _jit_linear_cg_updates, _jit_linear_cg_updates_no_precond
+try:
+    from linear_operator.utils.linear_cg import settings, bool_compat, NumericalWarning, _default_preconditioner, _jit_linear_cg_updates, _jit_linear_cg_updates_no_precond
+    LINEAR_OPERATOR_PKG_NAME = 'linear_operator'
+except:
+    # for gyptorch < 1.9
+    from gpytorch.utils.linear_cg import settings, bool_compat, NumericalWarning, _default_preconditioner, _jit_linear_cg_updates, _jit_linear_cg_updates_no_precond
+    LINEAR_OPERATOR_PKG_NAME = 'gpytorch'
 
 # pylint: disable=all
 
@@ -55,7 +61,7 @@ def linear_cg(
     if initial_guess is None:
         initial_guess = torch.zeros_like(rhs)
     if tolerance is None:
-        if settings._use_eval_tolerance.on():
+        if LINEAR_OPERATOR_PKG_NAME == 'gpytorch' and settings._use_eval_tolerance.on():
             tolerance = settings.eval_cg_tolerance.value()
         else:
             tolerance = settings.cg_tolerance.value()
@@ -234,11 +240,11 @@ def linear_cg(
 
     if not tolerance_reached and n_iter > 0:
         warnings.warn(
-            "CG terminated in {} iterations with average residual norm {}"
-            " which is larger than the tolerance of {} specified by"
-            " gpytorch.settings.cg_tolerance."
-            " If performance is affected, consider raising the maximum number of CG iterations by running code in"
-            " a gpytorch.settings.max_cg_iterations(value) context.".format(k + 1, residual_norm.mean(), tolerance),
+            f"CG terminated in {k + 1} iterations with average residual norm {residual_norm.mean()}"
+            f" which is larger than the tolerance of {tolerance} specified by"
+            f" {LINEAR_OPERATOR_PKG_NAME}.settings.cg_tolerance. If performance is affected,"
+            " consider raising the maximum number of CG iterations by running code in a"
+            f" {LINEAR_OPERATOR_PKG_NAME}.settings.max_cg_iterations(value) context.",
             NumericalWarning,
         )
 
