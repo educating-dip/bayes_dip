@@ -212,7 +212,7 @@ class LowRankObservationCov(BaseObservationCov):
                     f'L.min: {L.real.min()}, '
                     f'L.max: {L.real.max()}, '
                     f'L.num_vals_below_{eps}: {(L.real < eps).sum()}\n')
-        return U[:, :self.low_rank_rank_dim], L.real.clamp(min=eps)
+        return U, L.real.clamp(min=eps)
 
     def forward(self,
             v: Tensor,
