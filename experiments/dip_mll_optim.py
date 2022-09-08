@@ -196,6 +196,11 @@ def coordinator(cfg : DictConfig) -> None:
         marglik_optim_kwargs = {
                 'iterations': cfg.mll_optim.iterations,
                 'lr': cfg.mll_optim.lr,
+                'scheduler':{
+                    'use_scheduler': cfg.mll_optim.scheduler.use_scheduler, 
+                    'step_size': cfg.mll_optim.scheduler.step_size,
+                    'gamma': cfg.mll_optim.scheduler.gamma,
+                },
                 'num_probes': cfg.mll_optim.num_probes,
                 'linear_cg': {
                     'preconditioner': cg_preconditioner,

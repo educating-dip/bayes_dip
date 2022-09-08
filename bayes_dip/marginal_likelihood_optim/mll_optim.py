@@ -82,6 +82,12 @@ def marginal_likelihood_hyperparams_optim(
         image_mean = recon - observation_cov.image_cov.lin_op(map_weights[None])
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
+    if optim_kwargs['scheduler']['use_scheduler']:
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
+            step_size=optim_kwargs['scheduler']['step_size'], 
+            gamma=optim_kwargs['scheduler']['gamma'], 
+        )
+
 
     with tqdm(range(optim_kwargs['iterations']), desc='marginal_likelihood_hyperparams_optim',
             miniters=optim_kwargs['iterations']//100) as pbar:
@@ -134,6 +140,8 @@ def marginal_likelihood_hyperparams_optim(
 
             loss.backward()
             optimizer.step()
+            if optim_kwargs['scheduler']['use_scheduler']:
+                scheduler.step()
 
             if (not isinstance(observation_cov, MatmulObservationCov) and
                     ((i+1) % optim_kwargs['linear_cg']['update_freq']) == 0 and

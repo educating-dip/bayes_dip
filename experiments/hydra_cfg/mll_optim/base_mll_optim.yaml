@@ -1,5 +1,9 @@
 iterations: 2000
 lr: 0.01
+scheduler:
+  use_scheduler: False
+  step_size: 1000
+  gamma: 0.1
 init_load_path: null
 init_load_iter: null
 num_probes: 50

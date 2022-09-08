@@ -3,6 +3,8 @@ defaults:
 
 iterations: 3000
 num_probes: 10
+scheduler:
+  use_scheduler: True
 linear_cg:
   max_iter: 50
   use_log_re_variant: True
