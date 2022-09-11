@@ -57,17 +57,16 @@ def compute_scale(
                 rows_batch = rows_batch.view(batch_size, -1)
                 if i+batch_size > obs_numel:  # last batch
                     rows_batch = rows_batch[:obs_numel%batch_size]
-                rows += rows_batch.sum(dim=0)
+                rows += rows_batch.sum(dim=0) if not reduction == 'mean' else rows_batch.sum(dim=0) / obs_numel
 
         if verbose:
-            print(f'scale.min: {rows.min()}, scale.max: {rows.max()}, '
-                f'scale.num_vals_below_{eps}: {(rows < eps).sum()}\n'
-            )
+            print(f'scale.min: {rows.min()}, scale.max: {rows.max()}')
+            print(f'scale.num_vals_below_{eps}: {(rows < eps).sum()}')
+
         if rows.max() > max_scale_thresh:
             warn('max scale values reached.')
-
-        scale_vec = (rows.clamp_(min=eps) / obs_numel).pow(-0.5) if reduction == 'mean' \
-                else rows.clamp_(min=eps).pow(-0.5) # num_obs, num_params
+        
+        scale_vec = (rows).pow(0.5).clamp(min=eps).pow(-1) # num_params
 
     return scale_vec
 

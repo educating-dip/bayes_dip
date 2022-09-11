@@ -154,7 +154,7 @@ def get_default_unet_gprior_dicts(
 
     if gprior_hyperparams_init is None:
         gprior_hyperparams_init = {}
-    gprior_hyperparams_init.setdefault('variance', 1.)
+    gprior_hyperparams_init.setdefault('variance', .01)
 
     prior_assignment_dict = {}
     hyperparams_init_dict = {}
