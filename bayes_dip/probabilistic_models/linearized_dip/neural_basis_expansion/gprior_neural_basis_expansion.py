@@ -61,7 +61,6 @@ def compute_scale(
 
         if verbose:
             print(f'scale.min: {rows.min()}, scale.max: {rows.max()}')
-            print(f'scale.num_vals_below_{eps}: {(rows < eps).sum()}')
 
         if rows.max() > max_scale_thresh:
             warn('max scale values reached.')
