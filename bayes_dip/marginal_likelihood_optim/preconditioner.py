@@ -179,7 +179,7 @@ def get_preconditioner(observation_cov: BaseObservationCov, kwargs: Dict):
                 recompute_max_diag_values=True,
                 device=observation_cov.device,
                 )
-        IncompleteCholeskyPreconditioner(
+        preconditioner = IncompleteCholeskyPreconditioner(
                 incomplete_cholesky=ichol, log_noise_variance=observation_cov.log_noise_variance)
     else:
         raise ValueError(f'Unknown preconditioner name "{kwargs["name"]}".')
