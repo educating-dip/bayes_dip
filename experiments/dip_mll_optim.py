@@ -11,10 +11,10 @@ from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
         get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
 from bayes_dip.probabilistic_models import (
-        NeuralBasisExpansion, LowRankObservationCov, ParameterCov, ImageCov, ObservationCov,
+        NeuralBasisExpansion, ParameterCov, ImageCov, ObservationCov,
         GpriorNeuralBasisExpansion)
 from bayes_dip.marginal_likelihood_optim import (
-        marginal_likelihood_hyperparams_optim, LowRankObservationCovPreconditioner, weights_linearization,
+        marginal_likelihood_hyperparams_optim, get_preconditioner, weights_linearization,
         get_ordered_nn_params_vec)
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
@@ -177,27 +177,16 @@ def coordinator(cfg : DictConfig) -> None:
             )
         cg_preconditioner = None
         if cfg.mll_optim.linear_cg.use_preconditioner:
-            update_kwargs = {'batch_size': cfg.mll_optim.linear_cg.preconditioner.batch_size}
-            low_rank_observation_cov = LowRankObservationCov(
-                    trafo=ray_trafo,
-                    image_cov=image_cov,
-                    low_rank_rank_dim=cfg.mll_optim.linear_cg.preconditioner.low_rank_rank_dim,
-                    oversampling_param=cfg.mll_optim.linear_cg.preconditioner.oversampling_param,
-                    requires_grad=False,
-                    device=device,
-                    **update_kwargs,
-            )
-            cg_preconditioner = LowRankObservationCovPreconditioner(
-                    low_rank_observation_cov=low_rank_observation_cov,
-                    default_update_kwargs=update_kwargs,
-            )
+            cg_preconditioner = get_preconditioner(
+                    observation_cov=observation_cov,
+                    kwargs=OmegaConf.to_object(cfg.mll_optim.linear_cg.preconditioner))
         predcp_kwargs = OmegaConf.to_object(cfg.mll_optim.predcp)
         predcp_kwargs['gamma'] = cfg.dip.optim.gamma
         marglik_optim_kwargs = {
                 'iterations': cfg.mll_optim.iterations,
                 'lr': cfg.mll_optim.lr,
                 'scheduler':{
-                    'use_scheduler': cfg.mll_optim.scheduler.use_scheduler, 
+                    'use_scheduler': cfg.mll_optim.scheduler.use_scheduler,
                     'step_size': cfg.mll_optim.scheduler.step_size,
                     'gamma': cfg.mll_optim.scheduler.gamma,
                 },

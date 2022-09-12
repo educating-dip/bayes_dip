@@ -1,10 +1,11 @@
 
 from abc import ABC, abstractmethod
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict
 from functools import partial
 import torch
 from torch import Tensor
-from ..probabilistic_models import LowRankObservationCov
+from ..probabilistic_models import BaseObservationCov, LowRankObservationCov
+from .preconditioner_utils import pivoted_cholesky
 
 class BasePreconditioner(ABC):
 
@@ -149,3 +150,38 @@ class IncompleteCholeskyPreconditioner(BasePreconditioner):
 
     def get_closure(self) -> Callable[[Tensor], Tensor]:
         return partial(self.matmul, use_inverse=True)
+
+
+def get_preconditioner(observation_cov: BaseObservationCov, kwargs: Dict):
+    if kwargs['name'] == 'low_rank_eig':
+        update_kwargs = {'batch_size': kwargs['batch_size']}
+        low_rank_observation_cov = LowRankObservationCov(
+                trafo=observation_cov.trafo,
+                image_cov=observation_cov.image_cov,
+                low_rank_rank_dim=kwargs['low_rank_rank_dim'],
+                oversampling_param=kwargs['oversampling_param'],
+                requires_grad=False,
+                device=observation_cov.device,
+                **update_kwargs,
+        )
+        preconditioner = LowRankObservationCovPreconditioner(
+                low_rank_observation_cov=low_rank_observation_cov,
+                default_update_kwargs=update_kwargs,
+        )
+    elif kwargs['name'] == 'incomplete_chol':
+        ichol = pivoted_cholesky(
+                closure=observation_cov.get_closure(),
+                size=observation_cov.shape[0],
+                max_iter=kwargs['low_rank_rank_dim'],
+                approx_diag_num_samples=kwargs['approx_diag_num_samples'],
+                batch_size=kwargs['batch_size'],
+                error_tol=0.,  # always use kwargs['low_rank_rank_dim'] dimensions
+                recompute_max_diag_values=True,
+                device=observation_cov.device,
+                )
+        IncompleteCholeskyPreconditioner(
+                incomplete_cholesky=ichol, log_noise_variance=observation_cov.log_noise_variance)
+    else:
+        raise ValueError(f'Unknown preconditioner name "{kwargs["name"]}".')
+
+    return preconditioner

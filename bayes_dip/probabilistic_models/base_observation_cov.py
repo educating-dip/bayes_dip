@@ -61,3 +61,26 @@ class BaseObservationCov(nn.Module, ABC):
             Output. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
         """
         raise NotImplementedError
+
+    def get_closure(self):
+        """
+        Return a closure that performs matrix multiplication with this covariance.
+
+        Note that the batch dimension is *last* here, i.e. we evaluate ``cov @ v``, where `cov` is a
+        matrix representation of `self`.
+
+        Parameters
+        ----------
+        v : Tensor
+            Observations. Shape: ``(self.shape[0], batch_size)``.
+
+        Returns
+        -------
+        Tensor
+            Products. Shape: same as `v`.
+        """
+        def closure(v):
+            batch_size = v.shape[1]
+            return self.forward(v.T.reshape(batch_size, 1, *self.trafo.obs_shape)
+                    ).view(batch_size, self.shape[0]).T
+        return closure
