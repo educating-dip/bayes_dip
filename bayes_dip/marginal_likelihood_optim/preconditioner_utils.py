@@ -1,12 +1,8 @@
-from typing import Callable, Optional, Dict, Tuple
+from typing import Callable, Optional
 from math import ceil
 import torch
 from torch import Tensor
-# try:
-#     from linear_operator import LinearOperator
-# except:
-#     # for gyptorch < 1.9
-#     from gpytorch import LinearOperator
+from tqdm import tqdm
 from .random_probes import generate_probes_bernoulli
 
 def approx_diag(closure: Callable, size: int, num_samples: int, batch_size: int = 1, dtype=None, device=None):
@@ -38,59 +34,60 @@ def pivoted_cholesky(
             dtype=None,
             device=None,
         ):
-        """
-        Simplified clone of the Pivoted Cholesky decomposition implementation from
-        https://github.com/cornellius-gp/linear_operator/blob/main/linear_operator/functions/_pivoted_cholesky.py
-        that directly uses a closure.
+    """
+    Simplified clone of the Pivoted Cholesky decomposition implementation from
+    https://github.com/cornellius-gp/linear_operator/blob/main/linear_operator/functions/_pivoted_cholesky.py
+    that directly uses a closure.
 
-        Changes made to the original implementation:
+    Changes made to the original implementation:
 
-            * use closure instead of LinearOperator instance
-            * do not support batch dims (we just need one matrix)
-            * estimate diagonal with :func:`approx_diag` or use manually passed diagonal
-            * use square root of the *exact* diagonal value for each selected pivot to populate
-              ``L[m, m]`` (the row is computed anyways)
-        """
-        matrix_shape = (size, size)
+        * use closure instead of LinearOperator instance
+        * do not support batch dims (we just need one matrix)
+        * estimate diagonal with :func:`approx_diag` or use manually passed diagonal
+        * use square root of the *exact* diagonal value for each selected pivot to populate
+            ``L[m, m]`` (the row is computed anyways)
+    """
+    matrix_shape = (size, size)
 
-        # Need to get diagonals. This is easy if it's a LinearOperator, since
-        # LinearOperator.diagonal() operates in batch mode.
-        if matrix_diag is None:
-            if verbose:
-                print(
-                    f"Estimating the diagonal of a {matrix_shape} matrix using "
-                    f"{approx_diag_num_samples} samples."
-                )
-            matrix_diag = approx_diag(
-                    closure,
-                    size=size,
-                    num_samples=approx_diag_num_samples,
-                    batch_size=batch_size,
-                    dtype=dtype,
-                    device=device)
-        matrix_diag = matrix_diag.to(device=device)
-        # Store the term to be subtracted from the diagonal separately in `matrix_diag_minuend`, so
-        # we can easily replace potentially approximate diagonal values (in `matrix_diag`) with
-        # exact ones when populating L[m, m]
-        matrix_diag_minuend = torch.zeros_like(matrix_diag)
-
-        # Make sure max_iter isn't bigger than the matrix
-        max_iter = min(max_iter, matrix_shape[-1])
-
-        # What we're returning
-        L = torch.zeros(max_iter, matrix_shape[-1], dtype=dtype, device=device)
-        orig_error = torch.max(matrix_diag, dim=-1)[0]
-        errors = torch.norm(matrix_diag, 1, dim=-1) / orig_error
-
-        # The permutation
-        permutation = torch.arange(0, matrix_shape[-1], dtype=torch.long, device=matrix_diag.device)
-
+    # Need to get diagonals. This is easy if it's a LinearOperator, since
+    # LinearOperator.diagonal() operates in batch mode.
+    if matrix_diag is None:
         if verbose:
             print(
-                f"Running Pivoted Cholesky on a {matrix_shape} matrix for {max_iter} iterations."
+                f"Estimating the diagonal of a {matrix_shape} matrix using "
+                f"{approx_diag_num_samples} samples."
             )
+        matrix_diag = approx_diag(
+                closure,
+                size=size,
+                num_samples=approx_diag_num_samples,
+                batch_size=batch_size,
+                dtype=dtype,
+                device=device)
+    matrix_diag = matrix_diag.to(device=device)
+    # Store the term to be subtracted from the diagonal separately in `matrix_diag_minuend`, so
+    # we can easily replace potentially approximate diagonal values (in `matrix_diag`) with
+    # exact ones when populating L[m, m]
+    matrix_diag_minuend = torch.zeros_like(matrix_diag)
 
-        m = 0
+    # Make sure max_iter isn't bigger than the matrix
+    max_iter = min(max_iter, matrix_shape[-1])
+
+    # What we're returning
+    L = torch.zeros(max_iter, matrix_shape[-1], dtype=dtype, device=device)
+    orig_error = torch.max(matrix_diag, dim=-1)[0]
+    errors = torch.norm(matrix_diag, 1, dim=-1) / orig_error
+
+    # The permutation
+    permutation = torch.arange(0, matrix_shape[-1], dtype=torch.long, device=matrix_diag.device)
+
+    if verbose:
+        print(
+            f"Running Pivoted Cholesky on a {matrix_shape} matrix for {max_iter} iterations."
+        )
+
+    m = 0
+    with tqdm(total=max_iter, desc='pivoted_cholesky', miniters=max_iter//100) as pbar:
         while (m == 0) or (m < max_iter and torch.max(errors) > error_tol):
             # Get the maximum diagonal value and index
             # This will serve as the next diagonal entry of the Cholesky,
@@ -102,7 +99,8 @@ def pivoted_cholesky(
             # Swap pi_m and pi_i in each row, where pi_i is the element of the permutation
             # corresponding to the max diagonal element
             old_pi_m = permutation[m].clone()
-            permutation[m].copy_(permutation.gather(-1, max_diag_indices.unsqueeze(-1)).squeeze_(-1))
+            permutation[m].copy_(
+                    permutation.gather(-1, max_diag_indices.unsqueeze(-1)).squeeze_(-1))
             permutation.scatter_(-1, max_diag_indices.unsqueeze(-1), old_pi_m.unsqueeze(-1))
             pi_m = permutation[m].contiguous()
 
@@ -111,7 +109,7 @@ def pivoted_cholesky(
                 e_pi_m = torch.zeros((matrix_shape[-1], 1), dtype=dtype, device=device)
                 e_pi_m[pi_m] = 1.
                 row = closure(e_pi_m).squeeze(1)
-                max_diag_values_to_scatter = row[pi_m] - matrix_diag_minuend[pi_m]  # TODO check pi_m
+                max_diag_values_to_scatter = row[pi_m] - matrix_diag_minuend[pi_m]
             else:
                 max_diag_values_to_scatter = max_diag_values
 
@@ -144,8 +142,10 @@ def pivoted_cholesky(
                 L[m, :] = L_m
 
                 # Keep track of errors - for potential early stopping
-                errors = torch.norm((matrix_diag - matrix_diag_minuend).gather(-1, pi_i), 1, dim=-1) / orig_error
+                errors = torch.norm((
+                        matrix_diag - matrix_diag_minuend).gather(-1, pi_i), 1, dim=-1) / orig_error
 
             m = m + 1
+            pbar.update(1)
 
-        return L[:m, :].mT.contiguous(), permutation
+    return L[:m, :].mT.contiguous(), permutation
