@@ -177,6 +177,7 @@ def cg(
         raise NotImplementedError
 
     cg_func = linear_cg if not use_log_re_variant else linear_log_cg_re
+    max_niter = min(max_niter, v.shape[0])
 
     # pylint: disable=unbalanced-tuple-unpacking
     solve, residual_norm = cg_func(closure, v, tolerance=rtol,

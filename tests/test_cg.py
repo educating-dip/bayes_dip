@@ -3,13 +3,12 @@ import torch
 import scipy
 from scipy.stats import ortho_group
 import numpy as np
-try:
-    from linear_operator import pivoted_cholesky
-except:
-    # for gyptorch < 1.9
-    from gpytorch import pivoted_cholesky
 
 from bayes_dip.utils import cg
+from bayes_dip.marginal_likelihood_optim.preconditioner import (
+    JacobiPreconditioner, IncompleteCholeskyPreconditioner)
+from bayes_dip.marginal_likelihood_optim.preconditioner_utils import (
+        approx_diag, pivoted_cholesky)
 
 @pytest.fixture(scope='function')
 def linear_system():
@@ -30,23 +29,69 @@ def linear_system():
     return (mat, noise), rhs
 
 @pytest.fixture(scope='function')
+def jacobi_precon_closure(linear_system):
+    (mat, noise), rhs = linear_system
+    diag = mat.diag() + noise
+
+    precon = JacobiPreconditioner(vector=diag)
+    precon_closure = precon.get_closure()
+
+    return precon_closure
+
+@pytest.fixture(scope='function')
+def approx_jacobi_precon_closure(linear_system):
+    (mat, noise), rhs = linear_system
+
+    torch.manual_seed(0)
+    vector = approx_diag(
+            lambda v: mat @ v + noise * v,
+            size=rhs.shape[0], num_samples=2, batch_size=2, dtype=rhs.dtype, device=rhs.device)
+
+    precon = JacobiPreconditioner(vector=vector)
+    precon_closure = precon.get_closure()
+
+    return precon_closure
+
+@pytest.fixture(scope='function')
 def ichol_precon_closure(linear_system):
     (mat, noise), rhs = linear_system
-    ichol = pivoted_cholesky(mat, rank=3)
 
-    # use the incomplete cholesky factorization as a preconditioner like implemented in
-    # https://github.com/cornellius-gp/linear_operator/blob/987df55260afea79eb0590c7e546b221cfec3fe5/linear_operator/operators/added_diag_linear_operator.py#L84
-
-    n, k = ichol.shape
-
-    _q_cache, _r_cache = torch.linalg.qr(
-        torch.cat((ichol, noise.sqrt() * torch.eye(k, dtype=ichol.dtype)), dim=-2)
+    ichol, _ = pivoted_cholesky(
+            closure=lambda v: mat @ v,
+            size=mat.shape[0],
+            max_iter=3,
+            matrix_diag=mat.diag(),
+            batch_size=2,
+            error_tol=1e-3,
+            dtype=mat.dtype,
+            device=mat.device,
     )
-    _q_cache = _q_cache[:n, :]
 
-    def precon_closure(v):
-        qqt_v = _q_cache.matmul(_q_cache.mT.matmul(v))
-        return (1. / noise) * (v - qqt_v)
+    precon = IncompleteCholeskyPreconditioner(
+            incomplete_cholesky=ichol, log_noise_variance=noise.log())
+    precon_closure = precon.get_closure()
+
+    return precon_closure
+
+@pytest.fixture(scope='function')
+def ichol_approx_diag_precon_closure(linear_system):
+    (mat, noise), rhs = linear_system
+
+    torch.manual_seed(0)
+    ichol, _ = pivoted_cholesky(
+            closure=lambda v: mat @ v,
+            size=mat.shape[0],
+            max_iter=3,
+            approx_diag_num_samples=300,
+            batch_size=2,
+            error_tol=1e-3,
+            dtype=mat.dtype,
+            device=mat.device,
+    )
+
+    precon = IncompleteCholeskyPreconditioner(
+            incomplete_cholesky=ichol, log_noise_variance=noise.log())
+    precon_closure = precon.get_closure()
 
     return precon_closure
 
@@ -80,6 +125,86 @@ def test_cg(linear_system):
 
     assert torch.allclose(cg_solution, scipy_cg_solution)
 
+def test_jacobi_preconditioner(linear_system, jacobi_precon_closure):
+    (mat, noise), rhs = linear_system
+    print()
+    print('mat:', mat)
+    print('noise:', noise)
+    print('rhs:', rhs)
+
+    scipy_cg_solution = scipy.sparse.linalg.cg(
+            mat.numpy() + noise.item() * np.eye(mat.shape[0]), rhs.numpy(), atol=0.)[0]
+    scipy_cg_solution = torch.from_numpy(scipy_cg_solution)
+    print('residual norm of scipy CG solution:', _residual_norm(
+            mat, noise, rhs, scipy_cg_solution))
+
+    precon_closure = jacobi_precon_closure
+
+    cg_solution, _ = cg(
+            lambda v: mat @ v + noise * v, rhs[:, None], precon_closure=precon_closure,
+            use_log_re_variant=False,  # Maddox often produces nan
+            )
+    cg_solution = cg_solution[:, 0]
+    print('residual norm of CG solution:', _residual_norm(
+            mat, noise, rhs, cg_solution))
+
+    assert torch.allclose(cg_solution, scipy_cg_solution)
+
+    zero_residual_norm = _residual_norm(mat, noise, rhs, torch.zeros_like(cg_solution))
+
+    # with the exact jacobi preconditioning, the system is mostly solved after 3 iterations
+
+    for max_niter, max_rel_residual_norm in [(1, 0.8), (2, 0.8), (3, 0.04), (4, 0.02), (5, 1e-6)]:
+        cg_solution, _ = cg(
+            lambda v: mat @ v + noise * v, rhs[:, None], precon_closure=precon_closure,
+            use_log_re_variant=False,  # Maddox often produces nan
+            max_niter=max_niter,
+            rtol=0.
+            )
+        cg_solution = cg_solution[:, 0]
+        rel_residual_norm = _residual_norm(mat, noise, rhs, cg_solution) / zero_residual_norm
+        assert rel_residual_norm < max_rel_residual_norm
+
+def test_approx_jacobi_preconditioner(linear_system, approx_jacobi_precon_closure):
+    (mat, noise), rhs = linear_system
+    print()
+    print('mat:', mat)
+    print('noise:', noise)
+    print('rhs:', rhs)
+
+    scipy_cg_solution = scipy.sparse.linalg.cg(
+            mat.numpy() + noise.item() * np.eye(mat.shape[0]), rhs.numpy(), atol=0.)[0]
+    scipy_cg_solution = torch.from_numpy(scipy_cg_solution)
+    print('residual norm of scipy CG solution:', _residual_norm(
+            mat, noise, rhs, scipy_cg_solution))
+
+    precon_closure = approx_jacobi_precon_closure
+
+    cg_solution, _ = cg(
+            lambda v: mat @ v + noise * v, rhs[:, None], precon_closure=precon_closure,
+            use_log_re_variant=False,  # Maddox often produces nan
+            )
+    cg_solution = cg_solution[:, 0]
+    print('residual norm of CG solution:', _residual_norm(
+            mat, noise, rhs, cg_solution))
+
+    assert torch.allclose(cg_solution, scipy_cg_solution)
+
+    zero_residual_norm = _residual_norm(mat, noise, rhs, torch.zeros_like(cg_solution))
+
+    # with the approximate jacobi preconditioning, the system is mostly solved after 3 iterations
+
+    for max_niter, max_rel_residual_norm in [(1, 0.8), (2, 0.8), (3, 0.06), (4, 0.02), (5, 1e-6)]:
+        cg_solution, _ = cg(
+            lambda v: mat @ v + noise * v, rhs[:, None], precon_closure=precon_closure,
+            use_log_re_variant=False,  # Maddox often produces nan
+            max_niter=max_niter,
+            rtol=0.
+            )
+        cg_solution = cg_solution[:, 0]
+        rel_residual_norm = _residual_norm(mat, noise, rhs, cg_solution) / zero_residual_norm
+        assert rel_residual_norm < max_rel_residual_norm
+
 def test_ichol_preconditioner(linear_system, ichol_precon_closure):
     (mat, noise), rhs = linear_system
     print()
@@ -108,6 +233,47 @@ def test_ichol_preconditioner(linear_system, ichol_precon_closure):
     zero_residual_norm = _residual_norm(mat, noise, rhs, torch.zeros_like(cg_solution))
 
     # with the rank-3-ichol preconditioning, the system is solved after 3 iterations
+
+    for max_niter, max_rel_residual_norm in [(1, 0.8), (2, 0.8), (3, 1e-6), (4, 1e-6), (5, 1e-6)]:
+        cg_solution, _ = cg(
+            lambda v: mat @ v + noise * v, rhs[:, None], precon_closure=precon_closure,
+            use_log_re_variant=False,  # Maddox often produces nan
+            max_niter=max_niter,
+            rtol=0.
+            )
+        cg_solution = cg_solution[:, 0]
+        rel_residual_norm = _residual_norm(mat, noise, rhs, cg_solution) / zero_residual_norm
+        assert rel_residual_norm < max_rel_residual_norm
+
+def test_ichol_approx_diag_preconditioner(linear_system, ichol_approx_diag_precon_closure):
+    (mat, noise), rhs = linear_system
+    print()
+    print('mat:', mat)
+    print('noise:', noise)
+    print('rhs:', rhs)
+
+    scipy_cg_solution = scipy.sparse.linalg.cg(
+            mat.numpy() + noise.item() * np.eye(mat.shape[0]), rhs.numpy(), atol=0.)[0]
+    scipy_cg_solution = torch.from_numpy(scipy_cg_solution)
+    print('residual norm of scipy CG solution:', _residual_norm(
+            mat, noise, rhs, scipy_cg_solution))
+
+    precon_closure = ichol_approx_diag_precon_closure
+
+    cg_solution, _ = cg(
+            lambda v: mat @ v + noise * v, rhs[:, None], precon_closure=precon_closure,
+            use_log_re_variant=False,  # Maddox often produces nan
+            )
+    cg_solution = cg_solution[:, 0]
+    print('residual norm of CG solution:', _residual_norm(
+            mat, noise, rhs, cg_solution))
+
+    assert torch.allclose(cg_solution, scipy_cg_solution)
+
+    zero_residual_norm = _residual_norm(mat, noise, rhs, torch.zeros_like(cg_solution))
+
+    # with the rank-3-ichol preconditioning using the approximate diagonal estimate, the system is
+    # solved after 3 iterations
 
     for max_niter, max_rel_residual_norm in [(1, 0.8), (2, 0.8), (3, 1e-6), (4, 1e-6), (5, 1e-6)]:
         cg_solution, _ = cg(
