@@ -108,9 +108,9 @@ def pivoted_cholesky(
 
             row = None  # can potentially re-use row
             if recompute_max_diag_values:
-                e_pi_m = torch.zeros(matrix_shape[-1], dtype=dtype, device=device)
+                e_pi_m = torch.zeros((matrix_shape[-1], 1), dtype=dtype, device=device)
                 e_pi_m[pi_m] = 1.
-                row = closure(e_pi_m)
+                row = closure(e_pi_m).squeeze(1)
                 max_diag_values_to_scatter = row[pi_m] - matrix_diag_minuend[pi_m]  # TODO check pi_m
             else:
                 max_diag_values_to_scatter = max_diag_values
@@ -123,9 +123,9 @@ def pivoted_cholesky(
             if m + 1 < matrix_shape[-1]:
                 # Get next row of the permuted matrix
                 if row is None:
-                    e_pi_m = torch.zeros(matrix_shape[-1], dtype=dtype, device=device)
+                    e_pi_m = torch.zeros((matrix_shape[-1], 1), dtype=dtype, device=device)
                     e_pi_m[pi_m] = 1.
-                    row = closure(e_pi_m)
+                    row = closure(e_pi_m).squeeze(1)
                 pi_i = permutation[m + 1 :].contiguous()
 
                 L_m_new = row.gather(-1, pi_i)
