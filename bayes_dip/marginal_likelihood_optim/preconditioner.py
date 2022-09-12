@@ -169,7 +169,7 @@ def get_preconditioner(observation_cov: BaseObservationCov, kwargs: Dict):
                 default_update_kwargs=update_kwargs,
         )
     elif kwargs['name'] == 'incomplete_chol':
-        ichol = pivoted_cholesky(
+        ichol, _ = pivoted_cholesky(
                 closure=observation_cov.get_closure(),
                 size=observation_cov.shape[0],
                 max_iter=kwargs['low_rank_rank_dim'],
