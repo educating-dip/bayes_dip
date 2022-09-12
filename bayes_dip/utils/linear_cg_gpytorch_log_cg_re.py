@@ -106,7 +106,7 @@ def re_orthogonalization(x, k, u_all):
     for i in range(k):
         dotprod = torch.sum(x * u_all[i], dim=-2) * u_all[i]
         x = x - dotprod
-    return x 
+    return x
 
 def take_cg_step_log_re(state, A, preconditioner):
     x0, r0, log_gamma0, p0, u_all, k = state
@@ -172,4 +172,4 @@ def logsumexp(tensor, dim=-1, mask=None, return_sign=False, min_val=1e-45):
     max_entry = torch.max(tensor, dim, keepdim=True)[0]
     summ = torch.sum((tensor - max_entry).exp() * mask, dim)
     out = max_entry + summ.clip(min=min_val).log()
-    return out 
+    return out

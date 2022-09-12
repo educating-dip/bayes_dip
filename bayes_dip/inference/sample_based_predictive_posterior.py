@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List, Union
 from math import ceil
 import numpy as np
 import torch
@@ -339,7 +339,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             verbose: bool = True,
             unscaled: bool = False,
             return_patch_diags: bool = False,
-            sample_kwargs: Optional[Dict] = None) -> Tensor:
+            sample_kwargs: Optional[Dict] = None,
+            ) -> Union[List[float], Tuple[List[float], List[Tensor]]]:
         """
         Return log probabilities for patches.
 

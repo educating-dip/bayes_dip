@@ -83,9 +83,9 @@ def marginal_likelihood_hyperparams_optim(
 
     optimizer = torch.optim.Adam(observation_cov.parameters(), lr=optim_kwargs['lr'])
     if optim_kwargs['scheduler']['use_scheduler']:
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 
-            step_size=optim_kwargs['scheduler']['step_size'], 
-            gamma=optim_kwargs['scheduler']['gamma'], 
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+            step_size=optim_kwargs['scheduler']['step_size'],
+            gamma=optim_kwargs['scheduler']['gamma'],
         )
 
 
