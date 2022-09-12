@@ -9,7 +9,7 @@ def approx_diag(closure: Callable, size: int, num_samples: int, batch_size: int 
     num_batches = ceil(num_samples / batch_size)
     t = torch.zeros(size, dtype=dtype, device=device)
     q = torch.zeros(size, dtype=dtype, device=device)
-    for _ in range(num_batches):
+    for _ in tqdm(range(num_batches), desc='approx_diag', miniters=num_batches//100):
         v = generate_probes_bernoulli(
                 side_length=size,
                 num_probes=batch_size,
