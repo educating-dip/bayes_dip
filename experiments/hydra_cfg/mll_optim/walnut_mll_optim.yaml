@@ -7,7 +7,7 @@ scheduler:
   use_scheduler: True
 linear_cg:
   max_iter: 50
-  use_log_re_variant: True
+  use_log_re_variant: False
   preconditioner:
     name: low_rank_eig
     low_rank_rank_dim: 200
