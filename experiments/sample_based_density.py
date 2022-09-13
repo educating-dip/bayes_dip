@@ -256,6 +256,7 @@ def coordinator(cfg : DictConfig) -> None:
             'patch_log_probs_unscaled': log_probs_unscaled,
             'log_prob': log_prob,
             'patch_cov_diags': [diag.cpu() for diag in patch_diags],
+            'image_noise_correction_term': noise_x_correction_term,
         }, f'sample_based_predictive_posterior_{i}.pt')
 
 if __name__ == '__main__':

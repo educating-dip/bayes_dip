@@ -55,8 +55,8 @@ def _recompute_image_noise_correction_term(run_path: str, sample_idx: int) -> fl
             f'observation_cov_{sample_idx}_iter_{cfg.inference.load_iter}.pt')
     log_noise_variance = torch.load(os.path.join(
             translate_output_path(cfg.inference.load_path),
-            observation_cov_filename)
-            )['log_noise_variance']
+            observation_cov_filename),
+            map_location='cpu')['log_noise_variance']
     diag_mean = get_trafo_t_trafo_pseudo_inv_diag_mean(ray_trafo)
     image_noise_correction_term = diag_mean * log_noise_variance.exp().item()
     return image_noise_correction_term
@@ -113,6 +113,7 @@ def restrict_sample_based_density_data_to_new_patch_idx_list(
         'patch_log_probs_unscaled': [data['patch_log_probs_unscaled'][i] for i in indices],
         'log_prob': None,  # fill later
         'patch_cov_diags': [data['patch_cov_diags'][i] for i in indices],
+        'image_noise_correction_term': data['image_noise_correction_term'],
     }
     assert all(np.array_equal(mask_inds, orig_mask_inds) for mask_inds, orig_mask_inds in zip(
             patch_idx_to_mask_inds_dict.values(), data_restricted['patch_mask_inds']))
@@ -134,8 +135,10 @@ def get_stddev(run_path: str, sample_idx: int,
         cov_diag = get_sample_based_cov_diag(
                 run_path=run_path, data=data, patch_idx_list=patch_idx_list)
     if subtract_image_noise_correction:
-        image_noise_correction_term = _recompute_image_noise_correction_term(
-                run_path=run_path, sample_idx=sample_idx)
+        image_noise_correction_term = data.get('image_noise_correction_term', None)
+        if image_noise_correction_term is None:
+            image_noise_correction_term = _recompute_image_noise_correction_term(
+                    run_path=run_path, sample_idx=sample_idx)
         print(f'subtracting {image_noise_correction_term} (image noise correction) from cov_diag')
         cov_diag -= image_noise_correction_term
     stddev = torch.sqrt(cov_diag)
