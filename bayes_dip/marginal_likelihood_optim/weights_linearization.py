@@ -20,7 +20,7 @@ def weights_linearization(
                 ordered_nn_params=neural_basis_expansion.ordered_nn_params,
                 nn_out_shape=nn_input.shape,
         )
-        if optim_kwargs['use_gprior']: 
+        if optim_kwargs['use_gprior']:
             neural_basis_expansion = GpriorNeuralBasisExpansion(
                 neural_basis_expansion=neural_basis_expansion,
                 trafo=trafo,

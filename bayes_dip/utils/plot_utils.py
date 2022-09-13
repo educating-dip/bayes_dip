@@ -15,9 +15,11 @@ def hex_to_rgb(value, alpha):
     out = [el / 255 for el in out] + [alpha]
     return tuple(out)
 
-def plot_hist(
-        data, label_list, title=None, ax=None, xlim=None, ylim=None, yscale='log', remove_ticks=False,
-        color_list=None, alpha_list=None, hist_kwargs=None, hist_kwargs_per_data=None, legend_kwargs=None):
+def plot_hist(  # pylint: disable=too-many-arguments
+        data, label_list, title=None, ax=None, xlim=None, ylim=None, yscale='log',
+        remove_ticks=False, color_list=None, alpha_list=None, hist_kwargs=None,
+        hist_kwargs_per_data=None, legend_kwargs=None):
+    # pylint: disable=too-many-locals
     if ax is None:
         _, ax = plt.subplots()
     if color_list is None:

@@ -201,7 +201,8 @@ class BaseGaussPrior(nn.Module, ABC):
             Shape: ``(batch_size, n * kernel_size ** 2)``, where `n` is the sum of the numbers of
             filters of all modules of all `priors`.
         use_cholesky : bool, optional
-            If `True`, multiply with the Cholesky factor instead. Cannot be combined with `use_inverse`.
+            If `True`, multiply with the Cholesky factor instead. Cannot be combined with
+            `use_inverse`.
             The default is `False`.
         use_inverse : bool, optional
             If `True`, multiply with the inverse instead. Cannot be combined with `use_cholesky`.
@@ -552,7 +553,7 @@ class IsotropicPrior(BaseGaussPrior):
         raise NotImplementedError
 
     @classmethod
-    def batched_cov_mul(cls,
+    def batched_cov_mul(cls,  # pylint: disable=arguments-differ
             priors: Sequence,
             v: Tensor,
             use_cholesky: bool = False,
@@ -572,7 +573,8 @@ class IsotropicPrior(BaseGaussPrior):
             Shape: ``(batch_size, n * kernel_size ** 2)``, where `n` is the sum of the numbers of
             filters of all modules of ``priors[0]``.
         use_cholesky : bool, optional
-            If `True`, multiply with the Cholesky factor instead. Cannot be combined with `use_inverse`.
+            If `True`, multiply with the Cholesky factor instead. Cannot be combined with
+            `use_inverse`.
             The default is `False`.
         use_inverse : bool, optional
             If `True`, multiply with the inverse instead. Cannot be combined with `use_cholesky`.

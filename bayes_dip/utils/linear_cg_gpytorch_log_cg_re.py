@@ -1,5 +1,5 @@
 """
-Clone of
+Clone of :func:`linear_log_cg_re` from
 https://github.com/AndPotap/halfpres_gps/blob/6aead66d9d9efc30b5e3ee3a49697d660a8c4043/core/gpytorch_log_cg_re.py
 also returning the residual, a re-orthogonalizing CG variant introduced in [1]_.
 
@@ -10,55 +10,10 @@ also returning the residual, a re-orthogonalizing CG variant introduced in [1]_.
 import torch
 import logging
 
+# pylint: disable=all
 
 def _default_preconditioner(x):
     return x.clone()
-
-
-class GPyTorchLogCGSolverRe:
-
-    def __init__(self, tolerance=1.e-1, max_iters=20, preconditioner=None):
-        self.tolerance = tolerance
-        self.max_iters = max_iters
-        if preconditioner is None:
-            self.preconditioner = _default_preconditioner
-        else:
-            self.preconditioner = preconditioner
-        self.stop_updating_after = 1.e-10
-        self.eps = 1.e-10
-
-    def set_matrix_and_probes(self, A_fn, b):
-        self.A = A_fn
-        self.b = b
-        self.x0 = torch.zeros_like(b)
-
-    def run_mbcg_with_tracking(self):
-        rhs_norm = self.b.norm(2, dim=-2, keepdim=True)
-        rhs_is_zero = rhs_norm.lt(self.eps)
-        rhs_norm = rhs_norm.masked_fill_(rhs_is_zero, 1)
-        rhs = self.b.div(rhs_norm)
-
-        state = initialize_log_re(
-            self.A, rhs, self.preconditioner, self.x0, self.max_iters)
-        self.initialize_trackers()
-        self.update_trackers(state)
-        for k in range(self.max_iters):
-            state = take_cg_step_log_re(state, self.A, self.preconditioner)
-            if cond_fun(state, self.tolerance, self.max_iters):
-                break
-            self.update_trackers(state)
-        return state[0].mul(rhs_norm)
-
-    def update_trackers(self, state):
-        x0, r0, gamma0, p0, _, k = state
-        self.Us.append(x0.clone())
-        self.Rs.append(r0.clone())
-        self.gammas.append(gamma0.clone())
-        self.ps.append(p0.clone())
-        self.k = k
-
-    def initialize_trackers(self):
-        self.Us, self.Rs, self.gammas, self.ps, self.k = [], [], [], [], -1
 
 
 def linear_log_cg_re(

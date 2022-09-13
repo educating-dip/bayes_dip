@@ -5,7 +5,9 @@ from torch import Tensor
 from tqdm import tqdm
 from .random_probes import generate_probes_bernoulli
 
-def approx_diag(closure: Callable, size: int, num_samples: int, batch_size: int = 1, dtype=None, device=None):
+def approx_diag(
+        closure: Callable, size: int, num_samples: int, batch_size: int = 1,
+        dtype=None, device=None):
     num_batches = ceil(num_samples / batch_size)
     t = torch.zeros(size, dtype=dtype, device=device)
     q = torch.zeros(size, dtype=dtype, device=device)
@@ -33,7 +35,7 @@ def pivoted_cholesky(
             verbose: bool = True,
             dtype=None,
             device=None,
-        ):
+        ):  # pylint: disable=too-many-arguments
     """
     Simplified clone of the Pivoted Cholesky decomposition implementation from
     https://github.com/cornellius-gp/linear_operator/blob/main/linear_operator/functions/_pivoted_cholesky.py
@@ -47,6 +49,8 @@ def pivoted_cholesky(
         * use square root of the *exact* diagonal value for each selected pivot to populate
             ``L[m, m]`` (the row is computed anyways)
     """
+    # pylint: disable=too-many-locals,too-many-statements
+
     matrix_shape = (size, size)
 
     # Need to get diagonals. This is easy if it's a LinearOperator, since

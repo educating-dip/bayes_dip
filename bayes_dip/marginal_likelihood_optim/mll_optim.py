@@ -54,7 +54,7 @@ def marginal_likelihood_hyperparams_optim(
     log_path: str = './',
     comment: str = 'mll'
     ):
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 
     writer = tensorboardX.SummaryWriter(
             logdir=os.path.join(log_path, '_'.join((

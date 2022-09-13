@@ -79,7 +79,7 @@ class JacobiPreconditioner(BasePreconditioner):
             num_samples: int
             ) -> Tensor:
         normal_std = torch.randn(
-            self.shape[0], num_samples,
+            self.vector.shape[0], num_samples,
             device=self.vector.device
             )
         return self.vector[:, None].pow(0.5) * normal_std

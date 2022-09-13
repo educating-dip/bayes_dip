@@ -57,14 +57,15 @@ def compute_scale(
                 rows_batch = rows_batch.view(batch_size, -1)
                 if i+batch_size > obs_numel:  # last batch
                     rows_batch = rows_batch[:obs_numel%batch_size]
-                rows += rows_batch.sum(dim=0) if not reduction == 'mean' else rows_batch.sum(dim=0) / obs_numel
+                rows += (rows_batch.sum(dim=0) / obs_numel if reduction == 'mean'
+                        else rows_batch.sum(dim=0))
 
         if verbose:
             print(f'scale.min: {rows.min()}, scale.max: {rows.max()}')
 
         if rows.max() > max_scale_thresh:
             warn('max scale values reached.')
-        
+
         scale_vec = (rows).pow(0.5).clamp(min=eps).pow(-1) # num_params
 
     return scale_vec
