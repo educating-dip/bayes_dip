@@ -13,6 +13,7 @@ linear_cg:
   update_freq: 100
   use_preconditioner: True
   use_log_re_variant: False
+  use_preconditioned_probes: False
   preconditioner:
     name: low_rank_eig
     # shared:

@@ -13,7 +13,8 @@ def approx_observation_cov_log_det_grads(
         cg_rtol: float = 1e-3,
         num_probes: int = 1,
         use_log_re_variant: bool = False,
-        ignore_numerical_warning: bool = False,
+        use_preconditioned_probes: bool = False,
+        ignore_numerical_warning: bool = False
         ) -> Dict[nn.Parameter, Tensor]:
     """
     Estimates the gradient for the log-determinant ``0.5*log|observation_cov|`` w.r.t. its
@@ -36,18 +37,21 @@ def approx_observation_cov_log_det_grads(
     # => d image_cov / d params ==
     #    image_cov.lin_op @ d image_cov.inner_cov / d params @ image_cov.lin_op_transposed
 
-    v_flat = generate_probes_bernoulli(
-        side_length=observation_cov.shape[0],
-        num_probes=num_probes,
-        device=observation_cov.device,
-        jacobi_vector=None)  # (obs_numel, num_probes)
-
     def observation_cov_closure(v):
         return observation_cov(v.T.reshape(num_probes, 1, *observation_cov.trafo.obs_shape)
                 ).view(num_probes, observation_cov.shape[0]).T
 
     precon_closure = None if precon is None else precon.get_closure()
 
+    if not use_preconditioned_probes: 
+        v_flat = generate_probes_bernoulli(
+            side_length=observation_cov.shape[0],
+            num_probes=num_probes,
+            device=observation_cov.device,
+            jacobi_vector=None)  # (obs_numel, num_probes)
+    else:
+        v_flat = precon.sample(num_samples=num_probes)
+    
     grads = {}
 
     ## gradients for parameters in image_cov
@@ -62,6 +66,8 @@ def approx_observation_cov_log_det_grads(
         v_left = image_cov.lin_op_transposed(v_left)  # (num_probes, nn_params_numel)
         # v_left = v.T @ observation_cov**-1 @ trafo @ lin_op
 
+        if use_preconditioned_probes:
+            v_flat = precon_closure(v_flat)
         v_right = trafo.trafo_adjoint_flat(v_flat)
         v_right = v_right.T.reshape(num_probes, 1, *trafo.im_shape)
         v_right = image_cov.lin_op_transposed(v_right) # (num_probes, nn_params_numel)

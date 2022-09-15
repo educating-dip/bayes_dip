@@ -129,6 +129,7 @@ def marginal_likelihood_hyperparams_optim(
                     max_cg_iter=optim_kwargs['linear_cg']['max_iter'],
                     cg_rtol=optim_kwargs['linear_cg']['rtol'],
                     use_log_re_variant=optim_kwargs['linear_cg']['use_log_re_variant'],
+                    use_preconditioned_probes=optim_kwargs['linear_cg']['use_preconditioned_probes']
                 )
 
                 _add_grads(params=observation_cov.parameters(), grad_dict=log_det_grads)

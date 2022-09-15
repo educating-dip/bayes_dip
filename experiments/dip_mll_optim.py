@@ -197,6 +197,7 @@ def coordinator(cfg : DictConfig) -> None:
                     'rtol': cfg.mll_optim.linear_cg.rtol,
                     'use_log_re_variant': cfg.mll_optim.linear_cg.use_log_re_variant,
                     'update_freq': cfg.mll_optim.linear_cg.update_freq,
+                    'use_preconditioned_probes': cfg.mll_optim.linear_cg.use_preconditioned_probes
                 },
                 'min_log_variance': cfg.mll_optim.min_log_variance,
                 'include_predcp': cfg.mll_optim.include_predcp,
