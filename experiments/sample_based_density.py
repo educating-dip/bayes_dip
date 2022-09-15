@@ -234,6 +234,7 @@ def coordinator(cfg : DictConfig) -> None:
                 'patch_size': cfg.inference.patch_size,
                 'patch_idx_list': patch_idx_list,
                 'batch_size': cfg.inference.batch_size,
+                'reweight_off_diagonal_entries': cfg.inference.reweight_off_diagonal_entries
         }
 
         log_probs_unscaled, patch_diags = predictive_posterior.log_prob_patches(

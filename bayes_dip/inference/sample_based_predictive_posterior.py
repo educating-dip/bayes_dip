@@ -84,10 +84,11 @@ def approx_predictive_cov_image_patch_from_zero_mean_samples_batched(
 
     batch_size, mc_samples, im_numel = samples.shape
     samples = samples.view(batch_size * mc_samples, -1)
+    samples = samples * (mc_samples ** -0.5)
 
     prods = torch.bmm(samples[:, :, None], samples[:, None, :]).view(
             batch_size, mc_samples, im_numel, im_numel)
-    cov = prods.sum(dim=1) / prods.shape[1]  # image x image
+    cov = prods.sum(dim=1) # image x image
 
     if noise_x_correction_term is not None:
         cov[(slice(None), *np.diag_indices(im_numel))] += noise_x_correction_term
@@ -396,6 +397,12 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                         samples=samples,
                         patch_kwargs=patch_kwargs,
                         noise_x_correction_term=noise_x_correction_term)):
+            
+            if patch_kwargs['reweight_off_diagonal_entries'] and patch_kwargs['patch_size'] > 1:
+                batch_predictive_cov_image_patch = 0.5 * (
+                    batch_predictive_cov_image_patch + torch.diag_embed(
+                        torch.diagonal(batch_predictive_cov_image_patch, dim1=1, dim2=2), dim1=-2, dim2=-1)
+                    )
 
             if return_patch_diags:
                 patch_diags.extend([cov_image_patch.diag()[:len_mask_inds]
