@@ -1,15 +1,15 @@
-iterations: 2000
+iterations: 4000
 lr: 0.01
 scheduler:
   use_scheduler: False
-  step_size: 500
+  step_size: 1000
   gamma: 0.5
 init_load_path: null
 init_load_iter: null
 num_probes: 50
 linear_cg:
   max_iter: 150
-  rtol: 1e-1
+  rtol: 1
   update_freq: 100
   use_preconditioner: True
   use_log_re_variant: False
