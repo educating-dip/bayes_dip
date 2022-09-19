@@ -406,24 +406,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                         samples=samples,
                         patch_kwargs=patch_kwargs,
                         noise_x_correction_term=noise_x_correction_term)):
-<<<<<<< HEAD
-            
-            if patch_kwargs['reweight_off_diagonal_entries'] and patch_kwargs['patch_size'] > 1:
 
-                """
-                The re-weighting of the off-diagonal entries is proposed by Wesley J. Maddox
-                in [1]_.
-
-                .. [1] Maddox, W.J., Izmailov, P., Garipov, T., Vetrov, D.P. and Wilson, A.G.,
-                        2019, "A simple baseline for bayesian uncertainty in deep learning". 
-                        Advances in Neural Information Processing Systems, 32.
-                        https://arxiv.org/pdf/1902.02476.pdf
-                """
-
-=======
-
-            if reweight_off_diagonal_entries and patch_kwargs['patch_size'] > 1:
->>>>>>> d882ce5080f82a3a0d4bfba532e2b328404e8384
             if patch_kwargs['reweight_off_diagonal_entries'] and patch_kwargs['patch_size'] > 1:
 
                 """
