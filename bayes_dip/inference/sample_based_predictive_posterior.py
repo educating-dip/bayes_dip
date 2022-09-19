@@ -1,3 +1,7 @@
+"""
+Provides a sample based predictive posterior implementation,
+:class:`SampleBasedPredictivePosterior`.
+"""
 from typing import Optional, Dict, Tuple, List, Union
 from math import ceil
 import numpy as np
@@ -336,6 +340,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             ground_truth: Tensor,
             samples: Tensor = None,
             patch_kwargs: Optional[Dict] = None,
+            reweight_off_diagonal_entries: bool = False,
             noise_x_correction_term: float = 1e-6,
             verbose: bool = True,
             unscaled: bool = False,
@@ -356,6 +361,10 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             If not specified, ``samples_kwargs['num_samples']`` samples are drawn in this function.
         patch_kwargs : dict, optional
             Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
+        reweight_off_diagonal_entries : bool, optional
+            If `True`, replace the covariance matrix `cov` (for each patch) with
+            ``0.5 * (cov + torch.diag(torch.diag(cov)))``.
+            The default is `False`.
         noise_x_correction_term : float, optional
             Noise amount that is assumed to be present in ground truth. Can help to stabilize
             computations. The default is `1e-6`.
@@ -397,7 +406,24 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                         samples=samples,
                         patch_kwargs=patch_kwargs,
                         noise_x_correction_term=noise_x_correction_term)):
+<<<<<<< HEAD
             
+            if patch_kwargs['reweight_off_diagonal_entries'] and patch_kwargs['patch_size'] > 1:
+
+                """
+                The re-weighting of the off-diagonal entries is proposed by Wesley J. Maddox
+                in [1]_.
+
+                .. [1] Maddox, W.J., Izmailov, P., Garipov, T., Vetrov, D.P. and Wilson, A.G.,
+                        2019, "A simple baseline for bayesian uncertainty in deep learning". 
+                        Advances in Neural Information Processing Systems, 32.
+                        https://arxiv.org/pdf/1902.02476.pdf
+                """
+
+=======
+
+            if reweight_off_diagonal_entries and patch_kwargs['patch_size'] > 1:
+>>>>>>> d882ce5080f82a3a0d4bfba532e2b328404e8384
             if patch_kwargs['reweight_off_diagonal_entries'] and patch_kwargs['patch_size'] > 1:
 
                 """
@@ -412,8 +438,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
 
                 batch_predictive_cov_image_patch = 0.5 * (
                     batch_predictive_cov_image_patch + torch.diag_embed(
-                        torch.diagonal(batch_predictive_cov_image_patch, dim1=1, dim2=2), dim1=-2, dim2=-1)
-                    )
+                        torch.diagonal(batch_predictive_cov_image_patch,
+                                dim1=-2, dim2=-1), dim1=-2, dim2=-1))
 
             if return_patch_diags:
                 patch_diags.extend([cov_image_patch.diag()[:len_mask_inds]

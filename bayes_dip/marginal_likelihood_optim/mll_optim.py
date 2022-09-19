@@ -1,3 +1,7 @@
+"""
+Provides the marginal log-likelihood (MLL or Type-II-MAP) optimization routine for the prior
+hyperparameters, :func:`marginal_likelihood_hyperparams_optim`.
+"""
 from typing import Iterable, Dict, Optional
 import os
 import socket

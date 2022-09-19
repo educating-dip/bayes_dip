@@ -1,3 +1,6 @@
+"""
+Provides general utilities for the marginal likelihood optimization.
+"""
 import torch
 
 def get_ordered_nn_params_vec(parameter_cov):

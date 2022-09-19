@@ -1,3 +1,6 @@
+"""
+Provides an exact predictive posterior implementation, :class:`ExactPredictivePosterior`.
+"""
 import torch
 import numpy as np
 from torch import Tensor

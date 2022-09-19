@@ -1,3 +1,7 @@
+"""
+Provides an optimization routine for the network weights in the linearized model,
+:func:`weights_linearization`.
+"""
 import torch
 from torch import nn
 from tqdm import tqdm
@@ -8,6 +12,10 @@ from ..utils import batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-imp
 def weights_linearization(
         trafo, neural_basis_expansion, map_weights, observation, ground_truth, optim_kwargs):
     # pylint: disable=too-many-locals
+    """
+    Optimize the network weights in the linearized model, with the same loss as for the
+    TV-regularized DIP.
+    """
 
     nn_model = neural_basis_expansion.nn_model
     nn_input = neural_basis_expansion.nn_input

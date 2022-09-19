@@ -104,6 +104,8 @@ def coordinator(cfg : DictConfig) -> None:
 
         cov = predictive_posterior.covariance(noise_x_correction_term=noise_x_correction_term)
 
+        assert not cfg.inference.reweight_off_diagonal_entries
+
         log_prob = predictive_posterior.log_prob(
             mean=recon,
             ground_truth=ground_truth,

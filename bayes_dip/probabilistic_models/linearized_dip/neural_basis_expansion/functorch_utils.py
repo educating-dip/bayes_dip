@@ -1,3 +1,7 @@
+"""
+Utilities for using the flattened parameter representation from :class:`BaseNeuralBasisExpansion`
+with functorch.
+"""
 import torch
 
 def flatten_grad_functorch(inds_from_ordered_params, grads):

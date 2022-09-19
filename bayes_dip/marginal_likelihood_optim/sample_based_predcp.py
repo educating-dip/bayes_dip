@@ -1,3 +1,6 @@
+"""
+Provides sample based gradient estimation for the PredCP term, :func:`sample_based_predcp_grads`.
+"""
 from typing import Sequence
 import torch
 from torch import autograd
@@ -6,19 +9,6 @@ from torch import Tensor
 from ..probabilistic_models import (
         BaseImageCov, ImageCov, ParameterCov, GPprior, BaseMatmulNeuralBasisExpansion)
 from ..utils import batch_tv_grad
-
-def compute_log_hyperparams_grads(params_list_under_GPpriors: Sequence,
-        first_derivative_grads: Sequence,
-        second_derivative_grads: Sequence,
-        scaling: float
-        ):
-
-    assert len(first_derivative_grads) == len(params_list_under_GPpriors)
-
-    grads = {}
-    for i, param in enumerate(params_list_under_GPpriors):
-        grads[param] = -(-first_derivative_grads[i] + second_derivative_grads[i]) * scaling
-    return grads
 
 def sample_based_predcp_grads(
         image_cov: BaseImageCov,

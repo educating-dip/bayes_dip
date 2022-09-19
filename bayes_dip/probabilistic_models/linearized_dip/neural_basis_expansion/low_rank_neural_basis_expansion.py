@@ -1,3 +1,7 @@
+"""
+Provides :class:`LowRankNeuralBasisExpansion`.
+"""
+
 from typing import Optional, Tuple
 from math import ceil
 import torch
