@@ -1,3 +1,6 @@
+"""
+Provides :func:`approx_observation_cov_log_det_grads`.
+"""
 from typing import Dict
 import torch
 from torch import nn

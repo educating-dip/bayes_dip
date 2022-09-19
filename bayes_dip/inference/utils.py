@@ -1,3 +1,8 @@
+"""
+Provides utilities for inference.
+
+In particular, functionality for patch-wise evaluation is included.
+"""
 from typing import Optional, Dict
 import numpy as np
 import torch

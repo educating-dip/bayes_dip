@@ -1,3 +1,6 @@
+"""
+Provides base classes for neural basis expansion.
+"""
 from typing import Optional, Sequence, Tuple
 from abc import ABC, abstractmethod
 import torch

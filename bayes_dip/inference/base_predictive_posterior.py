@@ -1,3 +1,6 @@
+"""
+Provides :class:`BasePredictivePosterior`.
+"""
 from abc import ABC, abstractmethod
 from torch import Tensor
 from bayes_dip.probabilistic_models import BaseObservationCov

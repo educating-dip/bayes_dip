@@ -1,4 +1,6 @@
-
+"""
+Provides preconditioners for applying CG to the linear system of the observation covariance.
+"""
 from abc import ABC, abstractmethod
 from typing import Callable, Optional, Dict
 from functools import partial

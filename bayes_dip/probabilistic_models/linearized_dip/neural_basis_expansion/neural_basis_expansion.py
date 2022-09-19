@@ -1,3 +1,6 @@
+"""
+Provides a neural basis expansion implementation using functorch.
+"""
 from typing import Callable
 import functorch as ftch
 import torch

@@ -1,3 +1,6 @@
+"""
+Provides utilities for the preconditioners in :module:`.preconditioner`.
+"""
 from typing import Callable, Optional
 from math import ceil
 import torch

@@ -1,3 +1,6 @@
+"""
+Provides neural basis expansion with a scaling in weight space, used for the isotropic g-prior.
+"""
 from typing import Dict, Optional
 from abc import ABC, abstractmethod
 from warnings import warn

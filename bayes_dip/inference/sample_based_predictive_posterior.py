@@ -1,3 +1,7 @@
+"""
+Provides a sample based predictive posterior implementation,
+:class:`SampleBasedPredictivePosterior`.
+"""
 from typing import Optional, Dict, Tuple, List, Union
 from math import ceil
 import numpy as np
