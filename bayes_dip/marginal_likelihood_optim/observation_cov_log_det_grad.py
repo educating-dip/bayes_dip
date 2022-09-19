@@ -42,7 +42,7 @@ def approx_observation_cov_log_det_grads(
                 ).view(num_probes, observation_cov.shape[0]).T
 
     precon_closure = None if precon is None else precon.get_closure()
-    if not use_preconditioned_probes: 
+    if not use_preconditioned_probes:
         v_flat = generate_probes_bernoulli(
             side_length=observation_cov.shape[0],
             num_probes=num_probes,
@@ -51,7 +51,7 @@ def approx_observation_cov_log_det_grads(
     else:
         assert precon is not None
         v_flat = precon.sample(num_samples=num_probes)
-    
+
     grads = {}
 
     ## gradients for parameters in image_cov

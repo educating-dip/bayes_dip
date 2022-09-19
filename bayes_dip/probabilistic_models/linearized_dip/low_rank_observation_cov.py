@@ -310,15 +310,26 @@ class LowRankObservationCov(BaseObservationCov):
         self.sysmat = torch.diag(1 / self.L) + self.U.T @ self.U / self.noise_variance_obs_and_eps
 
     def sample(self,
-        num_samples: int = 10,
+        num_samples: int,
+        flat: bool = False,
         ) -> Tensor:
         """
         Sample from a Gaussian with this covariance and mean zero.
 
+        Parameters
+        ----------
+        num_samples : int
+            Number of samples.
+        flat : bool, optional
+            If `True`, return a flattened tensor with `num_samples` as second dimension (see the
+            return value).
+
         Returns
         -------
         Tensor
-            Samples. Shape: ``(num_samples, 1, *self.trafo.obs_shape)``.
+            Samples.
+            Shape: Either ``(num_samples, 1, *self.trafo.obs_shape)`` if ``not flat`` (the default),
+            or ``(np.prod(self.trafo.obs_shape), num_samples)`` if ``flat``.
         """
 
         normal_std = torch.randn(
@@ -330,4 +341,4 @@ class LowRankObservationCov(BaseObservationCov):
             device=self.device
             )
         samples = normal_std * self.noise_stddev + (self.U * self.L.pow(0.5) ) @ normal_low_rank
-        return samples
+        return samples if flat else samples.T.view(num_samples, 1, *self.trafo.obs_shape)

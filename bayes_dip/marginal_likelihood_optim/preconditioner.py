@@ -49,9 +49,9 @@ class LowRankObservationCovPreconditioner(BasePreconditioner):
         # do not call super().__init__(), low_rank_observation_cov should be updated already
 
     def sample(self,
-            num_samples: int = 10,
+            num_samples: int,
             ) -> Tensor:
-        return self.low_rank_observation_cov.sample(num_samples=num_samples)
+        return self.low_rank_observation_cov.sample(num_samples=num_samples, flat=True)
 
     def matmul(self,
             v: Tensor,
