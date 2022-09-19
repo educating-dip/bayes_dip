@@ -50,6 +50,16 @@ def approx_observation_cov_log_det_grads(
             jacobi_vector=None)  # (obs_numel, num_probes)
     else:
         assert precon is not None
+        """
+        The preconditioned BBMM is here used, proposed in [1]_. Refer to section 4.1 as well as Appendix D. 
+
+        .. [1] Gardner, J., Pleiss, G., Weinberger, K.Q., Bindel, D. and Wilson, A.G., 
+                2018. "Gpytorch: Blackbox matrix-matrix gaussian process inference with 
+                gpu acceleration."
+                Advances in neural information processing systems, 31.
+                https://arxiv.org/pdf/1809.11165.pdf
+        
+        """
         v_flat = precon.sample(num_samples=num_probes)
     
     grads = {}

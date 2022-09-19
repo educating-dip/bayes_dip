@@ -108,6 +108,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         low_rank_jac_v_mat = low_rank_jac_v_mat.view(low_rank_jac_v_mat.shape[0], -1).T
         Q, _ = torch.linalg.qr(low_rank_jac_v_mat)
         Q = Q.to(self.device)
+        Q = Q[:, :self.low_rank_rank_dim]
 
         assert total_low_rank_rank_dim <= low_rank_jac_v_mat.shape[0], (
                 'low rank dim must not be larger than network output dimension')
@@ -128,14 +129,8 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         B = torch.cat(qT_low_rank_jac_mat) # ( (total_low_rank_rank_dim), self.num_params)
 
         U, S, Vh = torch.linalg.svd(B, full_matrices=False)
-        U = U.to(self.device)
-        S = S.to(self.device)
-        Vh = Vh.to(self.device)
 
-        return (
-                Q[:, :self.low_rank_rank_dim] @ U[:self.low_rank_rank_dim, :self.low_rank_rank_dim],
-                S[:self.low_rank_rank_dim],
-                Vh[:self.low_rank_rank_dim, :])
+        return (Q @ U.to(self.device), S.to(self.device), Vh.to(self.device))
 
     def jvp(self, v) -> Tensor:
 
