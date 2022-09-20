@@ -140,8 +140,8 @@ def coordinator(cfg : DictConfig) -> None:
             neural_basis_expansion = LowRankNeuralBasisExpansion(
                 neural_basis_expansion=neural_basis_expansion,
                 batch_size=cfg.inference.low_rank_neural_basis_expansion.batch_size,
-                oversampling_param=cfg.inference.low_rank_neural_basis_expansion.oversampling_param,
                 low_rank_rank_dim=cfg.inference.low_rank_neural_basis_expansion.low_rank_rank_dim,
+                oversampling_param=cfg.inference.low_rank_neural_basis_expansion.oversampling_param,
                 device=device,
                 use_cpu=cfg.inference.low_rank_neural_basis_expansion.use_cpu)
 

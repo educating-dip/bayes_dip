@@ -43,13 +43,13 @@ class LowRankObservationCov(BaseObservationCov):
             Image space covariance module.
         init_noise_variance : float, optional
             Initial value for noise variance parameter. The default is `1.`.
-        low_rank_rank_dim: int, optional
+        low_rank_rank_dim : int, optional
             Number of dimensions of the low-rank approximation. The default is `100`.
-        oversampling_param: int, optional
+        oversampling_param : int, optional
             Number of oversampling dimensions for the low-rank approximation. The default is `10`.
-        load_state_dict: str or dict, optional
+        load_state_dict : str or dict, optional
             State dict (or path to it) to load.
-        load_approx_basis: str or dict, optional
+        load_approx_basis : str or dict, optional
             Approximate basis (or path to it) to load.
             Only supported if `requires_grad=False`. If using this option, `load_state_dict` is
             required, and the user is responsible for consistency.
@@ -176,7 +176,7 @@ class LowRankObservationCov(BaseObservationCov):
         # image_cov might require grads (shared module), so disable grads if not self.requires_grad
         with torch.set_grad_enabled(self.requires_grad):
             for i in tqdm(range(num_batches), miniters=num_batches//100,
-                    desc='get_cov_obs_low_rank'):
+                    desc='get_low_rank_observation_cov_basis'):
                 rnd_vect = self.random_matrix[i * batch_size:(i+1) * batch_size, None, None, :]
                 eff_batch_size = rnd_vect.shape[0]
                 if eff_batch_size < batch_size:
