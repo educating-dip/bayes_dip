@@ -27,7 +27,7 @@ class LowRankObservationCov(BaseObservationCov):
             image_cov: BaseImageCov,
             init_noise_variance: float = 1.,
             low_rank_rank_dim: int = 100,
-            oversampling_param: int = 5,
+            oversampling_param: int = 10,
             load_state_dict: Optional[Union[str, dict]] = None,
             load_approx_basis: Optional[Union[str, dict]] = None,
             requires_grad=True,
@@ -46,7 +46,7 @@ class LowRankObservationCov(BaseObservationCov):
         low_rank_rank_dim: int, optional
             Number of dimensions of the low-rank approximation. The default is `100`.
         oversampling_param: int, optional
-            Number of oversampling dimensions for the low-rank approximation. The default is `5`.
+            Number of oversampling dimensions for the low-rank approximation. The default is `10`.
         load_state_dict: str or dict, optional
             State dict (or path to it) to load.
         load_approx_basis: str or dict, optional

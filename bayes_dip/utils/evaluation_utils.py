@@ -12,17 +12,40 @@ from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mea
 from bayes_dip.inference import get_image_patch_mask_inds
 
 DEFAULT_OUTPUTS_PATH = '../experiments/outputs'
+DEFAULT_MULTIRUN_PATH = '../experiments/multirun'
 
 def translate_output_path(path: str, outputs_path: Optional[str] = DEFAULT_OUTPUTS_PATH):
-    path = path.rstrip('/')
+    path = path.rstrip('/\\')
     if outputs_path is not None:
         path = os.path.join(outputs_path, os.path.basename(path))
     return path
 
+def translate_multirun_path(path: str, multirun_path: Optional[str] = DEFAULT_MULTIRUN_PATH):
+    path = path.rstrip('/\\')
+    if multirun_path is not None:
+        path = os.path.join(
+                multirun_path, os.path.basename(os.path.dirname(path)), os.path.basename(path))
+    return path
+
+def translate_path(
+        path: str,
+        experiment_paths: Optional[Dict] = None):
+    path = path.rstrip('/\\')
+    is_multirun = all(c in '0123456789' for c in os.path.basename(path))
+    if is_multirun:
+        path = translate_multirun_path(
+                path=path,
+                multirun_path=experiment_paths.get('multirun_path', DEFAULT_MULTIRUN_PATH))
+    else:
+        path = translate_output_path(
+                path=path,
+                outputs_path=experiment_paths.get('outputs_path', DEFAULT_OUTPUTS_PATH))
+    return path
+
 def get_abs_diff(
         run_path: str, sample_idx: int,
-        outputs_path: str = DEFAULT_OUTPUTS_PATH) -> Tensor:
-    run_path = translate_output_path(run_path, outputs_path=outputs_path)
+        experiment_paths: Optional[Dict] = None) -> Tensor:
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
     ground_truth = torch.load(os.path.join(run_path, f'sample_{sample_idx}.pt'),
             map_location='cpu')['ground_truth'].detach()
     recon = torch.load(os.path.join(run_path, f'recon_{sample_idx}.pt'),
@@ -32,8 +55,8 @@ def get_abs_diff(
 
 def get_density_data(
         run_path: str, sample_idx: int,
-        outputs_path: str = DEFAULT_OUTPUTS_PATH) -> Tuple[Dict, bool]:
-    run_path = translate_output_path(run_path, outputs_path=outputs_path)
+        experiment_paths: Optional[Dict] = None) -> Tuple[Dict, bool]:
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
     exact_filepath = os.path.join(
             run_path, f'exact_predictive_posterior_{sample_idx}.pt')
     sample_based_filepath = os.path.join(
@@ -47,14 +70,16 @@ def get_density_data(
     data = torch.load(filepath, map_location='cpu')
     return data, is_exact
 
-def _recompute_image_noise_correction_term(run_path: str, sample_idx: int) -> float:
+def _recompute_image_noise_correction_term(
+        run_path: str, sample_idx: int,
+        experiment_paths: Optional[Dict] = None) -> float:
     cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
     ray_trafo = get_standard_ray_trafo(cfg)
     observation_cov_filename = (
             f'observation_cov_{sample_idx}.pt' if cfg.inference.load_iter is None else
             f'observation_cov_{sample_idx}_iter_{cfg.inference.load_iter}.pt')
     log_noise_variance = torch.load(os.path.join(
-            translate_output_path(cfg.inference.load_path),
+            translate_path(cfg.inference.load_path, experiment_paths=experiment_paths),
             observation_cov_filename),
             map_location='cpu')['log_noise_variance']
     diag_mean = get_trafo_t_trafo_pseudo_inv_diag_mean(ray_trafo)
@@ -96,8 +121,8 @@ def get_sample_based_cov_diag(
 
 def restrict_sample_based_density_data_to_new_patch_idx_list(
         run_path: str, data: Dict, patch_idx_list: Union[List[int], str, None],
-        outputs_path: str = DEFAULT_OUTPUTS_PATH) -> Dict:
-    run_path = translate_output_path(run_path, outputs_path=outputs_path)
+        experiment_paths: Optional[Dict] = None) -> Dict:
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
     cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
     im_shape = (cfg.dataset.im_size,) * 2
     orig_patch_idx_list = list(get_patch_idx_to_mask_inds_dict(  # original indices
@@ -126,8 +151,8 @@ def restrict_sample_based_density_data_to_new_patch_idx_list(
 def get_stddev(run_path: str, sample_idx: int,
         patch_idx_list: Optional[Union[List[int], str]] = None,
         subtract_image_noise_correction: bool = True,
-        outputs_path: str = DEFAULT_OUTPUTS_PATH) -> Tensor:
-    run_path = translate_output_path(run_path, outputs_path=outputs_path)
+        experiment_paths: Optional[Dict] = None) -> Tensor:
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
     data, is_exact = get_density_data(run_path=run_path, sample_idx=sample_idx)
     if is_exact:
         cov_diag = data['cov'].detach().diag()
@@ -138,7 +163,7 @@ def get_stddev(run_path: str, sample_idx: int,
         image_noise_correction_term = data.get('image_noise_correction_term', None)
         if image_noise_correction_term is None:
             image_noise_correction_term = _recompute_image_noise_correction_term(
-                    run_path=run_path, sample_idx=sample_idx)
+                    run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths)
         print(f'subtracting {image_noise_correction_term} (image noise correction) from cov_diag')
         cov_diag -= image_noise_correction_term
     stddev = torch.sqrt(cov_diag)

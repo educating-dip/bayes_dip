@@ -93,14 +93,17 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
 
         total_low_rank_rank_dim = self.low_rank_rank_dim + self.oversampling_param
 
+        assert total_low_rank_rank_dim <= self.jac_shape[0], (
+                'low rank dim must not be larger than network output dimension')
+
         # Stage 1: Randomized Range Finder
         # (see Algo. 4.1; https://epubs.siam.org/doi/epdf/10.1137/090771806)
 
         # Identifying a subspace that captures most of the action of the Jacobian. Constructing a
         # matrix Q whose columns form an orthonormal basis for the range of Y = Jac @ Omega.
-        num_batches = ceil(total_low_rank_rank_dim / batch_size)
+        num_batches_forward = ceil(total_low_rank_rank_dim / batch_size)
         low_rank_jac_v_mat = []
-        for i in tqdm(range(num_batches), miniters=num_batches//100,
+        for i in tqdm(range(num_batches_forward), miniters=num_batches_forward//100,
                 desc='get_batched_jac_low_rank forward'):
             rnd_vect = random_matrix[
                     :, i * batch_size:(i * batch_size) + batch_size]
@@ -114,15 +117,13 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         Q = Q.to(self.device)
         Q = Q[:, :self.low_rank_rank_dim]
 
-        assert total_low_rank_rank_dim <= low_rank_jac_v_mat.shape[0], (
-                'low rank dim must not be larger than network output dimension')
-
-        # Stage 2: Direct SVD: (see Algo. 5.1.; https://epubs.siam.org/doi/epdf/10.1137/090771806)
+        # Stage 2: Direct SVD
+        # (see Algo. 5.1.; https://epubs.siam.org/doi/epdf/10.1137/090771806)
 
         # Construction of a standard factorization using the information contained in the basis Q.
-
+        num_batches_backward = ceil(self.low_rank_rank_dim / batch_size)
         qT_low_rank_jac_mat = []
-        for i in tqdm(range(num_batches), miniters=num_batches//100,
+        for i in tqdm(range(num_batches_backward), miniters=num_batches_backward//100,
                 desc='get_batched_jac_low_rank backward'):
             qT_i = Q[:, i * batch_size:(i * batch_size) + batch_size].T
             qT_low_rank_jac_mat_row = self.neural_basis_expansion.vjp(
@@ -130,7 +131,7 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
             qT_low_rank_jac_mat_row.detach()
             qT_low_rank_jac_mat.append(
                     qT_low_rank_jac_mat_row.cpu() if use_cpu else qT_low_rank_jac_mat_row)
-        B = torch.cat(qT_low_rank_jac_mat) # ( (total_low_rank_rank_dim), self.num_params)
+        B = torch.cat(qT_low_rank_jac_mat) # ( (self.low_rank_rank_dim), self.num_params)
 
         U, S, Vh = torch.linalg.svd(B, full_matrices=False)
 
