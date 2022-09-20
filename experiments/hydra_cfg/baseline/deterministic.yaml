@@ -1,0 +1,3 @@
+name: deterministic
+load_log_noise_variance: False
+add_noise_x_correction_term: True

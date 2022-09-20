@@ -1,0 +1,5 @@
+name: mcdo
+add_noise_x_correction_term: True
+num_samples: 4096
+save_samples: True
+save_samples_chunk_size: 4096

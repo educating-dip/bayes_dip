@@ -1,12 +1,16 @@
 """
 Provides utilities for the Monte-Carlo Dropout baseline.
 """
+from typing import Optional
 import torch
+import numpy as np
 import torch.nn.functional as F
 from torch import nn
+from torch import Tensor
 from torch.nn.modules.dropout import _DropoutNd
 from tqdm import tqdm
-from .network import UNet
+from bayes_dip.dip.network import UNet
+from sklearn.neighbors import KernelDensity
 
 class mc_dropout2d(_DropoutNd):
     """Dropout 2D layer"""
@@ -65,3 +69,24 @@ def sample_from_bayesianized_model(nn_model, filtbackproj, mc_samples, device=No
     for _ in tqdm(range(mc_samples), desc='sampling'):
         sampled_recons.append(nn_model.forward(filtbackproj).detach().to(device))
     return torch.cat(sampled_recons, dim=0)
+
+def approx_kernel_density(
+        ground_truth: Tensor, 
+        x_samples: Tensor, 
+        bw: float = 0.1, 
+        noise_x_correction_term: Optional[float] = None
+    ):
+    
+    assert ground_truth.shape[1:] == x_samples.shape[1:]
+    
+    if noise_x_correction_term is not None:
+        x_samples = x_samples + torch.randn_like(x_samples) * noise_x_correction_term **.5
+    kde = KernelDensity(
+            kernel='gaussian',
+            bandwidth=bw
+        ).fit(
+                x_samples.view(x_samples.shape[0], -1).cpu().numpy()
+            )
+    return kde.score_samples(ground_truth.flatten().cpu().numpy()[None, :])
+
+
