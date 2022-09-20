@@ -1,4 +1,4 @@
-iterations: 4000
+iterations: 3000
 lr: 0.01
 scheduler:
   use_scheduler: False
@@ -13,7 +13,7 @@ linear_cg:
   update_freq: 100
   use_preconditioner: True
   use_log_re_variant: False
-  use_preconditioned_probes: False
+  use_preconditioned_probes: True
   preconditioner:
     name: low_rank_eig
     # shared:
