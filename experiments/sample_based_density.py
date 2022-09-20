@@ -164,23 +164,25 @@ def coordinator(cfg : DictConfig) -> None:
         noise_x_correction_term = get_image_noise_correction_term(observation_cov=observation_cov)
         print('noise_x_correction_term:', noise_x_correction_term)
 
-        if cfg.inference.load_cov_obs_mat_from_path is None:
-            cov_obs_mat = observation_cov.assemble_observation_cov(
-                    batch_size=cfg.inference.cov_obs_mat.batch_size)
-        else:
-            cov_obs_mat = _load_cov_obs_mat(
-                    path=cfg.inference.load_cov_obs_mat_from_path, i=i, device=device, dtype=dtype)
-        if cfg.inference.save_cov_obs_mat:
-            _save_cov_obs_mat(i=i, cov_obs_mat=cov_obs_mat)
-        eps = ObservationCov.get_stabilizing_eps(
-                cov_obs_mat,
-                eps_mode=cfg.inference.cov_obs_mat.eps_mode,
-                eps=cfg.inference.cov_obs_mat.eps,
-                eps_min_for_auto=cfg.inference.cov_obs_mat.eps_min_for_auto,
-                include_zero_for_auto=cfg.inference.cov_obs_mat.include_zero_for_auto)
-        print(f'Stabilizing cov_obs_mat eps: {eps}')
-        cov_obs_mat[np.diag_indices(cov_obs_mat.shape[0])] += eps
-        cov_obs_mat_chol = torch.linalg.cholesky(cov_obs_mat)
+        cov_obs_mat_chol = None
+        if not cfg.inference.sampling.use_conj_grad_inv:
+            if cfg.inference.load_cov_obs_mat_from_path is None:
+                cov_obs_mat = observation_cov.assemble_observation_cov(
+                        batch_size=cfg.inference.cov_obs_mat.batch_size)
+            else:
+                cov_obs_mat = _load_cov_obs_mat(
+                        path=cfg.inference.load_cov_obs_mat_from_path, i=i, device=device, dtype=dtype)
+            if cfg.inference.save_cov_obs_mat:
+                _save_cov_obs_mat(i=i, cov_obs_mat=cov_obs_mat)
+            eps = ObservationCov.get_stabilizing_eps(
+                    cov_obs_mat,
+                    eps_mode=cfg.inference.cov_obs_mat.eps_mode,
+                    eps=cfg.inference.cov_obs_mat.eps,
+                    eps_min_for_auto=cfg.inference.cov_obs_mat.eps_min_for_auto,
+                    include_zero_for_auto=cfg.inference.cov_obs_mat.include_zero_for_auto)
+            print(f'Stabilizing cov_obs_mat eps: {eps}')
+            cov_obs_mat[np.diag_indices(cov_obs_mat.shape[0])] += eps
+            cov_obs_mat_chol = torch.linalg.cholesky(cov_obs_mat)
 
         predictive_posterior = SampleBasedPredictivePosterior(observation_cov)
 
