@@ -108,7 +108,7 @@ def coordinator(cfg : DictConfig) -> None:
             print('noise_x_correction_term:', noise_x_correction_term)
 
         if cfg.baseline.name == 'mcdo':
-            assert cfg.baseline.load_samples_from_path
+            assert cfg.baseline.load_samples_from_path is not None
             samples = _load_samples(
                     path=cfg.baseline.load_samples_from_path, i=i,
                     num_samples=cfg.baseline.num_samples
