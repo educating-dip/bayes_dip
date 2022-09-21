@@ -11,7 +11,7 @@ def get_inds_from_ordered_params(
 
     Parameters
     ----------
-    nn_model : :class:`nn.Module``
+    nn_model : :class:`nn.Module`
         Network.
     ordered_nn_params : sequence of nn.Parameter
         Sequence of parameters.

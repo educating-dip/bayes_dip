@@ -12,3 +12,4 @@ sampling:
   batch_size: 16
   cg_preconditioner:
     low_rank_rank_dim: 1000
+    batch_size: 16

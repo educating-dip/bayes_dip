@@ -135,7 +135,7 @@ def yield_covariances_patches(
     # pylint: disable=too-many-arguments
 
     device = samples.device if device is None else device
-    
+
     for batch_patch_inds, batch_samples_patches, batch_len_mask_inds in (
             yield_padded_batched_images_patches(samples,
                     patch_kwargs=patch_kwargs, return_patch_numels=True)):
@@ -174,7 +174,7 @@ def log_prob_patches(
         verbose: bool = True,
         unscaled: bool = False,
         return_patch_diags: bool = False,
-        device = None 
+        device = None
         ) -> Union[List[float], Tuple[List[float], List[Tensor]]]:
     """
     Return log probabilities for patches.
@@ -227,7 +227,7 @@ def log_prob_patches(
             yield_covariances_patches(
                     samples=samples,
                     patch_kwargs=patch_kwargs,
-                    noise_x_correction_term=noise_x_correction_term, 
+                    noise_x_correction_term=noise_x_correction_term,
                     device=device)):
 
         if reweight_off_diagonal_entries and patch_kwargs['patch_size'] > 1:
@@ -392,7 +392,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         Parameters
         ----------
         samples : Tensor, optional
-            Precomputed samples, e.g. drawn by :meth:`sample_zero_mean`.
+            Precomputed samples with mean zero, e.g. drawn by :meth:`sample_zero_mean`.
             If not specified, ``samples_kwargs['num_samples']`` samples are drawn in this function.
         patch_kwargs : dict, optional
             Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
@@ -518,7 +518,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         ground_truth : Tensor
             Ground truth.
         samples : Tensor, optional
-            Precomputed samples, e.g. drawn by :meth:`sample_zero_mean`.
+            Precomputed samples with mean zero, e.g. drawn by :meth:`sample_zero_mean`.
             If not specified, ``samples_kwargs['num_samples']`` samples are drawn in this function.
         patch_kwargs : dict, optional
             Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
@@ -558,8 +558,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             sample_kwargs = sample_kwargs or {}
             sample_kwargs.setdefault('return_on_device', 'cpu')
             samples = self.sample_zero_mean(**sample_kwargs)
-        
-        return log_prob_patches( 
+
+        return log_prob_patches(
                 mean=mean,
                 ground_truth=ground_truth,
                 samples=samples,
@@ -568,6 +568,6 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
                 noise_x_correction_term=noise_x_correction_term,
                 verbose=verbose,
                 unscaled=unscaled,
-                return_patch_diags=return_patch_diags, 
+                return_patch_diags=return_patch_diags,
                 device=self.observation_cov.device
             )

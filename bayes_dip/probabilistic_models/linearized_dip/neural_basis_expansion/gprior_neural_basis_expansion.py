@@ -25,6 +25,43 @@ def compute_scale(
         use_single_batch: Optional[bool] = None,
         device=None,
         ) -> Tensor:
+    """
+    Compute a scaling vector for the weight space, which can help to improve the condition of the
+    (surrogate) observation covariance matrix.
+
+    Parameters
+    ----------
+    neural_basis_expansion : :class:`bayes_dip.probabilistic_models.NeuralBasisExpansion`
+        Neural basis expansion instance to be wrapped.
+    trafo : :class:`bayes_dip.data.BaseRayTrafo`
+        Ray transform.
+    reduction : {``'mean'``, ``'sum'``}, optional
+        Reduction kind for the tensors accumulated over observation space.
+        If ``mean`` (the default), values are divided by ``np.prod(trafo.obs_shape)``.
+    eps : float, optional
+        Minimum value for clamping before taking the inverse. The default is ``1e-6``.
+    max_scale_thresh : float, optional
+        Maximum value, if exceeded, a warning is raised. The default is ``1e5``.
+    verbose : bool, optional
+        Whether to print minimum and maximum values before applying the square-root, the clamping
+        and the inversion. The default is ``True``.
+    batch_size : int, optional
+        Batch size for trafo adjoint and vjp evaluations. This is not used if a single matmul is
+        employed, see `use_single_batch`.
+    use_single_batch : bool or `None`, optional
+        Whether to perform a single matmul instead of evaluating in batches via a closure.
+        If `None`, a single matmul is used iff both `neural_basis_expansion` and `trafo` are
+        matmul implementations.
+        If `True`, a single matmul is used iff `isinstance(trafo, MatmulRayTrafo)`.
+        If `False`, batched closure evaluations are used.
+    device : str or torch.device, optional
+        Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+
+    Returns
+    -------
+    scale_vec : Tensor
+        Scale vector. Shape: ``(neural_basis_expansion.num_params,)``.
+    """
 
     device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
 
@@ -60,8 +97,14 @@ def compute_scale(
                 rows_batch = rows_batch.view(batch_size, -1)
                 if i+batch_size > obs_numel:  # last batch
                     rows_batch = rows_batch[:obs_numel%batch_size]
-                rows += (rows_batch.sum(dim=0) / obs_numel if reduction == 'mean'
-                        else rows_batch.sum(dim=0))
+                rows += rows_batch.sum(dim=0)
+
+        if reduction == 'mean':
+            rows /= obs_numel
+        elif reduction == 'sum':
+            pass
+        else:
+            raise ValueError(f'unknown reduction kind {reduction}')
 
         if verbose:
             print(f'scale.min: {rows.min()}, scale.max: {rows.max()}')
@@ -69,7 +112,7 @@ def compute_scale(
         if rows.max() > max_scale_thresh:
             warn('max scale values reached.')
 
-        scale_vec = (rows).pow(0.5).clamp(min=eps).pow(-1) # num_params
+        scale_vec = (rows).pow(0.5).clamp(min=eps).pow(-1)  # num_params
 
     return scale_vec
 
