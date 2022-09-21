@@ -72,20 +72,20 @@ def sample_from_bayesianized_model(nn_model, filtbackproj, mc_samples, device=No
 
 def approx_kernel_density(
         ground_truth: Tensor, 
-        x_samples: Tensor, 
+        samples: Tensor, 
         bw: float = 0.1, 
         noise_x_correction_term: Optional[float] = None
     ):
     
-    assert ground_truth.shape[1:] == x_samples.shape[1:]
+    assert ground_truth.shape[1:] == samples.shape[1:]
     
     if noise_x_correction_term is not None:
-        x_samples = x_samples + torch.randn_like(x_samples) * noise_x_correction_term **.5
+        samples = samples + torch.randn_like(samples) * noise_x_correction_term **.5
     kde = KernelDensity(
             kernel='gaussian',
             bandwidth=bw
         ).fit(
-                x_samples.view(x_samples.shape[0], -1).cpu().numpy()
+                samples.view(samples.shape[0], -1).cpu().numpy()
             )
     return kde.score_samples(ground_truth.flatten().cpu().numpy()[None, :])
 

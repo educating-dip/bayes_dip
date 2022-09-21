@@ -13,12 +13,7 @@ from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mea
 from bayes_dip.inference import log_prob_patches, get_image_patch_mask_inds
 from baselines import (bayesianize_unet_architecture, sample_from_bayesianized_model,
     approx_kernel_density)
-
-def _save_samples(i: int, samples: Tensor, chunk_size: int) -> None:
-    for j, start_i in enumerate(range(0, len(samples), chunk_size)):
-        sample_chunk = samples[start_i:start_i+chunk_size].clone()
-        torch.save(sample_chunk, f'samples_{i}_chunk_{j}.pt')
-
+from experiments.sample_based_density import _save_samples, _load_samples
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
@@ -93,24 +88,34 @@ def coordinator(cfg : DictConfig) -> None:
             }
         
         if cfg.baseline.name == 'mcdo':
-            bayesianize_unet_architecture(reconstructor.nn_model, p=cfg.baseline.p)
-            recon = reconstructor.reconstruct(
-                    observation,
-                    filtbackproj=filtbackproj,
-                    ground_truth=ground_truth,
-                    recon_from_randn=cfg.dip.recon_from_randn,
-                    log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
-                    use_tv_loss=False,
-                    optim_kwargs=optim_kwargs
-                    )
+            bayesianize_unet_architecture(
+                reconstructor.nn_model, p=cfg.baseline.p)
+            if cfg.baseline.load_mcdo_dip_params_from_path is not None:
+                with torch.no_grad(), eval_mode(reconstructor.nn_model):
+
+                    mcdo_dip_params_filepath = os.path.join(
+                        cfg.baseline.load_mcdo_dip_params_from_path, f'mcdo_dip_model_{i}.pt')
+                    print(f'loading mcdo DIP network parameters from {mcdo_dip_params_filepath}')
+                    reconstructor.load_params(mcdo_dip_params_filepath)
+                    recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
+            else:
+                recon = reconstructor.reconstruct(
+                        observation,
+                        filtbackproj=filtbackproj,
+                        ground_truth=ground_truth,
+                        recon_from_randn=cfg.dip.recon_from_randn,
+                        log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
+                        use_tv_loss=False,
+                        optim_kwargs=optim_kwargs
+                        )
+                torch.save(
+                    reconstructor.nn_model.state_dict(),
+                    f'mcdo_dip_model_{i}.pt')
+
             print(f'DIP reconstruction of sample {i:d}')
             print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-            torch.save(
-                    reconstructor.nn_model.state_dict(),
-                    f'mcdo_dip_model_{i}.pt')
-        
         if log_noise_variance is None: 
             log_noise_variance = torch.tensor(1).log()
         
@@ -122,16 +127,22 @@ def coordinator(cfg : DictConfig) -> None:
             print('noise_x_correction_term:', noise_x_correction_term)
 
         if cfg.baseline.name == 'mcdo':
-            x_samples = sample_from_bayesianized_model(
-                reconstructor.nn_model, 
-                filtbackproj, 
-                mc_samples=cfg.baseline.num_samples
-            )
+            if cfg.baseline.load_samples_from_path is not None:
+                samples = _load_samples(
+                        path=cfg.baseline.load_samples_from_path, i=i,
+                        num_samples=cfg.baseline.num_samples
+                    )
+            else: 
+                samples = sample_from_bayesianized_model(
+                    reconstructor.nn_model, 
+                    filtbackproj, 
+                    mc_samples=cfg.baseline.num_samples
+                )
 
             if cfg.baseline.save_samples:
-                _save_samples(i=i, samples=x_samples, chunk_size=cfg.baseline.save_samples_chunk_size)
+                _save_samples(i=i, samples=samples, chunk_size=cfg.baseline.save_samples_chunk_size)
             
-            mean_recon = x_samples.mean(dim=0, keepdim=True)
+            mean_recon = samples.mean(dim=0, keepdim=True)
 
             print(f'DIP mean reconstruction of sample {i:d}')
             print('PSNR:', PSNR(mean_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
@@ -141,7 +152,7 @@ def coordinator(cfg : DictConfig) -> None:
             if cfg.dataset.name in ['kmnist']:
                 log_prob_kernel_density = approx_kernel_density(
                     ground_truth=ground_truth,
-                    x_samples=x_samples, 
+                    samples=samples, 
                     noise_x_correction_term=noise_x_correction_term, 
                     bw=cfg.baseline.kernel_density_kwargs.bw
                 ) / ground_truth.numel()
@@ -159,7 +170,7 @@ def coordinator(cfg : DictConfig) -> None:
             log_probs_unscaled, patch_diags = log_prob_patches(
                 mean=mean_recon,
                 ground_truth=ground_truth,
-                samples=x_samples - x_samples.mean(dim=0),
+                samples=samples - samples.mean(dim=0),
                 patch_kwargs = {
                     'patch_size': cfg.inference.patch_size,
                     'patch_idx_list': patch_idx_list,

@@ -4,5 +4,7 @@ num_samples: 8192
 save_samples: True
 save_samples_chunk_size: 8192
 p: 0.05
+load_samples_from_path: null
+load_mcdo_dip_params_from_path: null
 kernel_density_kwargs:
   bw: 0.05
