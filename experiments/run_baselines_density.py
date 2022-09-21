@@ -108,20 +108,11 @@ def coordinator(cfg : DictConfig) -> None:
             print('noise_x_correction_term:', noise_x_correction_term)
 
         if cfg.baseline.name == 'mcdo':
-            if cfg.baseline.load_samples_from_path is not None:
-                samples = _load_samples(
-                        path=cfg.baseline.load_samples_from_path, i=i,
-                        num_samples=cfg.baseline.num_samples
-                    ).to(dtype=dtype, device=device)
-            else: 
-                samples = sample_from_bayesianized_model(
-                    reconstructor.nn_model, 
-                    filtbackproj, 
-                    mc_samples=cfg.baseline.num_samples
-                )
-
-            if cfg.baseline.save_samples:
-                _save_samples(i=i, samples=samples, chunk_size=cfg.baseline.save_samples_chunk_size)
+            assert cfg.baseline.load_samples_from_path
+            samples = _load_samples(
+                    path=cfg.baseline.load_samples_from_path, i=i,
+                    num_samples=cfg.baseline.num_samples
+                ).to(dtype=dtype, device=device)
             
             mean_recon = samples.mean(dim=0, keepdim=True)
 

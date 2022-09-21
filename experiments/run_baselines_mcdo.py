@@ -79,6 +79,9 @@ def coordinator(cfg : DictConfig) -> None:
                 print(f'loading mcdo DIP network parameters from {mcdo_dip_params_filepath}')
                 reconstructor.load_params(mcdo_dip_params_filepath)
                 recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
+                torch.save(
+                    reconstructor.nn_model.state_dict(),
+                    f'mcdo_dip_model_{i}.pt')
         else:
             recon = reconstructor.reconstruct(
                     observation,
@@ -96,6 +99,15 @@ def coordinator(cfg : DictConfig) -> None:
         print(f'DIP reconstruction of sample {i:d}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
+
+        samples = sample_from_bayesianized_model(
+                    reconstructor.nn_model, 
+                    filtbackproj, 
+                    mc_samples=cfg.baseline.num_samples
+            )
+
+        if cfg.baseline.save_samples:
+            _save_samples(i=i, samples=samples, chunk_size=cfg.baseline.save_samples_chunk_size)
 
 if __name__ == '__main__':
     coordinator()  # pylint: disable=no-value-for-parameter
