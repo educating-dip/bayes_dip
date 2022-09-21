@@ -80,38 +80,19 @@ def coordinator(cfg : DictConfig) -> None:
                 if cfg.baseline.load_log_noise_variance:
                     log_noise_variance = torch.load(
                         os.path.join(cfg.inference.load_path, f'observation_cov_{i}.pt'))['log_noise_variance']
-        
-        optim_kwargs = {
-                'lr': cfg.dip.optim.lr,
-                'iterations': cfg.dip.optim.iterations,
-                'loss_function': cfg.dip.optim.loss_function
-            }
-        
+                
         if cfg.baseline.name == 'mcdo':
             bayesianize_unet_architecture(
                 reconstructor.nn_model, p=cfg.baseline.p)
-            if cfg.baseline.load_mcdo_dip_params_from_path is not None:
-                with torch.no_grad(), eval_mode(reconstructor.nn_model):
+            assert cfg.baseline.load_mcdo_dip_params_from_path is not None
+            with torch.no_grad(), eval_mode(reconstructor.nn_model):
 
-                    mcdo_dip_params_filepath = os.path.join(
-                        cfg.baseline.load_mcdo_dip_params_from_path, f'mcdo_dip_model_{i}.pt')
-                    print(f'loading mcdo DIP network parameters from {mcdo_dip_params_filepath}')
-                    reconstructor.load_params(mcdo_dip_params_filepath)
-                    recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
-            else:
-                recon = reconstructor.reconstruct(
-                        observation,
-                        filtbackproj=filtbackproj,
-                        ground_truth=ground_truth,
-                        recon_from_randn=cfg.dip.recon_from_randn,
-                        log_path=os.path.join(cfg.dip.log_path, f'dip_optim_{i}'),
-                        use_tv_loss=False,
-                        optim_kwargs=optim_kwargs
-                        )
-                torch.save(
-                    reconstructor.nn_model.state_dict(),
-                    f'mcdo_dip_model_{i}.pt')
-
+                mcdo_dip_params_filepath = os.path.join(
+                    cfg.baseline.load_mcdo_dip_params_from_path, f'mcdo_dip_model_{i}.pt')
+                print(f'loading mcdo DIP network parameters from {mcdo_dip_params_filepath}')
+                reconstructor.load_params(mcdo_dip_params_filepath)
+                recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
+            
             print(f'DIP reconstruction of sample {i:d}')
             print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
