@@ -131,7 +131,7 @@ def coordinator(cfg : DictConfig) -> None:
                 samples = _load_samples(
                         path=cfg.baseline.load_samples_from_path, i=i,
                         num_samples=cfg.baseline.num_samples
-                    )
+                    ).to(dtype=dtype, device=device)
             else: 
                 samples = sample_from_bayesianized_model(
                     reconstructor.nn_model, 
