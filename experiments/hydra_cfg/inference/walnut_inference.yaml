@@ -1,6 +1,7 @@
 defaults:
   - base_inference
 
+add_image_noise_correction_term: False
 low_rank_neural_basis_expansion:
   low_rank_rank_dim: 500
   use_cpu: True

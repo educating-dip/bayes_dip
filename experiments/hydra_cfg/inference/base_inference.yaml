@@ -8,6 +8,7 @@ low_rank_neural_basis_expansion:
   use_cpu: False
 patch_size: 1
 patch_idx_list: null
+add_image_noise_correction_term: False
 reweight_off_diagonal_entries: False
 save_cov_obs_mat: False
 load_cov_obs_mat_from_path: null

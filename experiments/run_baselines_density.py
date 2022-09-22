@@ -63,7 +63,7 @@ def coordinator(cfg : DictConfig) -> None:
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
                 load_params_path=cfg.load_pretrained_dip_params)
-        
+
         log_noise_variance = None
         if cfg.baseline.name == 'deterministic':
             with torch.no_grad(), eval_mode(reconstructor.nn_model):
@@ -72,7 +72,7 @@ def coordinator(cfg : DictConfig) -> None:
                 print(f'loading DIP network parameters from {dip_params_filepath}')
                 reconstructor.load_params(dip_params_filepath)
                 recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
-                
+
                 print(f'DIP reconstruction of sample {i:d}')
                 print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
                 print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
@@ -80,7 +80,7 @@ def coordinator(cfg : DictConfig) -> None:
                 if cfg.baseline.load_log_noise_variance:
                     log_noise_variance = torch.load(
                         os.path.join(cfg.inference.load_path, f'observation_cov_{i}.pt'))['log_noise_variance']
-                
+
         if cfg.baseline.name == 'mcdo':
             bayesianize_unet_architecture(
                 reconstructor.nn_model, p=cfg.baseline.p)
@@ -92,16 +92,16 @@ def coordinator(cfg : DictConfig) -> None:
                 print(f'loading mcdo DIP network parameters from {mcdo_dip_params_filepath}')
                 reconstructor.load_params(mcdo_dip_params_filepath)
                 recon = reconstructor.nn_model(filtbackproj)  # pylint: disable=not-callable
-            
+
             print(f'DIP reconstruction of sample {i:d}')
             print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        if log_noise_variance is None: 
+        if log_noise_variance is None:
             log_noise_variance = torch.tensor(1).log()
-        
-        noise_x_correction_term = None        
-        if cfg.baseline.add_noise_x_correction_term:
+
+        noise_x_correction_term = None
+        if cfg.inference.add_image_noise_correction_term:
             print('computing noise correction term')
             diag_mean = get_trafo_t_trafo_pseudo_inv_diag_mean(ray_trafo)
             noise_x_correction_term = diag_mean * log_noise_variance.exp().item()
@@ -113,23 +113,23 @@ def coordinator(cfg : DictConfig) -> None:
                     path=cfg.baseline.load_samples_from_path, i=i,
                     num_samples=cfg.baseline.num_samples
                 ).to(dtype=dtype, device=device)
-            
+
             mean_recon = samples.mean(dim=0, keepdim=True)
 
             print(f'DIP mean reconstruction of sample {i:d}')
             print('PSNR:', PSNR(mean_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             print('SSIM:', SSIM(mean_recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-            log_prob_kernel_density = None 
+            log_prob_kernel_density = None
             if cfg.dataset.name in ['kmnist']:
                 log_prob_kernel_density = approx_kernel_density(
                     ground_truth=ground_truth,
-                    samples=samples, 
-                    noise_x_correction_term=noise_x_correction_term, 
+                    samples=samples,
+                    noise_x_correction_term=noise_x_correction_term,
                     bw=cfg.baseline.kernel_density_kwargs.bw
                 ) / ground_truth.numel()
                 log_prob_kernel_density = log_prob_kernel_density.item()
-                
+
             all_patch_mask_inds = get_image_patch_mask_inds(
                     ray_trafo.im_shape, patch_size=cfg.inference.patch_size)
             patch_idx_list = cfg.inference.patch_idx_list
@@ -154,11 +154,11 @@ def coordinator(cfg : DictConfig) -> None:
                 return_patch_diags=True,
                 unscaled=True
             )
-            
+
             total_num_pixels_in_patches = sum(
                     len(all_patch_mask_inds[patch_idx]) for patch_idx in patch_idx_list)
             log_prob = np.sum(log_probs_unscaled) / total_num_pixels_in_patches
-            
+
             print('log_prob_kernel_density:', log_prob_kernel_density)
             print('log_prob:', log_prob)
 
