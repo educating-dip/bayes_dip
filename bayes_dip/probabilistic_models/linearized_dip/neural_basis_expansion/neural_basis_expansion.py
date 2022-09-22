@@ -20,9 +20,6 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
     """
 
     def __init__(self, *args, functional_forward_kwargs=None, **kwargs) -> None:
-        """
-        Parameters are the same as for :class:`BaseNeuralBasisExpansion`.
-        """
 
         super().__init__(*args, **kwargs)
 
@@ -133,6 +130,11 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         return self._vjp(v)
 
 class MatmulNeuralBasisExpansion(BaseMatmulNeuralBasisExpansion):
+    """
+    Implementation of Jacobian vector products (:meth:`jvp`) and vector Jacobian products
+    (:meth:`vjp`) using matmul with the Jacobian matrix assembled via
+    :func:`autograd.functional.jacobian`.
+    """
 
     def __init__(self, nn_model: nn.Module, *args, **kwargs) -> None:
 

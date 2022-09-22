@@ -3,6 +3,7 @@ import yaml
 import argparse
 import torch
 import numpy as np
+from omegaconf import OmegaConf
 from bayes_dip.utils.evaluation_utils import (
         translate_path, restrict_sample_based_density_data_to_new_patch_idx_list)
 
@@ -32,9 +33,13 @@ for include_predcp in INCLUDE_PREDCP_LIST:
             map_location='cpu')
     log_prob_original = data['log_prob']
     patch_idx_list = None if args.include_outer_part else 'walnut_inner'
+    cfg = OmegaConf.load(os.path.join(run, '.hydra', 'config.yaml'))
     data_restricted = restrict_sample_based_density_data_to_new_patch_idx_list(
-            run_path=run, data=data, patch_idx_list=patch_idx_list,
-            experiment_paths=experiment_paths)
+            data=data,
+            patch_idx_list=patch_idx_list,
+            orig_patch_idx_list=cfg.inference.patch_idx_list,
+            patch_size=cfg.inference.patch_size,
+            im_shape=(cfg.dataset.im_size,) * 2)
     log_prob_restricted = data_restricted['log_prob']
     print(f'walnut sample based density for include_predcp={include_predcp}')
     print(f'(original log prob saved in file, with potentially different patch selection: {log_prob_original})')

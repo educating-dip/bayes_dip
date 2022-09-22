@@ -15,12 +15,20 @@ DEFAULT_OUTPUTS_PATH = '../experiments/outputs'
 DEFAULT_MULTIRUN_PATH = '../experiments/multirun'
 
 def translate_output_path(path: str, outputs_path: Optional[str] = DEFAULT_OUTPUTS_PATH):
+    """
+    Translate a hydra output path (e.g. "arbitrary/path/to/outputs/???") to a new outputs root path
+    (i.e. "{outputs_path}/???").
+    """
     path = path.rstrip('/\\')
     if outputs_path is not None:
         path = os.path.join(outputs_path, os.path.basename(path))
     return path
 
 def translate_multirun_path(path: str, multirun_path: Optional[str] = DEFAULT_MULTIRUN_PATH):
+    """
+    Translate a hydra multirun path (e.g. "arbitrary/path/to/multirun/???/?") to a new multirun root
+    path (i.e. "{multirun_path}/???/?").
+    """
     path = path.rstrip('/\\')
     if multirun_path is not None:
         path = os.path.join(
@@ -30,21 +38,57 @@ def translate_multirun_path(path: str, multirun_path: Optional[str] = DEFAULT_MU
 def translate_path(
         path: str,
         experiment_paths: Optional[Dict] = None):
+    """
+    Translate a hydra output or multirun path (e.g. "arbitrary/path/to/outputs/???" or
+    "arbitrary/path/to/multirun/???/?") to a new outputs or multirun root path (i.e.
+    "{experiment_paths['outputs_path']}/???" or "{experiment_paths['multirun_path']}/???/?").
+
+    Parameters
+    ----------
+    path : str
+        Path of the hydra run.
+    experiment_paths : dict, optional
+        New outputs and/or multirun root path. The respective keys are ``'outputs_path'`` and
+        ``'multirun_path'``, with defaults ``DEFAULT_OUTPUTS_PATH`` and ``DEFAULT_MULTIRUN_PATH``.
+
+    Returns
+    -------
+    path : str
+        Translated path.
+    """
     path = path.rstrip('/\\')
     is_multirun = all(c in '0123456789' for c in os.path.basename(path))
     if is_multirun:
-        path = translate_multirun_path(
-                path=path,
-                multirun_path=experiment_paths.get('multirun_path', DEFAULT_MULTIRUN_PATH))
+        multirun_path = experiment_paths.get('multirun_path', None)
+        multirun_path = multirun_path if multirun_path is not None else DEFAULT_MULTIRUN_PATH
+        path = translate_multirun_path(path=path, multirun_path=multirun_path)
     else:
-        path = translate_output_path(
-                path=path,
-                outputs_path=experiment_paths.get('outputs_path', DEFAULT_OUTPUTS_PATH))
+        outputs_path = experiment_paths.get('outputs_path', None)
+        outputs_path = outputs_path if outputs_path is not None else DEFAULT_OUTPUTS_PATH
+        path = translate_output_path(path=path, outputs_path=outputs_path)
     return path
 
 def get_abs_diff(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> Tensor:
+    """
+    Return the absolute difference between reconstruction and ground truth for sample `sample_idx`
+    from `run_path`.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+
+    Returns
+    -------
+    abs_diff : Tensor
+        Absolute difference. Shape: ``(im_size, im_size)``.
+    """
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
     ground_truth = torch.load(os.path.join(run_path, f'sample_{sample_idx}.pt'),
             map_location='cpu')['ground_truth'].detach()
@@ -56,6 +100,21 @@ def get_abs_diff(
 def get_density_data(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> Tuple[Dict, bool]:
+    """
+    Return the density data for sample `sample_idx` from `run_path`.
+
+    Supports both ``experiments/exact_density.py`` and ``experiments/sample_based_density.py`` runs.
+
+    Returns
+    -------
+    data : dict
+        Density data from "exact_predictive_posterior_{sample_idx}.pt" or
+        "sample_based_predictive_posterior_{sample_idx}.pt".
+    is_exact : bool
+        If `True`, the run is a ``experiments/exact_density.py`` run; if `False` it is a
+        ``experiments/sample_based_density.py`` run. If the run is of neither kind, a `RuntimeError`
+        is raised.
+    """
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
     exact_filepath = os.path.join(
             run_path, f'exact_predictive_posterior_{sample_idx}.pt')
@@ -88,6 +147,10 @@ def _recompute_image_noise_correction_term(
 
 def get_patch_idx_to_mask_inds_dict(
         patch_idx_list: Union[List[int], str, None], im_shape: Tuple[int, int], patch_size: int):
+    """
+    Return a dictionary with the selected patch indices as keys and the mask index arrays defining
+    the patches as values.
+    """
     all_patch_mask_inds = get_image_patch_mask_inds(im_shape, patch_size=patch_size)
     if patch_idx_list is None:
         patch_idx_list = list(range(len(all_patch_mask_inds)))
@@ -97,10 +160,33 @@ def get_patch_idx_to_mask_inds_dict(
     return {idx: all_patch_mask_inds[idx] for idx in patch_idx_list}
 
 def get_sample_based_cov_diag(
-        run_path: str, data: Dict, patch_idx_list: Union[List[int], str, None]) -> Tensor:
+        data: Dict,
+        patch_idx_list: Union[List[int], str, None],
+        patch_size: int,
+        im_shape: Tuple[int, int]
+        ) -> Tensor:
+    """
+    Return the diagonal of the posterior covariance for the specified `patch_idx_list`.
 
-    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
-    im_shape = (cfg.dataset.im_size,) * 2
+    Parameters
+    ----------
+    data : dict
+        Density data, like the first return value of :func:`get_density_data`.
+    patch_idx_list : list of int, str or None
+        Patch indices for which to populate the returned tensor. The pixels of patches that are not
+        selected will be `torch.nan` in the returned tensor.
+        Must be a subset of the `patch_idx_list` from the original run.
+    patch_size : int
+        Side length of the patches (patches are usually square). Must be the same as for the
+        original run.
+    im_shape : 2-tuple of int
+        Image shape.
+
+    Returns
+    -------
+    cov_diag : Tensor
+        Diagonal of the posterior covariance. Shape: ``im_shape``.
+    """
 
     # fill in all patches from data
     cov_diag = torch.full(im_shape, torch.nan, dtype=data['patch_cov_diags'][0].dtype)
@@ -110,7 +196,7 @@ def get_sample_based_cov_diag(
     cov_diag_requested_mask = torch.zeros(im_shape, dtype=torch.bool)
     for mask_inds in get_patch_idx_to_mask_inds_dict(
             patch_idx_list=patch_idx_list, im_shape=im_shape,
-            patch_size=cfg.inference.patch_size).values():
+            patch_size=patch_size).values():
         cov_diag_requested_mask.view(-1)[mask_inds] = True
     # assert that the parts inside the requested patch_idx_list are filled in
     assert not torch.any(torch.isnan(cov_diag[cov_diag_requested_mask]))
@@ -120,17 +206,46 @@ def get_sample_based_cov_diag(
     return cov_diag
 
 def restrict_sample_based_density_data_to_new_patch_idx_list(
-        run_path: str, data: Dict, patch_idx_list: Union[List[int], str, None],
-        experiment_paths: Optional[Dict] = None) -> Dict:
-    run_path = translate_path(run_path, experiment_paths=experiment_paths)
-    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
-    im_shape = (cfg.dataset.im_size,) * 2
+        data: Dict,
+        patch_idx_list: Union[List[int], str, None],
+        orig_patch_idx_list: Union[List[int], str, None],
+        patch_size: int,
+        im_shape: Tuple[int, int]
+        ) -> Dict:
+    """
+    Return a version of sample based density data that is restricted to a subset of patch indices.
+
+    The log probability is also recomputed with the new patch selection.
+
+    Parameters
+    ----------
+    data : dict
+        The original density data, like the first return value of :func:`get_density_data`.
+    patch_idx_list : list of int, str or None
+        Patch indices to restrict to.
+        Must be a subset of `orig_patch_idx_list`.
+        If a string,
+        ``bayes_dip.utils.experiment_utils.get_predefined_patch_idx_list(patch_idx_list)`` is used.
+        If `None`, all patch indices are used.
+    orig_patch_idx_list : list of int, str or None
+        Value of `cfg.inference.patch_idx_list` from the original run.
+    patch_size : int
+        Side length of the patches (patches are usually square). Must be the same as for the
+        original run.
+    im_shape : 2-tuple of int
+        Image shape.
+
+    Returns
+    -------
+    data_restricted : dict
+        Restricted density data.
+    """
     orig_patch_idx_list = list(get_patch_idx_to_mask_inds_dict(  # original indices
-            patch_idx_list=cfg.inference.patch_idx_list, im_shape=im_shape,
-            patch_size=cfg.inference.patch_size))
+            patch_idx_list=orig_patch_idx_list, im_shape=im_shape,
+            patch_size=patch_size))
     patch_idx_to_mask_inds_dict = get_patch_idx_to_mask_inds_dict(  # news indices and mask inds
             patch_idx_list=patch_idx_list, im_shape=im_shape,
-            patch_size=cfg.inference.patch_size)
+            patch_size=patch_size)
     assert all(a < b for a, b in zip(orig_patch_idx_list[:-1], orig_patch_idx_list[1:]))
     indices = np.searchsorted(orig_patch_idx_list, list(patch_idx_to_mask_inds_dict))
     data_restricted = {
@@ -152,13 +267,46 @@ def get_stddev(run_path: str, sample_idx: int,
         patch_idx_list: Optional[Union[List[int], str]] = None,
         subtract_image_noise_correction: bool = True,
         experiment_paths: Optional[Dict] = None) -> Tensor:
+    """
+    Return the standard deviation (i.e. the square root of the diagonal of the posterior covariance)
+    for sample `sample_idx` from `run_path`.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    patch_idx_list : list of int or str, optional
+        Patch indices to restrict to. Only supported with sample based density runs.
+        Must be a subset of `cfg.inference.patch_idx_list` of the original run.
+        If a string,
+        ``bayes_dip.utils.experiment_utils.get_predefined_patch_idx_list(patch_idx_list)`` is used.
+        If `None` (the default), all patch indices are used.
+    subtract_image_noise_correction : bool, optional
+        Whether to subtract the image noise correction term from the covariance diagonal before
+        taking the square root.
+        The default is `True`.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+
+    Returns
+    -------
+    stddev : Tensor
+        Standard deviation. Shape: ``(im_size, im_size)``.
+    """
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
     data, is_exact = get_density_data(run_path=run_path, sample_idx=sample_idx)
     if is_exact:
+        assert patch_idx_list is None, 'cannot use patch_idx_list with exact density'
         cov_diag = data['cov'].detach().diag()
     else:
         cov_diag = get_sample_based_cov_diag(
-                run_path=run_path, data=data, patch_idx_list=patch_idx_list)
+                data=data,
+                patch_idx_list=patch_idx_list,
+                patch_size=cfg.inference.patch_size,
+                im_shape=(cfg.dataset.im_size,) * 2)
     if subtract_image_noise_correction:
         image_noise_correction_term = data.get('image_noise_correction_term', None)
         if image_noise_correction_term is None:

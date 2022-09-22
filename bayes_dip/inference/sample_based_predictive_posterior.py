@@ -205,6 +205,8 @@ def log_prob_patches(
     return_patch_diags : bool, optional
         If `True`, return the diagonals of the covariance matrices.
         The default is `False`.
+    device : str or torch.device, optional
+        Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
 
     Returns
     -------

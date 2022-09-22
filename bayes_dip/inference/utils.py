@@ -3,11 +3,37 @@ Provides utilities for inference.
 
 In particular, functionality for patch-wise evaluation is included.
 """
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple, List, Iterator, Union
 import numpy as np
 import torch
+from torch import Tensor
 
-def get_image_patch_slices(image_shape, patch_size):
+def get_image_patch_slices(
+        image_shape: Tuple[int, int], patch_size: int) -> Tuple[List[slice], List[slice]]:
+    """
+    Return slice objects defining patches of an image.
+
+    The `i`-th patch of an `image` is defined as ``image[patch_slices_0[i], patch_slices_1[i]]``.
+
+    If an `image_shape` dimension is not divisible by `patch_size`, the last patches along this
+    dimension that would fit in the image are enlarged to also contain the remaining pixels in this
+    dimension; patches can be non-square for this reason.
+
+    Parameters
+    ----------
+    image_shape : 2-tuple of int
+        Image shape.
+    patch_size : int
+        Side length of the patches (patches are usually square).
+        It is clipped to the maximum value ``min(*image_shape)``.
+
+    Returns
+    -------
+    patch_slices_0 : list of slice
+        Slices in image dimension 0. The length is the number of patches.
+    patch_slices_1 : list of slice
+        Slices in image dimension 1. The length is the number of patches.
+    """
     image_size_0, image_size_1 = image_shape
     patch_size = min(patch_size, min(*image_shape))
 
@@ -29,7 +55,32 @@ def get_image_patch_slices(image_shape, patch_size):
         patch_slices_1.append(slice(start_1, end_1))
     return patch_slices_0, patch_slices_1
 
-def get_image_patch_mask_inds(image_shape, patch_size, flatten=True):
+def get_image_patch_mask_inds(
+        image_shape: Tuple[int, int], patch_size: int, flatten: bool = True) -> List[np.ndarray]:
+    """
+    Return mask indices defining patches of an image.
+
+    The flattened `i`-th patch of an `image` is defined as ``image[patch_mask_inds[i]]``.
+
+    If an `image_shape` dimension is not divisible by `patch_size`, the last patches along this
+    dimension that would fit in the image are enlarged to also contain the remaining pixels in this
+    dimension; patches can be non-square for this reason.
+
+    Parameters
+    ----------
+    image_shape : 2-tuple of int
+        Image shape.
+    patch_size : int
+        Side length of the patches (patches are usually square).
+        It is clipped to the maximum value ``min(*image_shape)``.
+    flatten : bool, optional
+        Whether to flatten each array in the returned `patch_mask_inds`. The default is `True`.
+
+    Returns
+    -------
+    patch_mask_inds : list of array
+        Mask indices for each patch. The length is the number of patches.
+    """
     patch_slices_0, patch_slices_1 = get_image_patch_slices(image_shape, patch_size)
 
     patch_mask_inds = []
@@ -42,7 +93,48 @@ def get_image_patch_mask_inds(image_shape, patch_size, flatten=True):
     return patch_mask_inds
 
 def yield_padded_batched_images_patches(
-        images, patch_kwargs: Optional[Dict] = None, return_patch_numels=False):
+        images: Tensor, patch_kwargs: Optional[Dict] = None, return_patch_numels: bool = False
+        ) -> Union[
+                Iterator[Tuple[List[int], Tensor]],
+                Iterator[Tuple[List[int], Tensor, List[int]]]]:
+    """
+    Yield batches of patches from images.
+
+    The effective batch size (denote it by ``eff_batch_size``) is
+    ``patch_kwargs.get('batch_size', 1)`` for all batches except for the potentially smaller last
+    batch.
+
+    Parameters
+    ----------
+    images : Tensor
+        Images. Shape: ``(n, 1, *im_shape)``.
+    patch_kwargs : dict, optional
+        Keyword arguments specifying how to split the image into patches.
+
+        Items:
+            ``'patch_size'`` : int, optional
+                The default is `1`.
+            ``'patch_idx_list'`` : list of int, optional
+                Patch indices. If `None`, all patches are used.
+            ``'batch_size'`` : int, optional
+                The default is `1`.
+    return_patch_numels : bool, optional
+        If `True`, also return the number of pixels for each patch in the batch.
+        The default is `False`.
+
+    Yields
+    ------
+    batch_patch_inds : list of int
+        Patch indices. The length is ``eff_batch_size``.
+    batch_samples_patches : Tensor
+        Batch of patches from images.
+        Shape: ``(eff_batch_size, num_samples, max(batch_len_mask_inds))``.
+    batch_len_mask_inds : list of int, optional
+        Number of pixels for each patch. Only returned if `return_patch_numels`.
+        These numbers can be used to remove the padding from the
+        individual elements in the batch: ``batch_samples_patches[i, :, :batch_len_mask_inds[i]]``.
+        The length is ``eff_batch_size``.
+    """
 
     assert images.shape[1] == 1
     assert images.ndim == 4
@@ -74,7 +166,20 @@ def yield_padded_batched_images_patches(
         else:
             yield batch_patch_inds, batch_samples_patches
 
-def is_invalid(x):
+def is_invalid(x: Tensor) -> Tensor:
+    """
+    Return whether all numbers are finite per batch.
+
+    Parameters
+    ----------
+    x : Tensor
+        Tensor. Shape: ``(batch_size, ...)``.
+
+    Returns
+    -------
+    batch_invalid_values : Tensor
+        Boolean tensor specifying if all numbers are finite, batch-wise. Shape: ``(batch_size,)``.
+    """
     batch_invalid_values = torch.sum(
             torch.logical_not(torch.isfinite(x.view(x.shape[0], -1))), dim=1) != 0
     return batch_invalid_values

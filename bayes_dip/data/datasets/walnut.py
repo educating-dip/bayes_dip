@@ -125,7 +125,7 @@ def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
     Parameters
     ----------
     patch_size : int
-        Side length of the patches (patches are square).
+        Side length of the patches (patches are usually square).
 
     Returns
     -------

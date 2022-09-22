@@ -131,7 +131,7 @@ def get_predefined_patch_idx_list(name: str, patch_size: int) -> List[int]:
     name : str
         Name of the patch index list.
     patch_size : int
-        Side length of the patches (patches are square).
+        Side length of the patches (patches are usually square).
 
     Returns
     -------

@@ -1,7 +1,7 @@
 """
 Provides neural basis expansion with a scaling in weight space, used for the isotropic g-prior.
 """
-from typing import Dict, Optional
+from typing import Dict, Optional, Union, Tuple
 from abc import ABC, abstractmethod
 from warnings import warn
 import torch
@@ -31,9 +31,9 @@ def compute_scale(
 
     Parameters
     ----------
-    neural_basis_expansion : :class:`bayes_dip.probabilistic_models.NeuralBasisExpansion`
-        Neural basis expansion instance to be wrapped.
-    trafo : :class:`bayes_dip.data.BaseRayTrafo`
+    neural_basis_expansion : :class:`BaseNeuralBasisExpansion`
+        Neural basis expansion (original, without the scaling in weight space).
+    trafo : :class:`BaseRayTrafo`
         Ray transform.
     reduction : {``'mean'``, ``'sum'``}, optional
         Reduction kind for the tensors accumulated over observation space.
@@ -117,26 +117,67 @@ def compute_scale(
     return scale_vec
 
 class MixinGpriorNeuralBasisExpansion(ABC):
+    """
+    Mixin/interface for neural basis expansions that apply a scale vector in weight space.
+    """
+
     @property
     @abstractmethod
     def scale(self):
+        """
+        Tensor
+            Scale vector. Shape: ``(num_params,)``,
+            where ``num_params`` is like ``BaseNeuralBasisExpansion.num_params``.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def update_scale(self):
+    def update_scale(self) -> None:
+        """Update the scale vector."""
         raise NotImplementedError
 
     @abstractmethod
-    def compute_scale(self):
+    def compute_scale(self) -> Tensor:
+        """
+        Return a recomputed scale vector.
+
+        Returns
+        -------
+        scale : Tensor
+            Scale vector. Shape: ``(num_params,)``,
+            where ``num_params`` is like ``BaseNeuralBasisExpansion.num_params``.
+        """
         raise NotImplementedError
 
 class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasisExpansion):
+    """
+    Wrapper for :class:`BaseNeuralBasisExpansion` that applies a scale vector in weight space.
+
+    See Also
+    --------
+    :class:`MatmulGpriorNeuralBasisExpansion` : Similar wrapper specific to
+            :class:`BaseMatmulNeuralBasisExpansion`.
+    """
+
     def __init__(self,
             neural_basis_expansion: BaseNeuralBasisExpansion,
             trafo: BaseRayTrafo,
             scale_kwargs: Dict,
             device=None,
         ) -> None:
+        """
+        Parameters
+        ----------
+        neural_basis_expansion : :class:`BaseNeuralBasisExpansion`
+            Neural basis expansion to be wrapped (original, without the scaling in weight space).
+        trafo : :class:`BaseRayTrafo`
+            Ray transform.
+        scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+        device : str or torch.device, optional
+            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+        """
 
         super().__init__(
                 nn_model=neural_basis_expansion.nn_model, nn_input=neural_basis_expansion.nn_input,
@@ -149,13 +190,36 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         self.update_scale(**scale_kwargs)
 
     @property
-    def scale(self):
+    def scale(self) -> Tensor:
         return self._scale
 
-    def update_scale(self, **scale_kwargs):
+    def update_scale(self, **scale_kwargs) -> None:
+        """
+        Update the scale vector.
+
+        Parameters
+        ----------
+        **scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+        """
         self._scale = self.compute_scale(**scale_kwargs)
 
     def compute_scale(self, **scale_kwargs) -> Tensor:
+        """
+        Return a recomputed scale vector.
+
+        Parameters
+        ----------
+        **scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+
+        Returns
+        -------
+        scale : Tensor
+            Scale vector. Shape: ``(self.neural_basis_expansion.num_params,)``.
+        """
         scale_vec = compute_scale(
                 neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
                 **scale_kwargs)
@@ -169,12 +233,31 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
 
 class MatmulGpriorNeuralBasisExpansion(
         BaseMatmulNeuralBasisExpansion, MixinGpriorNeuralBasisExpansion):
+    """
+    Wrapper for :class:`BaseMatmulNeuralBasisExpansion` that applies a scale vector in weight space.
+
+    See Also
+    --------
+    :class:`GpriorNeuralBasisExpansion` : Similar wrapper for the more general
+            :class:`BaseNeuralBasisExpansion`.
+    """
 
     def __init__(self,
             neural_basis_expansion: BaseMatmulNeuralBasisExpansion,
             trafo: BaseRayTrafo,
             scale_kwargs: Dict,
         ) -> None:
+        """
+        Parameters
+        ----------
+        neural_basis_expansion : :class:`BaseMatmulNeuralBasisExpansion`
+            Neural basis expansion to be wrapped (original, without the scaling in weight space).
+        trafo : :class:`BaseRayTrafo`
+            Ray transform.
+        scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+        """
 
         super().__init__(
                 nn_model=neural_basis_expansion.nn_model, nn_input=neural_basis_expansion.nn_input,
@@ -195,20 +278,66 @@ class MatmulGpriorNeuralBasisExpansion(
         return self._scale
 
     def compute_scale(self, **scale_kwargs) -> Tensor:
+        """
+        Return a recomputed scale vector.
+
+        Parameters
+        ----------
+        **scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+
+        Returns
+        -------
+        scale : Tensor
+            Scale vector. Shape: ``(self.neural_basis_expansion.num_params,)``.
+        """
         scale_vec = compute_scale(
                 neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
                 **scale_kwargs)
         return scale_vec
 
-    def get_matrix(self, return_scale=False, **scale_kwargs) -> Tensor:
+    def get_matrix(self,
+            return_scale: bool = False,
+            **scale_kwargs
+            ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        """
+        Return a matrix representing `self`.
+
+        Parameters
+        ----------
+        return_scale : bool, optional
+            If `True`, also return the scale vector (which is recomputed in this method).
+            The default is `False`.
+        **scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+
+        Returns
+        -------
+        matrix : Tensor
+            Matrix representing `self`. Shape: ``self.neural_basis_expansion.jac_shape``.
+        scale : Tensor, optional
+            Scale vector. Only returned if `return_scale`.
+            Shape: ``(self.neural_basis_expansion.num_params,)``.
+        """
         matrix_no_scale = self.neural_basis_expansion.matrix
         scale = self.compute_scale(**scale_kwargs)
         matrix = matrix_no_scale * scale
         return (matrix, scale) if return_scale else matrix
 
     def update(self, **scale_kwargs) -> None:
+        """
+        Update the scale vector and the matrix representation of `self`.
+
+        Parameters
+        ----------
+        **scale_kwargs : dict
+            Keyword arguments passed to :func:`compute_scale`. Should not include
+            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+        """
         self._matrix, self._scale = self.get_matrix(**scale_kwargs, return_scale=True)
 
-    # scale contributes to self.matrix, so need to update both if updating one
+    # scale contributes to self.matrix, so we need to update both if updating one
     update_matrix = update
     update_scale = update

@@ -235,12 +235,15 @@ class MatmulObservationCov(BaseObservationCov):
 
     def get_matrix(self, apply_make_choleskable=False) -> Tensor:
         """
-        Covariance in observation space assembled via explicit matmut.
+        Covariance in observation space computed via one explicit matmul.
+
+        This usually leads to more stable numerics than the repeated closure evaluation performed by
+        :meth:`ObservationCov.assemble_observation_cov`.
 
         Returns
         -------
         Tensor
-            Assembled observation covariance matrix using exact
+            Observation covariance matrix.
             Shape: ``(np.prod(self.trafo.obs_shape),) * 2``.
         """
 

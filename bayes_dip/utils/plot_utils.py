@@ -5,10 +5,16 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 def configure_matplotlib():
+    """
+    Configure common matplotlib settings that should be shared by plotting script.
+    """
     matplotlib.rc('text', usetex=True)
     matplotlib.rc('text.latex', preamble='\\usepackage{amsmath}')
 
 def hex_to_rgb(value, alpha):
+    """
+    Convert a hex color string to a 4-tuple of float.
+    """
     value = value.lstrip('#')
     lv = len(value)
     out = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
@@ -19,6 +25,18 @@ def plot_hist(  # pylint: disable=too-many-arguments
         data, label_list, title=None, ax=None, xlim=None, ylim=None, yscale='log',
         remove_ticks=False, color_list=None, alpha_list=None, hist_kwargs=None,
         hist_kwargs_per_data=None, legend_kwargs=None):
+    """
+    Plot a set of histograms.
+
+    Returns
+    -------
+    ax : :class:`matplotlib.axes.Axes`
+        Matplotlib axes.
+    n_list : list of array
+        For each element in `data`, the `n` array as returned by :func:`matplotlib.pyplot.hist`.
+    bins_list : list of array
+        For each element in `data`, the `bins` array as returned by :func:`matplotlib.pyplot.hist`.
+    """
     # pylint: disable=too-many-locals
     if ax is None:
         _, ax = plt.subplots()
