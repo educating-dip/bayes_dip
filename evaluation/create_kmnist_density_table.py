@@ -22,6 +22,8 @@ with open(os.path.join(args.root_path, args.baseline_mcdo_file), 'r') as f:
 NOISE_LIST = [0.05, 0.1]
 ANGLES_LIST = [5, 10, 20, 30]
 
+all_tables = ''
+
 for noise in NOISE_LIST:
     s = ''
     s += '\\begin{tabular}{l' + 'r' * len(ANGLES_LIST) + '}\n'
@@ -43,6 +45,8 @@ for noise in NOISE_LIST:
     print(f'\ntable for noise={noise}:\n')
     print(s)
 
+    all_tables += s
+
 if args.save_to:
     with open(args.save_to, 'w') as f:
-        f.write(s)
+        f.write(all_tables)
