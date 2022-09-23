@@ -137,13 +137,16 @@ def coordinator(cfg : DictConfig) -> None:
                     scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
             )
         if cfg.inference.use_low_rank_neural_basis_expansion:
-            neural_basis_expansion = LowRankNeuralBasisExpansion(
-                neural_basis_expansion=neural_basis_expansion,
-                batch_size=cfg.inference.low_rank_neural_basis_expansion.batch_size,
-                low_rank_rank_dim=cfg.inference.low_rank_neural_basis_expansion.low_rank_rank_dim,
-                oversampling_param=cfg.inference.low_rank_neural_basis_expansion.oversampling_param,
-                device=device,
-                use_cpu=cfg.inference.low_rank_neural_basis_expansion.use_cpu)
+            if cfg.inference.load_samples_from_path is None:
+                neural_basis_expansion = LowRankNeuralBasisExpansion(
+                    neural_basis_expansion=neural_basis_expansion,
+                    batch_size=cfg.inference.low_rank_neural_basis_expansion.batch_size,
+                    low_rank_rank_dim=cfg.inference.low_rank_neural_basis_expansion.low_rank_rank_dim,
+                    oversampling_param=cfg.inference.low_rank_neural_basis_expansion.oversampling_param,
+                    device=device,
+                    use_cpu=cfg.inference.low_rank_neural_basis_expansion.use_cpu)
+            else:
+                print('skipping low-rank neural basis expansion computation, since loading samples')
 
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
