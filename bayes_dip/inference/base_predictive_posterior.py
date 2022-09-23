@@ -1,6 +1,7 @@
 """
 Provides :class:`BasePredictivePosterior`.
 """
+from typing import Optional
 from abc import ABC, abstractmethod
 from torch import Tensor
 from bayes_dip.probabilistic_models import BaseObservationCov
@@ -23,7 +24,7 @@ class BasePredictivePosterior(ABC):
             mean: Tensor,
             ground_truth: Tensor,
             *args,
-            noise_x_correction_term: float = 0.,
+            noise_x_correction_term: Optional[float] = None,
             **kwargs) -> float:
         # child classes may add arguments
         raise NotImplementedError

@@ -1,6 +1,7 @@
 """
 Provides an exact predictive posterior implementation, :class:`ExactPredictivePosterior`.
 """
+from typing import Optional
 import torch
 import numpy as np
 from torch import Tensor
@@ -18,7 +19,7 @@ class ExactPredictivePosterior(BasePredictivePosterior):
         super().__init__(observation_cov=observation_cov)
 
     def covariance(self,
-        noise_x_correction_term: float = 1e-6,
+        noise_x_correction_term: Optional[float] = 1e-6,
         eps: float = 1e-6
         ) -> Tensor:
 

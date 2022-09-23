@@ -68,7 +68,7 @@ def predictive_cov_image_patch_log_prob_unscaled_batched(
     return log_prob_unscaled
 
 def approx_predictive_cov_image_patch_from_zero_mean_samples_batched(
-        samples : Tensor, noise_x_correction_term : Optional[float] = None) -> Tensor:
+        samples: Tensor, noise_x_correction_term: Optional[float] = None) -> Tensor:
     """
     Estimate the (co-)variances of image pixels from zero mean samples.
 
@@ -102,7 +102,7 @@ def approx_predictive_cov_image_patch_from_zero_mean_samples_batched(
 def yield_covariances_patches(
         samples: Tensor,
         patch_kwargs: Optional[Dict] = None,
-        noise_x_correction_term: float = 1e-6,
+        noise_x_correction_term: Optional[float] = 1e-6,
         device = None) -> Tensor:
     """
     Yield posterior covariance matrices for image patches.
@@ -113,7 +113,7 @@ def yield_covariances_patches(
         Precomputed samples, e.g. drawn by :meth:`sample_zero_mean`.
     patch_kwargs : dict, optional
         Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
-    noise_x_correction_term : float, optional
+    noise_x_correction_term : float or None, optional
         Noise amount that is assumed to be present in ground truth. The default is `1e-6`.
     device : str or torch.device, optional
         Device. If `None` (the default), ``samples.device`` is used.
@@ -170,7 +170,7 @@ def log_prob_patches(
         samples: Tensor,
         patch_kwargs: Optional[Dict] = None,
         reweight_off_diagonal_entries: bool = False,
-        noise_x_correction_term: float = 1e-6,
+        noise_x_correction_term: Optional[float] = 1e-6,
         verbose: bool = True,
         unscaled: bool = False,
         return_patch_diags: bool = False,
@@ -193,7 +193,7 @@ def log_prob_patches(
         If `True`, replace the covariance matrix `cov` (for each patch) with
         ``0.5 * (cov + torch.diag(torch.diag(cov)))``.
         The default is `False`.
-    noise_x_correction_term : float, optional
+    noise_x_correction_term : float or None, optional
         Noise amount that is assumed to be present in ground truth. Can help to stabilize
         computations. The default is `1e-6`.
     verbose : bool, optional
@@ -385,7 +385,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
     def yield_covariances_patches(self,
             samples: Tensor = None,
             patch_kwargs: Optional[Dict] = None,
-            noise_x_correction_term: float = 1e-6,
+            noise_x_correction_term: Optional[float] = 1e-6,
             sample_kwargs: Optional[Dict] = None,
             device = None) -> Tensor:
         """
@@ -398,7 +398,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             If not specified, ``samples_kwargs['num_samples']`` samples are drawn in this function.
         patch_kwargs : dict, optional
             Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
-        noise_x_correction_term : float, optional
+        noise_x_correction_term : float or None, optional
             Noise amount that is assumed to be present in ground truth. The default is `1e-6`.
         sample_kwargs : dict, optional
             Keyword arguments passed to :meth:`sample_zero_mean`. Required if ``samples is None``.
@@ -433,7 +433,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
     def log_prob(self,
             mean: Tensor,
             ground_truth: Tensor,
-            noise_x_correction_term: float = 1e-6,
+            noise_x_correction_term: Optional[float] = 1e-6,
             patch_kwargs: Optional[Dict] = None,
             unscaled: bool = False,
             **kwargs):
@@ -449,7 +449,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             Mean of the posterior image distribution.
         ground_truth : Tensor
             Ground truth.
-        noise_x_correction_term : float, optional
+        noise_x_correction_term : float or None, optional
             Noise amount that is assumed to be present in ground truth. Can help to stabilize
             computations. The default is `1e-6`.
         patch_kwargs : dict, optional
@@ -504,7 +504,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             samples: Tensor = None,
             patch_kwargs: Optional[Dict] = None,
             reweight_off_diagonal_entries: bool = False,
-            noise_x_correction_term: float = 1e-6,
+            noise_x_correction_term: Optional[float] = 1e-6,
             verbose: bool = True,
             unscaled: bool = False,
             return_patch_diags: bool = False,
@@ -528,7 +528,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             If `True`, replace the covariance matrix `cov` (for each patch) with
             ``0.5 * (cov + torch.diag(torch.diag(cov)))``.
             The default is `False`.
-        noise_x_correction_term : float, optional
+        noise_x_correction_term : float or None, optional
             Noise amount that is assumed to be present in ground truth. Can help to stabilize
             computations. The default is `1e-6`.
         verbose : bool, optional
