@@ -20,9 +20,10 @@ for p in patch_size_list:
         bayes_dip_stats[p] = yaml.safe_load(f)
 
 baseline_mcdo_stats = {}
-for p in patch_size_list:
-    with open(os.path.join(args.root_path, args.baseline_mcdo_folder, f'patch_size_{p}.yaml'), 'r') as f:
-        baseline_mcdo_stats[p] = yaml.safe_load(f)
+if args.baseline_mcdo_folder:
+    for p in patch_size_list:
+        with open(os.path.join(args.root_path, args.baseline_mcdo_folder, f'patch_size_{p}.yaml'), 'r') as f:
+            baseline_mcdo_stats[p] = yaml.safe_load(f)
 
 def format_cell(stats):
     return f'${stats["mean"]:.2f} \\pm {stats["stderr"]:.2f}$'
@@ -32,11 +33,13 @@ all_tables = ''
 for noise in args.noise_list:
     for angles in args.angles_list:
         s = ''
+        s += '\\textbf{' + f'{noise * 100:.0f}' + '\\% white noise, ' + f'{angles}' + ' directions}\n'
         s += '\\begin{tabular}{l' + 'r' * len(patch_size_list) + '}\n'
         s += '& ' + ' & '.join(f'\\shortstack{{${p}\\times {p}$}}' for p in patch_size_list) + '\\\\\n'
         s += '\\hline\n'
 
-        s += 'DIP-MCDO & ' + ' & '.join(format_cell(baseline_mcdo_stats[p][noise][angles]) for p in patch_size_list) + '\\\\\n'
+        if baseline_mcdo_stats:
+            s += 'DIP-MCDO & ' + ' & '.join(format_cell(baseline_mcdo_stats[p][noise][angles]) for p in patch_size_list) + '\\\\\n'
         s += 'Bayes DIP (MLL) & ' + ' & '.join(format_cell(bayes_dip_stats[p][noise][angles]['include_predcp_False']) for p in patch_size_list) + '\\\\\n'
 
         s += '\\hline\n'
