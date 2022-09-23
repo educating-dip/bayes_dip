@@ -5,6 +5,7 @@ patch_size: 28
 add_image_noise_correction_term: True
 num_samples: 16384
 low_rank_neural_basis_expansion:
+  low_rank_rank_dim: 250
   batch_size: 32
 cov_obs_mat:
   batch_size: 32
