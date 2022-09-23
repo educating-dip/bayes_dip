@@ -10,7 +10,7 @@ from bayes_dip.utils.evaluation_utils import (
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_baseline_walnut_mcdo_density.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
-parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra output directories (usually "[...]/multirun/")')
+parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
 parser.add_argument('--include_outer_part', action='store_true', default=False, help='include the outer part of the walnut image (that only contains background)')
 parser.add_argument('--save_to', type=str, nargs='?', default='')
 args = parser.parse_args()

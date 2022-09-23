@@ -3,10 +3,12 @@ import yaml
 import argparse
 import torch
 import numpy as np
+from bayes_dip.utils.evaluation_utils import translate_path
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_kmnist_exact_density.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
+parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
 parser.add_argument('--print_individual_log_probs', action='store_true', default=False)
 parser.add_argument('--save_to', type=str, nargs='?', default='')
 args = parser.parse_args()
@@ -19,6 +21,11 @@ ANGLES_LIST = [5, 10, 20, 30]
 INCLUDE_PREDCP_LIST = [True, False]
 NUM_IMAGES = 50
 
+experiment_paths = {
+        'outputs_path': args.experiments_outputs_path,
+        'multirun_path': args.experiments_multirun_path,
+}
+
 stats = {}
 
 for noise in NOISE_LIST:
@@ -27,7 +34,9 @@ for noise in NOISE_LIST:
         stats[noise].setdefault(angles, {})
         for include_predcp in INCLUDE_PREDCP_LIST:
             run = runs[noise][angles][f'include_predcp_{include_predcp}']
-            run = os.path.join(args.experiments_outputs_path, os.path.basename(run.rstrip('/')))
+            run = translate_path(
+                    run,
+                    experiment_paths=experiment_paths)
             log_probs = []
             for i in range(NUM_IMAGES):
                 d = torch.load(os.path.join(run, f'exact_predictive_posterior_{i}.pt'), map_location='cpu')
