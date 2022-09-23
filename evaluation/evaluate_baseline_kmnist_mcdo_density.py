@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_baseline_kmnist_mcdo_density.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
 parser.add_argument('--print_individual_log_probs', action='store_true', default=False)
-parser.add_argument('--save_stats_to', type=str, nargs='?', default='')
+parser.add_argument('--save_to', type=str, nargs='?', default='')
 args = parser.parse_args()
 
 with open(args.runs_file, 'r') as f:
@@ -42,6 +42,6 @@ for noise in NOISE_LIST:
             print(f'individual log probs: {log_probs}')
         print()
 
-if args.save_stats_to:
-    with open(args.save_stats_to, 'w') as f:
+if args.save_to:
+    with open(args.save_to, 'w') as f:
         yaml.dump(stats, f)

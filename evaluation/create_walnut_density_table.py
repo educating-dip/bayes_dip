@@ -3,8 +3,8 @@ import os
 import yaml
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--bayes_dip_folder', type=str, default='stats_walnut_sample_based_density')
-parser.add_argument('--baseline_mcdo_folder', type=str, default='stats_baseline_walnut_mcdo_density')
+parser.add_argument('--bayes_dip_folder', type=str, default='results_walnut_sample_based_density')
+parser.add_argument('--baseline_mcdo_folder', type=str, default='results_baseline_walnut_mcdo_density')
 parser.add_argument('--patch_sizes', type=int, nargs='+', default=[1, 2])
 parser.add_argument('--root_path', type=str, default='.')
 parser.add_argument('--save_to', type=str, default='walnut_density_table.tex')
