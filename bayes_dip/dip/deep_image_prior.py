@@ -92,7 +92,7 @@ class DeepImagePriorReconstructor():
                 skip_channels=self.net_kwargs['skip_channels'][:self.net_kwargs['scales']],
                 use_sigmoid=self.net_kwargs['use_sigmoid'],
                 use_norm=self.net_kwargs['use_norm'],
-                sigmoid_saturation_thresh= self.net_kwargs['sigmoid_saturation_thresh']
+                sigmoid_saturation_thresh=self.net_kwargs['sigmoid_saturation_thresh']
                 ).to(self.device)
 
     def load_params(self,
@@ -225,7 +225,7 @@ class DeepImagePriorReconstructor():
 
                 if ground_truth is not None:
                     min_loss_output_psnr = PSNR(
-                            min_loss_state['output'].detach().cpu(), ground_truth.cpu())
+                            min_loss_state['output'].cpu(), ground_truth.cpu())
                     output_psnr = PSNR(
                             output.detach().cpu(), ground_truth.cpu())
                     pbar.set_description(f'DIP output_psnr={output_psnr:.1f}', refresh=False)

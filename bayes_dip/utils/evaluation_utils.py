@@ -10,6 +10,7 @@ from omegaconf import OmegaConf
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_predefined_patch_idx_list
 from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mean
 from bayes_dip.inference import get_image_patch_mask_inds
+from bayes_dip.dip import UNet
 
 DEFAULT_OUTPUTS_PATH = '../experiments/outputs'
 DEFAULT_MULTIRUN_PATH = '../experiments/multirun'
@@ -132,6 +133,7 @@ def get_density_data(
 def _recompute_image_noise_correction_term(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> float:
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
     cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
     ray_trafo = get_standard_ray_trafo(cfg)
     observation_cov_filename = (
@@ -144,6 +146,38 @@ def _recompute_image_noise_correction_term(
     diag_mean = get_trafo_t_trafo_pseudo_inv_diag_mean(ray_trafo)
     image_noise_correction_term = diag_mean * log_noise_variance.exp().item()
     return image_noise_correction_term
+
+def _recompute_reconstruction(
+        run_path: str, sample_idx: int,
+        experiment_paths: Optional[Dict] = None,
+        device=None,
+        ) -> float:
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
+    net_kwargs = {
+            'scales': cfg.dip.net.scales,
+            'channels': cfg.dip.net.channels,
+            'skip_channels': cfg.dip.net.skip_channels,
+            'use_norm': cfg.dip.net.use_norm,
+            'use_sigmoid': cfg.dip.net.use_sigmoid,
+            'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
+    filtbackproj = torch.load(
+            os.path.join(run_path, f'sample_{sample_idx}.pt'), map_location=device)['filtbackproj']
+    nn_model = UNet(
+            in_ch=1,
+            out_ch=1,
+            channels=net_kwargs['channels'][:net_kwargs['scales']],
+            skip_channels=net_kwargs['skip_channels'][:net_kwargs['scales']],
+            use_sigmoid=net_kwargs['use_sigmoid'],
+            use_norm=net_kwargs['use_norm'],
+            sigmoid_saturation_thresh=net_kwargs['sigmoid_saturation_thresh']
+            ).to(device)
+    nn_model.load_state_dict(
+            torch.load(os.path.join(run_path, f'dip_model_{sample_idx}.pt'), map_location=device))
+    assert not cfg.dip.recon_from_randn  # would need to re-create random input
+    recon = nn_model(filtbackproj).detach()  # pylint: disable=not-callable
+    return recon
 
 def get_patch_idx_to_mask_inds_dict(
         patch_idx_list: Union[List[int], str, None], im_shape: Tuple[int, int], patch_size: int):

@@ -91,6 +91,7 @@ def coordinator(cfg : DictConfig) -> None:
             dip_params_filepath = os.path.join(load_dip_params_from_path, f'dip_model_{i}.pt')
             print(f'loading DIP network parameters from {dip_params_filepath}')
             reconstructor.load_params(dip_params_filepath)
+            assert not cfg.dip.recon_from_randn  # would need to re-create random input
             recon = reconstructor.nn_model(filtbackproj).detach()  # pylint: disable=not-callable
         torch.save(reconstructor.nn_model.state_dict(),
                 f'dip_model_{i}.pt')

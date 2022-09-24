@@ -77,6 +77,10 @@ def coordinator(cfg : DictConfig) -> None:
         torch.save(
                 reconstructor.nn_model.state_dict(),
                 f'dip_model_{i}.pt')
+        if cfg.dip.recon_from_randn:
+            torch.save(reconstructor.net_input.cpu(),
+                    f'random_input_for_dip_model_{i}.pt'
+            )
 
         print(f'DIP reconstruction of sample {i:d}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
