@@ -4,16 +4,14 @@ import hydra
 import numpy as np
 from omegaconf import DictConfig
 import torch
-from torch import Tensor
 from torch.utils.data import DataLoader
-from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset, get_predefined_patch_idx_list
+from bayes_dip.utils.experiment_utils import (
+        get_standard_ray_trafo, get_standard_dataset, get_predefined_patch_idx_list, load_samples)
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mean
 from bayes_dip.inference import log_prob_patches, get_image_patch_mask_inds
-from baselines import (bayesianize_unet_architecture, sample_from_bayesianized_model,
-    approx_kernel_density)
-from experiments.sample_based_density import _save_samples, _load_samples
+from baselines import bayesianize_unet_architecture, approx_kernel_density
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
@@ -109,7 +107,7 @@ def coordinator(cfg : DictConfig) -> None:
 
         if cfg.baseline.name == 'mcdo':
             assert cfg.baseline.load_samples_from_path is not None
-            samples = _load_samples(
+            samples = load_samples(
                     path=cfg.baseline.load_samples_from_path, i=i,
                     num_samples=cfg.baseline.num_samples
                 ).to(dtype=dtype, device=device)

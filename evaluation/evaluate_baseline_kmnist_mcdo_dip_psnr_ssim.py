@@ -4,10 +4,11 @@ import argparse
 import torch
 import numpy as np
 from bayes_dip.utils import PSNR, SSIM
-from bayes_dip.utils.evaluation_utils import translate_path, _recompute_reconstruction
+from bayes_dip.utils.evaluation_utils import translate_path
+from baselines.evaluation_utils import compute_mcdo_reconstruction
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--runs_file', type=str, default='runs_kmnist_dip.yaml', help='path of yaml file containing hydra output directory names')
+parser.add_argument('--runs_file', type=str, default='runs_baseline_kmnist_mcdo_density.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
 parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
 parser.add_argument('--save_to', type=str, nargs='?', default='')
@@ -37,16 +38,15 @@ for noise in NOISE_LIST:
                 experiment_paths=experiment_paths)
         psnrs = []
         ssims = []
-        has_recons = os.path.isfile(os.path.join(run, f'recon_0.pt'))
+        has_recons = os.path.isfile(os.path.join(run, f'mcdo_recon_0.pt'))
         if not has_recons:
             print('did not find reconstructions, will recompute')
         for i in range(NUM_IMAGES):
             ground_truth = torch.load(
                     os.path.join(run, f'sample_{i}.pt'), map_location='cpu')['ground_truth']
             recon = (
-                    torch.load(os.path.join(run, f'recon_{i}.pt'), map_location='cpu') if has_recons
-                    else _recompute_reconstruction(
-                            run, sample_idx=i, experiment_paths=experiment_paths))
+                    torch.load(os.path.join(run, f'mcdo_recon_{i}.pt'), map_location='cpu') if has_recons
+                    else compute_mcdo_reconstruction(run, sample_idx=i))
             psnrs.append(PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             ssims.append(SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 

@@ -1,19 +1,14 @@
 import os
 from itertools import islice
 import hydra
-import numpy as np
 from omegaconf import DictConfig
 import torch
-from torch import Tensor
 from torch.utils.data import DataLoader
-from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_standard_dataset, get_predefined_patch_idx_list
+from bayes_dip.utils.experiment_utils import (
+        get_standard_ray_trafo, get_standard_dataset, save_samples)
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mean
-from bayes_dip.inference import log_prob_patches, get_image_patch_mask_inds
-from baselines import (bayesianize_unet_architecture, sample_from_bayesianized_model,
-    approx_kernel_density)
-from experiments.sample_based_density import _save_samples, _load_samples
+from baselines import bayesianize_unet_architecture, sample_from_bayesianized_model
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
@@ -63,13 +58,13 @@ def coordinator(cfg : DictConfig) -> None:
                 ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
                 device=device, net_kwargs=net_kwargs,
                 load_params_path=cfg.load_pretrained_dip_params)
-        
+
         optim_kwargs = {
                 'lr': cfg.dip.optim.lr,
                 'iterations': cfg.dip.optim.iterations,
                 'loss_function': cfg.dip.optim.loss_function
             }
-    
+
         bayesianize_unet_architecture(
             reconstructor.nn_model, p=cfg.baseline.p)
         if cfg.baseline.load_mcdo_dip_params_from_path is not None:
@@ -101,13 +96,13 @@ def coordinator(cfg : DictConfig) -> None:
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
         samples = sample_from_bayesianized_model(
-                    reconstructor.nn_model, 
-                    filtbackproj, 
+                    reconstructor.nn_model,
+                    filtbackproj,
                     mc_samples=cfg.baseline.num_samples
             )
 
         if cfg.baseline.save_samples:
-            _save_samples(i=i, samples=samples, chunk_size=cfg.baseline.save_samples_chunk_size)
+            save_samples(i=i, samples=samples, chunk_size=cfg.baseline.save_samples_chunk_size)
 
 if __name__ == '__main__':
     coordinator()  # pylint: disable=no-value-for-parameter

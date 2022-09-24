@@ -36,3 +36,10 @@ mkdir -p $yaml_root_path/results_baseline_kmnist_mcdo_density
 for patch_size in $(seq 1 10); do python evaluate_baseline_kmnist_mcdo_density.py --noise_list 0.05 --angles_list 20 --num_images 10 --runs_file $yaml_root_path/runs_baseline_kmnist_mcdo_density/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_baseline_kmnist_mcdo_density/patch_size_$patch_size.yaml; done
 mkdir -p $yaml_root_path/results_baseline_kmnist_mcdo_density_reweight_off_diagonal_entries
 for patch_size in $(seq 1 10); do python evaluate_baseline_kmnist_mcdo_density.py --noise_list 0.05 --angles_list 20 --num_images 10 --runs_file $yaml_root_path/runs_baseline_kmnist_mcdo_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_baseline_kmnist_mcdo_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
+
+
+# DIP PSNR and SSIM
+python evaluate_kmnist_psnr_ssim.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --save_to $yaml_root_path/psnr_ssim_kmnist_dip.yaml
+
+# baseline MCDO-DIP PSNR and SSIM
+python evaluate_baseline_kmnist_mcdo_dip_psnr_ssim.py --runs_file $yaml_root_path/runs_baseline_kmnist_mcdo_density.yaml --save_to $yaml_root_path/psnr_ssim_baseline_kmnist_mcdo_dip.yaml

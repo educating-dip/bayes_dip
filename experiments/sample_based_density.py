@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import (
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches,
-        get_predefined_patch_idx_list)
+        get_predefined_patch_idx_list, save_samples, load_samples)
 from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
@@ -19,32 +19,6 @@ from bayes_dip.probabilistic_models import (
         ImageCov, ObservationCov, GpriorNeuralBasisExpansion, get_image_noise_correction_term)
 from bayes_dip.marginal_likelihood_optim import LowRankObservationCovPreconditioner
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
-
-
-def _save_samples(i: int, samples: Tensor, chunk_size: int) -> None:
-    for j, start_i in enumerate(range(0, len(samples), chunk_size)):
-        sample_chunk = samples[start_i:start_i+chunk_size].clone()
-        torch.save(sample_chunk, f'samples_{i}_chunk_{j}.pt')
-
-
-def _load_samples(path: str, i: int, num_samples: int, restrict_to_num_samples=True) -> Tensor:
-    sample_chunks = []
-    num_loaded_samples = 0
-    j = 0
-    while num_loaded_samples < num_samples:
-        try:
-            chunk = torch.load(os.path.join(path, f'samples_{i}_chunk_{j}.pt'))
-        except FileNotFoundError as e:
-            raise RuntimeError(
-                    f'Failed to load {num_samples} samples from {path}, '
-                    f'only found {num_loaded_samples}.') from e
-        sample_chunks.append(chunk)
-        num_loaded_samples += chunk.shape[0]
-        j += 1
-    samples = torch.cat(sample_chunks)
-    if restrict_to_num_samples:
-        samples = samples[:num_samples]
-    return samples
 
 
 def _save_cov_obs_mat(i: int, cov_obs_mat: Tensor) -> None:
@@ -221,12 +195,12 @@ def coordinator(cfg : DictConfig) -> None:
                     return_on_device='cpu',
                     **sample_kwargs)
         else:
-            samples = _load_samples(
+            samples = load_samples(
                     path=cfg.inference.load_samples_from_path, i=i,
                     num_samples=cfg.inference.num_samples)
 
         if cfg.inference.save_samples:
-            _save_samples(i=i, samples=samples, chunk_size=cfg.inference.save_samples_chunk_size)
+            save_samples(i=i, samples=samples, chunk_size=cfg.inference.save_samples_chunk_size)
 
         all_patch_mask_inds = get_image_patch_mask_inds(
                 observation_cov.trafo.im_shape, patch_size=cfg.inference.patch_size)

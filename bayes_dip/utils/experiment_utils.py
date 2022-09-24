@@ -6,6 +6,7 @@ from typing import List, Optional
 import os
 from warnings import warn
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset, TensorDataset
 from omegaconf import DictConfig
 from bayes_dip.data import get_ray_trafo, SimulatedDataset, BaseRayTrafo
@@ -168,3 +169,31 @@ def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) ->
         if raise_if_file_not_found:
             raise e
         warn(f'Did not find sample {i} in {path}, so could not verify it matches.')
+
+def save_samples(i: int, samples: Tensor, chunk_size: int, prefix: str = '') -> None:
+    for j, start_i in enumerate(range(0, len(samples), chunk_size)):
+        sample_chunk = samples[start_i:start_i+chunk_size].clone()
+        torch.save(sample_chunk, f'{prefix}samples_{i}_chunk_{j}.pt')
+
+def load_samples(
+        path: str, i: int, num_samples: int, restrict_to_num_samples=True, prefix: str = '',
+        map_location='cpu') -> Tensor:
+    sample_chunks = []
+    num_loaded_samples = 0
+    j = 0
+    while num_loaded_samples < num_samples:
+        try:
+            chunk = torch.load(
+                    os.path.join(path, f'{prefix}samples_{i}_chunk_{j}.pt'),
+                    map_location=map_location)
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                    f'Failed to load {num_samples} samples from {path}, '
+                    f'only found {num_loaded_samples}.') from e
+        sample_chunks.append(chunk)
+        num_loaded_samples += chunk.shape[0]
+        j += 1
+    samples = torch.cat(sample_chunks)
+    if restrict_to_num_samples:
+        samples = samples[:num_samples]
+    return samples
