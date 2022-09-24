@@ -36,3 +36,10 @@ mkdir -p $yaml_root_path/results_baseline_walnut_mcdo_density_reweight_off_diago
 for patch_size in $(seq 1 10); do python evaluate_baseline_walnut_mcdo_density.py --runs_file $yaml_root_path/runs_baseline_walnut_mcdo_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_baseline_walnut_mcdo_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
 mkdir -p $yaml_root_path/results_baseline_walnut_mcdo_density_add_image_noise_correction_term_reweight_off_diagonal_entries
 for patch_size in $(seq 1 10); do python evaluate_baseline_walnut_mcdo_density.py --runs_file $yaml_root_path/runs_baseline_walnut_mcdo_density_add_image_noise_correction_term_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_baseline_walnut_mcdo_density_add_image_noise_correction_term_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
+
+
+# DIP PSNR and SSIM
+python evaluate_walnut_psnr_ssim.py --run ../experiments/outputs/2022-09-16T17:28:36.370532Z --save_to $yaml_root_path/psnr_ssim_walnut_dip.yaml
+
+# baseline MCDO-DIP PSNR and SSIM
+python evaluate_baseline_walnut_mcdo_dip_psnr_ssim.py --runs_file $yaml_root_path/runs_baseline_walnut_mcdo_density/patch_size_1.yaml --save_to $yaml_root_path/psnr_ssim_baseline_walnut_mcdo_dip.yaml

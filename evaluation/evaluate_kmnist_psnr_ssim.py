@@ -4,7 +4,7 @@ import argparse
 import torch
 import numpy as np
 from bayes_dip.utils import PSNR, SSIM
-from bayes_dip.utils.evaluation_utils import translate_path, _recompute_reconstruction
+from bayes_dip.utils.evaluation_utils import translate_path, recompute_reconstruction
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_kmnist_dip.yaml', help='path of yaml file containing hydra output directory names')
@@ -45,7 +45,7 @@ for noise in NOISE_LIST:
                     os.path.join(run, f'sample_{i}.pt'), map_location='cpu')['ground_truth']
             recon = (
                     torch.load(os.path.join(run, f'recon_{i}.pt'), map_location='cpu') if has_recons
-                    else _recompute_reconstruction(
+                    else recompute_reconstruction(
                             run, sample_idx=i, experiment_paths=experiment_paths))
             psnrs.append(PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
             ssims.append(SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))

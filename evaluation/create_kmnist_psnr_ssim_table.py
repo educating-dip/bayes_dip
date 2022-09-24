@@ -19,7 +19,7 @@ NOISE_LIST = [0.05, 0.1]
 ANGLES_LIST = [5, 10, 20, 30]
 
 def format_cell(stats):
-    return f'${stats["psnr"]["mean"]:.2f}/{stats["ssim"]["mean"]:.2f}$'
+    return f'${stats["psnr"]["mean"]:.2f}$/${stats["ssim"]["mean"]:.3f}$'
 
 all_tables = ''
 

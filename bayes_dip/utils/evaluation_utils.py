@@ -2,6 +2,7 @@
 Utilities for evaluation.
 """
 import os
+import re
 from typing import Tuple, Dict, List, Union, Optional
 import numpy as np
 import torch
@@ -15,6 +16,24 @@ from bayes_dip.dip import UNet
 DEFAULT_OUTPUTS_PATH = '../experiments/outputs'
 DEFAULT_MULTIRUN_PATH = '../experiments/multirun'
 
+def is_single_level_date_time_path(path: str):
+    path = path.rstrip('/\\')
+    if re.match(
+            r"([0-9]){4}-([0-9]){2}-([0-9]){2}T([0-9]){2}:([0-9]){2}:([0-9]){2}.([0-9]){6}Z",
+            os.path.basename(path)):
+        # our custom single-level format
+        is_single_level = True
+    elif (
+            re.match(r"([0-9]){4}-([0-9]){2}-([0-9]){2}",
+                    os.path.basename(os.path.dirname(path))) and
+            re.match(r"([0-9]){2}-([0-9]){2}-([0-9]){2}",
+                    os.path.basename(path))):
+        # default format
+        is_single_level = False
+    else:
+        raise ValueError('unknown path format')
+    return is_single_level
+
 def translate_output_path(path: str, outputs_path: Optional[str] = DEFAULT_OUTPUTS_PATH):
     """
     Translate a hydra output path (e.g. "arbitrary/path/to/outputs/???") to a new outputs root path
@@ -22,7 +41,15 @@ def translate_output_path(path: str, outputs_path: Optional[str] = DEFAULT_OUTPU
     """
     path = path.rstrip('/\\')
     if outputs_path is not None:
-        path = os.path.join(outputs_path, os.path.basename(path))
+        if is_single_level_date_time_path(path):
+            path = os.path.join(
+                    outputs_path,
+                    os.path.basename(path))
+        else:
+            path = os.path.join(
+                    outputs_path,
+                    os.path.basename(os.path.dirname(path)),
+                    os.path.basename(path))
     return path
 
 def translate_multirun_path(path: str, multirun_path: Optional[str] = DEFAULT_MULTIRUN_PATH):
@@ -32,8 +59,17 @@ def translate_multirun_path(path: str, multirun_path: Optional[str] = DEFAULT_MU
     """
     path = path.rstrip('/\\')
     if multirun_path is not None:
-        path = os.path.join(
-                multirun_path, os.path.basename(os.path.dirname(path)), os.path.basename(path))
+        if is_single_level_date_time_path(os.path.dirname(path)):
+            path = os.path.join(
+                    multirun_path,
+                    os.path.basename(os.path.dirname(path)),
+                    os.path.basename(path))
+        else:
+            path = os.path.join(
+                    multirun_path,
+                    os.path.basename(os.path.dirname(os.path.dirname(path))),
+                    os.path.basename(os.path.dirname(path)),
+                    os.path.basename(path))
     return path
 
 def translate_path(
@@ -147,7 +183,7 @@ def _recompute_image_noise_correction_term(
     image_noise_correction_term = diag_mean * log_noise_variance.exp().item()
     return image_noise_correction_term
 
-def _recompute_reconstruction(
+def recompute_reconstruction(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None,
         device=None,
