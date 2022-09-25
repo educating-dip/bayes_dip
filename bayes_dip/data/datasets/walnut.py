@@ -145,3 +145,12 @@ def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
         patch_idx // num_patches_0 in range(start_patch_1, end_patch_1)]
 
     return patch_idx_list
+
+def get_walnut_2d_inner_part_defined_by_patch_size(patch_size: int):
+    slice_0 = slice(
+            (INNER_PART_START_0 // patch_size) * patch_size,
+            ceil(INNER_PART_END_0 / patch_size) * patch_size)
+    slice_1 = slice(
+            (INNER_PART_START_1 // patch_size) * patch_size,
+            ceil(INNER_PART_END_1 / patch_size) * patch_size)
+    return slice_0, slice_1

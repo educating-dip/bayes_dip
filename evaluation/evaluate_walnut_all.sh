@@ -39,7 +39,10 @@ for patch_size in $(seq 1 10); do python evaluate_baseline_walnut_mcdo_density.p
 
 
 # DIP PSNR and SSIM
-python evaluate_walnut_psnr_ssim.py --run ../experiments/outputs/2022-09-16T17:28:36.370532Z --save_to $yaml_root_path/psnr_ssim_walnut_dip.yaml
+# (use a dip_mll_optim run instead of the dip run, because the dip run is from an old code base with different hydra config structure)
+python evaluate_walnut_psnr_ssim.py --run $(python -c "import yaml; import os; f = open('$yaml_root_path/runs_walnut_dip_mll_optim.yaml', 'r'); d = yaml.safe_load(f); f.close(); print(d['include_predcp_False'])") --save_to $yaml_root_path/psnr_ssim_walnut_dip.yaml
+python evaluate_walnut_psnr_ssim.py --run $(python -c "import yaml; import os; f = open('$yaml_root_path/runs_walnut_dip_mll_optim.yaml', 'r'); d = yaml.safe_load(f); f.close(); print(d['include_predcp_False'])") --include_outer_part --save_to $yaml_root_path/psnr_ssim_walnut_dip_include_outer_part.yaml
 
 # baseline MCDO-DIP PSNR and SSIM
 python evaluate_baseline_walnut_mcdo_dip_psnr_ssim.py --runs_file $yaml_root_path/runs_baseline_walnut_mcdo_density/patch_size_1.yaml --save_to $yaml_root_path/psnr_ssim_baseline_walnut_mcdo_dip.yaml
+python evaluate_baseline_walnut_mcdo_dip_psnr_ssim.py --runs_file $yaml_root_path/runs_baseline_walnut_mcdo_density/patch_size_1.yaml --include_outer_part --save_to $yaml_root_path/psnr_ssim_baseline_walnut_mcdo_dip_include_outer_part.yaml
