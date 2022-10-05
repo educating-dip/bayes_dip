@@ -287,6 +287,9 @@ def log_prob_patches(
     return (log_probs, patch_diags) if return_patch_diags else log_probs
 
 class SampleBasedPredictivePosterior(BasePredictivePosterior):
+    """
+    Approximate sample-based predictive posterior.
+    """
 
     # sample_via_matheron
     def sample_zero_mean(self,
@@ -300,6 +303,10 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         ) -> Tensor:
         """
         Return samples from the Gaussian given by the predictive posterior covariance and mean zero.
+
+        Note that, in contrast to the (abstract) :meth:`sample` method designated by
+        :class:`BasePredictivePosterior`, this function does not include an image noise correction
+        term (and always has mean zero as indicated by the name).
 
         Parameters
         ----------
@@ -436,7 +443,8 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             noise_x_correction_term: Optional[float] = 1e-6,
             patch_kwargs: Optional[Dict] = None,
             unscaled: bool = False,
-            **kwargs):
+            **kwargs
+            ) -> np.float64:
         """
         Return the patch-based approximate log probability.
 
@@ -472,7 +480,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
 
         Returns
         -------
-        log_probability : float-like
+        log_probability : np.float64
             Log probability, optionally scaled; see the `unscaled` argument.
         """
         # pylint: disable=arguments-differ

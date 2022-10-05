@@ -37,6 +37,11 @@ class BaseImageCov(nn.Module, ABC):
 
         Unless specified using an additional argument in a sub-class, the mean should be zero.
 
+        Parameters
+        ----------
+        num_samples : int
+            Number of samples.
+
         Returns
         -------
         Tensor

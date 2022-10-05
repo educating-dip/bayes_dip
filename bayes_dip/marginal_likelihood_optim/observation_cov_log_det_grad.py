@@ -7,11 +7,12 @@ from torch import nn
 from torch import Tensor
 from ..probabilistic_models import ObservationCov, LinearSandwichCov
 from .random_probes import generate_probes_bernoulli
+from .preconditioner import BasePreconditioner
 from ..utils import cg
 
 def approx_observation_cov_log_det_grads(
         observation_cov: ObservationCov,
-        precon: ObservationCov = None,
+        precon: BasePreconditioner = None,
         max_cg_iter: int = 50,
         cg_rtol: float = 1e-3,
         num_probes: int = 1,

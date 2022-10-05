@@ -1,5 +1,10 @@
 """
 Utilities for evaluation.
+
+A general note on hydra run paths: the methods in this module expect paths to single hydra output
+folders (containing the ``.hydra/`` subfolder), which may either be a normal hydra output path or a
+path to a sub-folder of a hydra multirun path (such sub-folders are called "multirun path" in this
+module's documentation).
 """
 import os
 import re
@@ -17,6 +22,12 @@ DEFAULT_OUTPUTS_PATH = '../experiments/outputs'
 DEFAULT_MULTIRUN_PATH = '../experiments/multirun'
 
 def is_single_level_date_time_path(path: str):
+    """
+    Check whether a hydra output or multirun path has date and time encoded in a single folder name
+    as specified in our custom configs ``hydra.run.dir=outputs/${now:%Y-%m-%dT%H:%M:%S.%fZ}`` and
+    ``hydra.sweep.dir=multirun/${now:%Y-%m-%dT%H:%M:%S.%fZ}`` (as opposed to the default config that
+    uses a date folder and a time folder inside).
+    """
     path = path.rstrip('/\\')
     if re.match(
             r"([0-9]){4}-([0-9]){2}-([0-9]){2}T([0-9]){2}:([0-9]){2}:([0-9]){2}.([0-9]){6}Z",
@@ -187,7 +198,26 @@ def recompute_reconstruction(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None,
         device=None,
-        ) -> float:
+        ) -> Tensor:
+    """
+    Recompute the reconstruction from saved network model parameters.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+    device : str or torch.device, optional
+        Device.
+
+    Returns
+    -------
+    reconstruction : Tensor
+        DIP reconstruction. Shape: ``(1, 1, *im_shape)``.
+    """
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
     device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
     cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))

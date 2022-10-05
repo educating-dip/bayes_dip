@@ -1,7 +1,7 @@
 """
 Provides walnut projection data and ground truth.
 """
-from typing import List
+from typing import List, Tuple
 from math import ceil
 import torch
 from torch import Tensor
@@ -118,9 +118,19 @@ INNER_PART_START_1 = 72
 INNER_PART_END_0 = 424
 INNER_PART_END_1 = 424
 
+def _get_walnut_2d_inner_patch_slices(patch_size: int) -> Tuple[slice, slice]:
+    start_patch_0 = INNER_PART_START_0 // patch_size
+    start_patch_1 = INNER_PART_START_1 // patch_size
+    end_patch_0 = ceil(INNER_PART_END_0 / patch_size)
+    end_patch_1 = ceil(INNER_PART_END_1 / patch_size)
+    patch_slice_0 = slice(start_patch_0, end_patch_0)
+    patch_slice_1 = slice(start_patch_1, end_patch_1)
+    return patch_slice_0, patch_slice_1
+
 def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
     """
-    Return patch indices for the inner part of the walnut image (that contains the walnut).
+    Return patch indices for the inner part of the walnut image (that contains the walnut)
+    into the list returned by :func:`bayes_dip.inference.utils.get_image_patch_slices`.
 
     Parameters
     ----------
@@ -134,23 +144,33 @@ def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
     """
     num_patches_0 = VOL_SZ[1] // patch_size
     num_patches_1 = VOL_SZ[2] // patch_size
-    start_patch_0 = INNER_PART_START_0 // patch_size
-    start_patch_1 = INNER_PART_START_1 // patch_size
-    end_patch_0 = ceil(INNER_PART_END_0 / patch_size)
-    end_patch_1 = ceil(INNER_PART_END_1 / patch_size)
+    patch_slice_0, patch_slice_1 = _get_walnut_2d_inner_patch_slices(patch_size)
 
     patch_idx_list = [
         patch_idx for patch_idx in range(num_patches_0 * num_patches_1)
-        if patch_idx % num_patches_0 in range(start_patch_0, end_patch_0) and
-        patch_idx // num_patches_0 in range(start_patch_1, end_patch_1)]
+        if patch_idx % num_patches_0 in range(num_patches_0)[patch_slice_0] and
+        patch_idx // num_patches_0 in range(num_patches_1)[patch_slice_1]]
 
     return patch_idx_list
 
-def get_walnut_2d_inner_part_defined_by_patch_size(patch_size: int):
+def get_walnut_2d_inner_part_defined_by_patch_size(patch_size: int) -> Tuple[slice, slice]:
+    """
+    Return a pair of slices specifying the inner part of the walnut image, which depends (to a minor
+    extent) on the `patch_size`, since the inner part is defined by patch indices into the list
+    returned by :func:`bayes_dip.inference.utils.get_image_patch_slices`.
+
+    Parameters
+    ----------
+    patch_size : int
+        Side length of the patches (patches are usually square).
+    """
+    num_patches_0 = VOL_SZ[1] // patch_size
+    num_patches_1 = VOL_SZ[2] // patch_size
+    patch_slice_0, patch_slice_1 = _get_walnut_2d_inner_patch_slices(patch_size)
     slice_0 = slice(
-            (INNER_PART_START_0 // patch_size) * patch_size,
-            ceil(INNER_PART_END_0 / patch_size) * patch_size)
+            patch_slice_0.start * patch_size,
+            (patch_slice_0.stop * patch_size if patch_slice_0.stop < num_patches_0 else VOL_SZ[1]))
     slice_1 = slice(
-            (INNER_PART_START_1 // patch_size) * patch_size,
-            ceil(INNER_PART_END_1 / patch_size) * patch_size)
+            patch_slice_1.start * patch_size,
+            (patch_slice_1.stop * patch_size if patch_slice_1.stop < num_patches_1 else VOL_SZ[2]))
     return slice_0, slice_1

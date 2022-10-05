@@ -11,6 +11,34 @@ from .random_probes import generate_probes_bernoulli
 def approx_diag(
         closure: Callable, size: int, num_samples: int, batch_size: int = 1,
         dtype=None, device=None):
+    """
+    Return an approximate of a matrix diagonal, estimated using matrix-vector products.
+
+    This implements the matrix-free estimator described in Figure 1 in [1]_.
+
+    .. [1] C. Bekas, E. Kokiopoulou, and Y. Saad, 2007, "An estimator for the diagonal of a matrix".
+           Applied Numerical Mathematics. https://doi.org/10.1016/J.APNUM.2007.01.003
+
+    Parameters
+    ----------
+    closure : callable
+        Matmul closure. The closure receives and returns tensors of shape ``(size, batch_size)``.
+    size : int
+        Matrix size (side length).
+    num_samples : int
+        Number of samples to use for the estimation.
+    batch_size : int, optional
+        Batch size for evaluating the closure. The default is `1`.
+    dtype : str or torch.dtype, optional
+        Data type.
+    device : str or torch.device, optional
+        Device.
+
+    Returns
+    -------
+    estimated_diag : Tensor
+        Matrix diagonal estimate. Shape: ``(size,)``.
+    """
     num_batches = ceil(num_samples / batch_size)
     t = torch.zeros(size, dtype=dtype, device=device)
     q = torch.zeros(size, dtype=dtype, device=device)
@@ -20,7 +48,7 @@ def approx_diag(
                 num_probes=batch_size,
                 dtype=dtype,
                 device=device,
-                jacobi_vector=None)  # (size, num_samples)
+                jacobi_vector=None)  # (size, batch_size)
         t += (closure(v) * v).sum(dim=1)
         q += (v * v).sum(dim=1)
     d = t / q

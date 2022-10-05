@@ -171,6 +171,22 @@ def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) ->
         warn(f'Did not find sample {i} in {path}, so could not verify it matches.')
 
 def save_samples(i: int, samples: Tensor, chunk_size: int, prefix: str = '') -> None:
+    """
+    Save samples to file(s) in the current working directory.
+
+    The files are named ``f'{prefix}samples_{i}_chunk_{j}.pt'`` (where ``j`` is the chunk index).
+
+    Parameters
+    ----------
+    i : int
+        Data sample index.
+    samples : Tensor
+        Samples. Shape: ``(num_samples, ...)``.
+    chunk_size : int
+        Number of samples per file.
+    prefix : str, optional
+        If specified, prefix each filename with this string.
+    """
     for j, start_i in enumerate(range(0, len(samples), chunk_size)):
         sample_chunk = samples[start_i:start_i+chunk_size].clone()
         torch.save(sample_chunk, f'{prefix}samples_{i}_chunk_{j}.pt')
@@ -178,6 +194,33 @@ def save_samples(i: int, samples: Tensor, chunk_size: int, prefix: str = '') -> 
 def load_samples(
         path: str, i: int, num_samples: int, restrict_to_num_samples=True, prefix: str = '',
         map_location='cpu') -> Tensor:
+    """
+    Load samples from file(s) in ``path`` that were saved by :func:`save_samples`.
+
+    Parameters
+    ----------
+    path : str
+        Path containing the samples file(s).
+    i : int
+        Data sample index.
+    num_samples : int
+        Minimum number of samples to load.
+        If `restrict_to_num_samples` or the number of saved samples is divisible by the chunk size,
+        this is the number of returned samples.
+    restrict_to_num_samples : bool, optional
+        Whether to restrict the loaded samples to the first `num_samples` samples; otherwise more
+        samples may be returned (due to the chunk size of the saved files).
+        The default is `True`.
+    prefix : str, optional
+        Prefix of the filename(s).
+
+    Returns
+    -------
+    samples : Tensor
+        Samples. Shape: ``(eff_num_samples, ...)``, where
+        `eff_num_samples` is `num_samples` if `restrict_to_num_samples` or
+        ``ceil(num_samples / chunk_size) * chunk_size`` otherwise.
+    """
     sample_chunks = []
     num_loaded_samples = 0
     j = 0

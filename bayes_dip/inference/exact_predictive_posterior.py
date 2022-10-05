@@ -12,7 +12,9 @@ from ..utils import make_choleskable, assert_positive_diag
 
 
 class ExactPredictivePosterior(BasePredictivePosterior):
-
+    """
+    Exact matmul-based predictive posterior.
+    """
 
     def __init__(self,
             observation_cov: MatmulObservationCov):
@@ -22,6 +24,24 @@ class ExactPredictivePosterior(BasePredictivePosterior):
         noise_x_correction_term: Optional[float] = 1e-6,
         eps: float = 1e-6
         ) -> Tensor:
+        """
+        Return the predictive posterior covariance matrix.
+
+        Parameters
+        ----------
+        noise_x_correction_term : float or None, optional
+            Noise amount that is assumed to be present in ground truth. Can help to stabilize
+            computations. The default is ``1e-6``.
+        eps : float, optional
+            Stabilizing value added to the diagonal of the image covariance matrix
+            ``J @ parameter_cov @ J.T`` (where `J` is the network Jacobian and `parameter_cov`
+            represents ``self.observation_cov.image_cov.inner_cov``). The default is ``1e-6``.
+
+        Returns
+        -------
+        cov : Tensor
+            Covariance matrix. Shape: ``(np.prod(self.observation_cov.trafo.im_shape),) * 2``.
+        """
 
         obs_cov_mat = self.observation_cov.get_matrix(apply_make_choleskable=True)  # obs_cov
 
@@ -57,6 +77,22 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             mean: Tensor,
             **kwargs
             ) -> MultivariateNormal:
+        """
+        Return the predictive posterior distribution with the given `mean` in form of a
+        :class:`torch.distributions.MultivariateNormal` instance.
+
+        Parameters
+        ----------
+        mean : Tensor
+            Predictive posterior mean.
+        **kwargs : dict
+            Keyword arguments passed to :meth:`covariance`.
+
+        Returns
+        -------
+        dist : :class:`torch.distributions.MultivariateNormal`
+            Predictive posterior distribution.
+        """
 
         pred_cov_mat = self.covariance(**kwargs)
 
@@ -72,7 +108,25 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             mean: Tensor,
             ground_truth: Tensor,
             **kwargs,
-            ) -> float:
+            ) -> np.float64:
+        """
+        Return the log probability of `ground_truth` under the predictive posterior with the given
+        `mean`.
+
+        Parameters
+        ----------
+        mean : Tensor
+            Predictive posterior mean.
+        ground_truth : Tensor
+            Ground truth.
+        **kwargs : dict
+            Keyword arguments passed to :meth:`covariance`.
+
+        Returns
+        -------
+        log_probability : np.float64
+            Log probability.
+        """
         # pylint: disable=arguments-differ
 
         assert ground_truth.shape == mean.shape
@@ -88,6 +142,23 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             mean: Tensor,
             **kwargs
             ) -> Tensor:
+        """
+        Sample from the predictive posterior with the given `mean`.
+
+        Parameters
+        ----------
+        num_samples : int
+            Number of samples.
+        mean : Tensor
+            Predictive posterior mean. Shape: ``(1, 1, *self.observation_cov.trafo.im_shape)``.
+        **kwargs : dict
+            Keyword arguments passed to :meth:`covariance`.
+
+        Returns
+        -------
+        samples : Tensor
+            Samples. Shape: ``(num_samples, 1, *self.observation_cov.trafo.im_shape)``.
+        """
         # pylint: disable=arguments-differ
 
         assert mean.shape[:2] == (1, 1)
