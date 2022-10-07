@@ -8,25 +8,25 @@ python evaluate_kmnist_exact_density.py --runs_file $yaml_root_path/runs_kmnist_
 python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density.yaml
 # Bayes-DIP sample based density for different patch sizes
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density
-for patch_size in $(seq 1 10); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density/patch_size_$patch_size.yaml; done
+for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density/patch_size_$patch_size.yaml; done
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density_reweight_off_diagonal_entries
-for patch_size in $(seq 1 10); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
+for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
 
 # Bayes-DIP sample based density with approx Jacs
 python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs.yaml
 # Bayes-DIP sample based density with approx Jacs for different patch sizes
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density_approx_jacs
-for patch_size in $(seq 1 10); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs/patch_size_$patch_size.yaml; done
+for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs/patch_size_$patch_size.yaml; done
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_reweight_off_diagonal_entries
-for patch_size in $(seq 1 10); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
+for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
 
 # Bayes-DIP sample based density with approx Jacs and CG inversion
 python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_cg.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg.yaml
 # Bayes-DIP sample based density with approx Jacs and CG inversion for different patch sizes
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg
-for patch_size in $(seq 1 10); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_cg/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg/patch_size_$patch_size.yaml; done
+for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_cg/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg/patch_size_$patch_size.yaml; done
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg_reweight_off_diagonal_entries
-for patch_size in $(seq 1 10); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_cg_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
+for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs_cg_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs_cg_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
 
 # baselines
 python evaluate_baseline_kmnist_mcdo_density.py --runs_file $yaml_root_path/runs_baseline_kmnist_mcdo_density.yaml --save_to $yaml_root_path/results_baseline_kmnist_mcdo_density.yaml

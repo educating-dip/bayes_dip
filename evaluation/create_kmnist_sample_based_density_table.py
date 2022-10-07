@@ -7,7 +7,7 @@ parser.add_argument('--bayes_dip_folder', type=str, default='results_kmnist_samp
 parser.add_argument('--baseline_mcdo_folder', type=str, default='results_baseline_kmnist_mcdo_density')
 parser.add_argument('--noise_list', type=float, nargs='+', default=[0.05, 0.1])
 parser.add_argument('--angles_list', type=int, nargs='+', default=[20])
-parser.add_argument('--patch_sizes', type=int, nargs='+', default=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+parser.add_argument('--patch_sizes', type=int, nargs='+', default=list(range(1, 29)))
 parser.add_argument('--root_path', type=str, default='.')
 parser.add_argument('--save_to', type=str, default='kmnist_sample_based_density_table.tex')
 args = parser.parse_args()
