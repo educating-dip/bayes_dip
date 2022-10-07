@@ -21,8 +21,8 @@ class BaseNeuralBasisExpansion(ABC):
 
     def __init__(self,
             nn_model: nn.Module,
-            nn_input: torch.Tensor,
-            ordered_nn_params: Sequence,
+            nn_input: Tensor,
+            ordered_nn_params: Sequence[nn.Parameter],
             nn_out_shape: Optional[Tuple[int, int, int, int]] = None,
             ) -> None:
         """

@@ -7,12 +7,11 @@ from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import (
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM
-from bayes_dip.dip import DeepImagePriorReconstructor
+from bayes_dip.dip import DeepImagePriorReconstructor, UNetReturnPreSigmoid
 from bayes_dip.probabilistic_models import (
         get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
 from bayes_dip.probabilistic_models import (
-        NeuralBasisExpansion, ParameterCov, ImageCov, ObservationCov,
-        GpriorNeuralBasisExpansion)
+        get_neural_basis_expansion, ParameterCov, ImageCov, ObservationCov)
 from bayes_dip.marginal_likelihood_optim import (
         marginal_likelihood_hyperparams_optim, get_preconditioner, weights_linearization,
         get_ordered_nn_params_vec)
@@ -113,18 +112,15 @@ def coordinator(cfg : DictConfig) -> None:
                 hyperparams_init_dict,
                 device=device
         )
-        neural_basis_expansion = NeuralBasisExpansion(
+        neural_basis_expansion = get_neural_basis_expansion(
                 nn_model=reconstructor.nn_model,
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
+                use_gprior=cfg.priors.use_gprior,
+                trafo=ray_trafo,
+                scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
         )
-        if cfg.priors.use_gprior:
-            neural_basis_expansion = GpriorNeuralBasisExpansion(
-                    neural_basis_expansion=neural_basis_expansion,
-                    trafo=ray_trafo,
-                    scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-            )
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion
@@ -156,12 +152,22 @@ def coordinator(cfg : DictConfig) -> None:
                 weights_linearization_optim_kwargs = OmegaConf.to_object(
                         cfg.mll_optim.weights_linearization)
                 weights_linearization_optim_kwargs['gamma'] = cfg.dip.optim.gamma
-                weights_linearization_optim_kwargs['use_gprior'] = cfg.priors.use_gprior
-                weights_linearization_optim_kwargs['gprior_scale_kwargs'] = OmegaConf.to_object(cfg.priors.gprior.scale)
                 map_weights = torch.clone(get_ordered_nn_params_vec(parameter_cov))
+                neural_basis_expansion_no_sigmoid = (
+                        neural_basis_expansion if not reconstructor.nn_model.use_sigmoid else
+                        get_neural_basis_expansion(
+                                nn_model=UNetReturnPreSigmoid(reconstructor.nn_model),
+                                nn_input=filtbackproj,
+                                ordered_nn_params=parameter_cov.ordered_nn_params,
+                                nn_out_shape=filtbackproj.shape,
+                                use_gprior=cfg.priors.use_gprior,
+                                trafo=ray_trafo,
+                                scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale))
+                )
                 linearized_weights, lin_recon = weights_linearization(
                         trafo=ray_trafo,
-                        neural_basis_expansion=neural_basis_expansion,
+                        neural_basis_expansion=neural_basis_expansion_no_sigmoid,
+                        use_sigmoid=reconstructor.nn_model.use_sigmoid,
                         map_weights=map_weights,
                         observation=observation,
                         ground_truth=ground_truth,

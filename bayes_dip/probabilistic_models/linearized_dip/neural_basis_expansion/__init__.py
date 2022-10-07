@@ -11,3 +11,4 @@ from .functorch_utils import (
         flatten_grad_functorch,
         unflatten_nn_functorch
 )
+from .getter import get_neural_basis_expansion, get_matmul_neural_basis_expansion

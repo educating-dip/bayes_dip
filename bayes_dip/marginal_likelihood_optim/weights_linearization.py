@@ -7,14 +7,13 @@ import torch
 from torch import nn, Tensor
 from tqdm import tqdm
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
-from bayes_dip.dip import UNetReturnPreSigmoid
-from bayes_dip.probabilistic_models import (
-        NeuralBasisExpansion, GpriorNeuralBasisExpansion, BaseNeuralBasisExpansion)
+from bayes_dip.probabilistic_models import BaseNeuralBasisExpansion
 from ..utils import batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-import
 
 def weights_linearization(
         trafo: BaseRayTrafo,
         neural_basis_expansion: BaseNeuralBasisExpansion,
+        use_sigmoid: bool,
         map_weights: Tensor,
         observation: Tensor,
         ground_truth: Tensor,
@@ -30,7 +29,16 @@ def weights_linearization(
     trafo : :class:`.BaseRayTrafo`
         Ray transform.
     neural_basis_expansion : :class:`.BaseNeuralBasisExpansion`
-        Neural basis expansion.
+        Neural basis expansion of a :class:`~bayes_dip.dip.UNet` or
+        :class:`bayes_dip.dip.UNetReturnPreSigmoid` model. See ``use_sigmoid`` for instructions
+        on how to handle final sigmoid activations.
+    use_sigmoid : bool
+        Whether to apply sigmoid on the output of the linear model; useful to keep a final sigmoid
+        activation out of the linearization, i.e., by passing a ``neural_basis_expansion`` for a
+        version of the network that excludes the final sigmoid, and passing ``use_sigmoid=True``.
+        If the network does not have a final sigmoid activation, or if the full model including
+        sigmoid should be linearized, ``use_sigmoid=False`` should be passed (and
+        ``neural_basis_expansion.nn_model`` should include the sigmoid if any).
     map_weights : Tensor
         MAP weights (DIP network model weights). Shape: ``(neural_basis_expansion.jac_shape[1],)``.
     observation : Tensor
@@ -79,26 +87,8 @@ def weights_linearization(
     nn_model = neural_basis_expansion.nn_model
     nn_input = neural_basis_expansion.nn_input
 
-    if nn_model.use_sigmoid:
-        nn_model_no_sigmoid = UNetReturnPreSigmoid(nn_model)
-        neural_basis_expansion = NeuralBasisExpansion(
-                nn_model=nn_model_no_sigmoid,
-                nn_input=nn_input,
-                ordered_nn_params=neural_basis_expansion.ordered_nn_params,
-                nn_out_shape=nn_input.shape,
-        )
-        if optim_kwargs['use_gprior']:
-            neural_basis_expansion = GpriorNeuralBasisExpansion(
-                neural_basis_expansion=neural_basis_expansion,
-                trafo=trafo,
-                scale_kwargs=optim_kwargs['gprior_scale_kwargs'],
-                device=observation.device,
-            )
-    else:
-        nn_model_no_sigmoid = nn_model
-
     with torch.no_grad():
-        recon_no_activation = nn_model_no_sigmoid(nn_input, saturation_safety=True)
+        nn_model_recon = nn_model(nn_input, saturation_safety=True)
 
     lin_weights_fd = (
             nn.Parameter(torch.zeros_like(map_weights)) if optim_kwargs['simplified_eqn']
@@ -109,7 +99,7 @@ def weights_linearization(
 
     with tqdm(range(optim_kwargs['iterations']),
                 miniters=optim_kwargs['iterations']//100) as pbar, \
-            eval_mode(nn_model_no_sigmoid):
+            eval_mode(nn_model):
         for _ in pbar:
 
             if optim_kwargs['simplified_eqn']:
@@ -120,9 +110,9 @@ def weights_linearization(
             lin_recon = neural_basis_expansion.jvp(fd_vector[None, :]).detach().squeeze(dim=1)
 
             if not optim_kwargs['simplified_eqn']:
-                lin_recon = lin_recon + recon_no_activation
+                lin_recon = lin_recon + nn_model_recon
 
-            if nn_model.use_sigmoid:
+            if use_sigmoid:
                 lin_recon = lin_recon.sigmoid()
 
             proj_lin_recon = trafo(lin_recon)
@@ -136,7 +126,7 @@ def weights_linearization(
             #         + optim_kwargs['gamma'] * tv_loss(lin_recon))
             v = - 2 / observation.numel() * precision * norm_grad + optim_kwargs['gamma'] * tv_grad
 
-            if nn_model.use_sigmoid:
+            if use_sigmoid:
                 v = v * lin_recon * (1 - lin_recon)
 
             optimizer.zero_grad()
