@@ -65,16 +65,6 @@ def weights_linearization(
             optimization).
         ``'wd'`` : float
             Weight decay rate.
-        ``'use_gprior'`` : bool, optional
-            Required iff ``nn_model.use_sigmoid``. In this case, it specifies whether a
-            :class:`GpriorNeuralBasisExpansion` should be used, which is information needed by this
-            function because a new neural basis expansion for the model excluding the sigmoid is
-            created; if ``not nn_model.use_sigmoid``, the user should already pass the wished neural
-            basis expansion object (which may also be a :class:`GpriorNeuralBasisExpansion`).
-        ``'gprior_scale_kwargs'`` : dict, optional
-            Required iff ``nn_model.use_sigmoid`` and ``optim_kwargs['use_gprior']``. In this case,
-            it specifies the ``scale_kwargs`` argument to
-            :meth:`GpriorNeuralBasisExpansion.__init__`.
 
     Returns
     -------
