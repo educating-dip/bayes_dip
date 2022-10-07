@@ -2,6 +2,7 @@
 Provides :class:`MatmulRayTrafo`.
 """
 
+from __future__ import annotations  # postponed evaluation, to make ArrayLike look good in docs
 from typing import Union, Optional, Callable, Tuple, Any
 try:
     from numpy.typing import ArrayLike

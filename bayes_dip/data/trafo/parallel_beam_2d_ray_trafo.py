@@ -24,17 +24,17 @@ def get_odl_ray_trafo_parallel_beam_2d(
     Parameters
     ----------
     im_shape : 2-tuple of int
-        Image shape, `(im_0, im_1)`.
+        Image shape, ``(im_0, im_1)``.
     num_angles : int
-        Number of angles (to distribute from `0` to `pi`).
+        Number of angles (to distribute from ``0`` to ``pi``).
     first_angle_zero : bool, optional
-        Whether to shift all angles such that the first angle becomes `0.`.
-        If `False`, the default angles from ODL are used, where the first angle
+        Whether to shift all angles such that the first angle becomes ``0.``.
+        If ``False``, the default angles from ODL are used, where the first angle
         is at half an angle step.
-        The default is `True`.
+        The default is ``True``.
     impl : str, optional
         Backend for :class:`odl.tomo.RayTransform`.
-        The default is `'astra_cuda'`.
+        The default is ``'astra_cuda'``.
     """
 
     space = odl.uniform_discr(
@@ -82,20 +82,20 @@ class ParallelBeam2DRayTrafo(BaseRayTrafo):
         Parameters
         ----------
         im_shape : 2-tuple of int
-            Image shape, `(im_0, im_1)`.
+            Image shape, ``(im_0, im_1)``.
         num_angles : int
-            Number of angles (to distribute from `0` to `pi`).
+            Number of angles (to distribute from ``0`` to ``pi``).
         first_angle_zero : bool, optional
-            Whether to shift all angles such that the first angle becomes `0.`.
-            If `False`, the default angles from ODL are used, where the first angle
+            Whether to shift all angles such that the first angle becomes ``0.``.
+            If ``False``, the default angles from ODL are used, where the first angle
             is at half an angle step.
-            The default is `True`.
+            The default is ``True``.
         angular_sub_sampling : int, optional
             Sub-sampling factor for the angles.
-            The default is `1` (no sub-sampling).
+            The default is ``1`` (no sub-sampling).
         impl : str, optional
             Backend for :class:`odl.tomo.RayTransform`.
-            The default is `'astra_cuda'`.
+            The default is ``'astra_cuda'``.
         """
         odl_ray_trafo_full = get_odl_ray_trafo_parallel_beam_2d(
                 im_shape, num_angles, first_angle_zero=first_angle_zero,
@@ -149,10 +149,10 @@ def get_odl_ray_trafo_parallel_beam_2d_matrix(
     Parameters
     ----------
     flatten : bool, optional
-        If `True`, the observation dimensions and image dimensions are flattened,
+        If ``True``, the observation dimensions and image dimensions are flattened,
         the resulting shape is ``(np.prod(obs_shape), np.prod(im_shape))``);
-        if `False`, the shape is ``obs_shape + im_shape``.
-        The default is `True`.
+        if ``False``, the shape is ``obs_shape + im_shape``.
+        The default is ``True``.
     """
 
     odl_ray_trafo_full = get_odl_ray_trafo_parallel_beam_2d(

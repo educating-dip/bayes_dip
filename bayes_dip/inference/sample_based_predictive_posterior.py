@@ -114,9 +114,9 @@ def yield_covariances_patches(
     patch_kwargs : dict, optional
         Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
     noise_x_correction_term : float or None, optional
-        Noise amount that is assumed to be present in ground truth. The default is `1e-6`.
+        Noise amount that is assumed to be present in ground truth. The default is ``1e-6``.
     device : str or torch.device, optional
-        Device. If `None` (the default), ``samples.device`` is used.
+        Device. If ``None`` (the default), ``samples.device`` is used.
 
     Yields
     ------
@@ -125,7 +125,7 @@ def yield_covariances_patches(
     batch_predictive_cov_image_patch : Tensor
         Covariance matrices.
         Shape: ``(batch_size, max(batch_len_mask_inds), max(batch_len_mask_inds))``, where
-        `batch_size` is ``patch_kwargs['batch_size']`` for all batches except for the
+        ``batch_size`` is ``patch_kwargs['batch_size']`` for all batches except for the
         potentially shorter last batch. If a patch has less than ``max(batch_len_mask_inds)``
         pixels, the covariance matrix is padded with the identity, i.e. ones on the diagonal and
         zeros for the other entries.
@@ -190,28 +190,29 @@ def log_prob_patches(
     patch_kwargs : dict, optional
         Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
     reweight_off_diagonal_entries : bool, optional
-        If `True`, replace the covariance matrix `cov` (for each patch) with
+        If ``True``, replace the covariance matrix ``cov`` (for each patch) with
         ``0.5 * (cov + torch.diag(torch.diag(cov)))``.
-        The default is `False`.
+        The default is ``False``.
     noise_x_correction_term : float or None, optional
         Noise amount that is assumed to be present in ground truth. Can help to stabilize
-        computations. The default is `1e-6`.
+        computations. The default is ``1e-6``.
     verbose : bool, optional
-        Whether to print information. The default is `True`.
+        Whether to print information. The default is ``True``.
     unscaled : bool, optional
-        If `False`, the unscaled patch log probabilities are divided by the number of pixels in
+        If ``False``, the unscaled patch log probabilities are divided by the number of pixels in
         the respective patch. Otherwise the unscaled patch log probabilities are returned.
-        The default is `False`.
+        The default is ``False``.
     return_patch_diags : bool, optional
-        If `True`, return the diagonals of the covariance matrices.
-        The default is `False`.
+        If ``True``, return the diagonals of the covariance matrices.
+        The default is ``False``.
     device : str or torch.device, optional
-        Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+        Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+        otherwise.
 
     Returns
     -------
     log_probabilities : list of float
-        Log probabilities for the patches, optionally scaled; see the `unscaled` argument.
+        Log probabilities for the patches, optionally scaled; see the ``unscaled`` argument.
     patch_diags : list of Tensor, optional
         Diagonals of the covariance matrices for the patches.
     """
@@ -316,25 +317,25 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             Cholesky factor of the observation covariance matrix.
             Required if ``not use_conj_grad_inv``.
         batch_size : int, optional
-            Batch size (number of images per batch). The default is `1`.
+            Batch size (number of images per batch). The default is ``1``.
         use_conj_grad_inv : bool, optional
-            Whether to use CG instead of `cov_obs_mat_chol` for solving the linear system with the
-            observation covariance matrix. The default is `False`.
+            Whether to use CG instead of ``cov_obs_mat_chol`` for solving the linear system with the
+            observation covariance matrix. The default is ``False``.
         cg_kwargs : dict, optional
             Keyword arguments passed to :func:`bayes_dip.utils.cg`.
         return_residual_norm_list : bool, optional
-            Whether to return the list of residual norms in case of `use_conj_grad_inv`.
-            The default is `False`.
+            Whether to return the list of residual norms in case of ``use_conj_grad_inv``.
+            The default is ``False``.
         return_on_device : str or torch.device, optional
             Device on which samples are collected. This option only affects the storage of the
             samples to be returned, not their computation.
-            If `None` (the default), ``self.observation_cov.device`` is used.
+            If ``None`` (the default), ``self.observation_cov.device`` is used.
 
         Returns
         -------
         samples : Tensor
             Samples from the Gaussian given by the predictive posterior covariance and mean zero.
-            Shape: ``(n, 1, *im_shape)``, where `n` is
+            Shape: ``(n, 1, *im_shape)``, where ``n`` is
             ``ceil(num_samples / batch_size) * batch_size``.
         residual_norm_list : list of scalar, optional
             Residual norms of CG solutions, only returned if
@@ -406,11 +407,11 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         patch_kwargs : dict, optional
             Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
         noise_x_correction_term : float or None, optional
-            Noise amount that is assumed to be present in ground truth. The default is `1e-6`.
+            Noise amount that is assumed to be present in ground truth. The default is ``1e-6``.
         sample_kwargs : dict, optional
             Keyword arguments passed to :meth:`sample_zero_mean`. Required if ``samples is None``.
         device : str or torch.device, optional
-            Device. If `None` (the default), ``self.observation_cov.device`` is used.
+            Device. If ``None`` (the default), ``self.observation_cov.device`` is used.
 
         Yields
         ------
@@ -419,7 +420,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         batch_predictive_cov_image_patch : Tensor
             Covariance matrices.
             Shape: ``(batch_size, max(batch_len_mask_inds), max(batch_len_mask_inds))``, where
-            `batch_size` is ``patch_kwargs['batch_size']`` for all batches except for the
+            ``batch_size`` is ``patch_kwargs['batch_size']`` for all batches except for the
             potentially shorter last batch. If a patch has less than ``max(batch_len_mask_inds)``
             pixels, the covariance matrix is padded with the identity, i.e. ones on the diagonal and
             zeros for the other entries.
@@ -448,7 +449,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         """
         Return the patch-based approximate log probability.
 
-        By default, a patch size of `1` pixel, i.e. just the pixel-wise variance is used,
+        By default, a patch size of ``1`` pixel, i.e. just the pixel-wise variance is used,
         neglecting correlations between different pixels.
 
         Parameters
@@ -459,29 +460,29 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             Ground truth.
         noise_x_correction_term : float or None, optional
             Noise amount that is assumed to be present in ground truth. Can help to stabilize
-            computations. The default is `1e-6`.
+            computations. The default is ``1e-6``.
         patch_kwargs : dict, optional
             Keyword arguments specifying how to split the image into patches.
 
-            Items:
+            The arguments are:
                 ``'patch_size'`` : int, optional
-                    The default is `1`.
+                    The default is ``1``.
                 ``'patch_idx_list'`` : list of int, optional
-                    Patch indices. If `None`, all patches are used.
+                    Patch indices. If ``None``, all patches are used.
                 ``'batch_size'`` : int, optional
-                    The default is `1`.
+                    The default is ``1``.
         unscaled : bool, optional
-            If `False`, the sum of the (unscaled) patch log probabilities is divided by the total
+            If ``False``, the sum of the (unscaled) patch log probabilities is divided by the total
             number of pixels in the patches.
             Otherwise, the sum of the unscaled patch log probabilities is returned.
-            The default is `False`.
+            The default is ``False``.
         kwargs : dict, optional
             Keyword arguments forwarded to :meth:`log_prob_patches`.
 
         Returns
         -------
         log_probability : np.float64
-            Log probability, optionally scaled; see the `unscaled` argument.
+            Log probability, optionally scaled; see the ``unscaled`` argument.
         """
         # pylint: disable=arguments-differ
 
@@ -533,28 +534,28 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
         patch_kwargs : dict, optional
             Keyword arguments specifying the patches, see docs of :meth:`log_prob`.
         reweight_off_diagonal_entries : bool, optional
-            If `True`, replace the covariance matrix `cov` (for each patch) with
+            If ``True``, replace the covariance matrix ``cov`` (for each patch) with
             ``0.5 * (cov + torch.diag(torch.diag(cov)))``.
-            The default is `False`.
+            The default is ``False``.
         noise_x_correction_term : float or None, optional
             Noise amount that is assumed to be present in ground truth. Can help to stabilize
-            computations. The default is `1e-6`.
+            computations. The default is ``1e-6``.
         verbose : bool, optional
-            Whether to print information. The default is `True`.
+            Whether to print information. The default is ``True``.
         unscaled : bool, optional
-            If `False`, the unscaled patch log probabilities are divided by the number of pixels in
-            the respective patch. Otherwise the unscaled patch log probabilities are returned.
-            The default is `False`.
+            If ``False``, the unscaled patch log probabilities are divided by the number of pixels
+            in the respective patch. Otherwise the unscaled patch log probabilities are returned.
+            The default is ``False``.
         return_patch_diags : bool, optional
-            If `True`, return the diagonals of the covariance matrices.
-            The default is `False`.
+            If ``True``, return the diagonals of the covariance matrices.
+            The default is ``False``.
         sample_kwargs : dict, optional
             Keyword arguments passed to :meth:`sample_zero_mean`. Required if ``samples is None``.
 
         Returns
         -------
         log_probabilities : list of float
-            Log probabilities for the patches, optionally scaled; see the `unscaled` argument.
+            Log probabilities for the patches, optionally scaled; see the ``unscaled`` argument.
         patch_diags : list of Tensor, optional
             Diagonals of the covariance matrices for the patches.
         """

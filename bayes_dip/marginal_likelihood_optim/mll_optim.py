@@ -73,8 +73,9 @@ def marginal_likelihood_hyperparams_optim(
         If specified, use these weights instead of the MAP weights (DIP network model weights).
         Useful to pass linearized weights like returned by
         :func:`bayes_dip.marginal_likelihood_optim.weights_linearization`.
+        Shape: ``(observation_cov.image_cov.inner_cov.shape[0],)``.
     optim_kwargs : dict
-        Optimization keyword arguments (most are required). Keywords are:
+        Optimization keyword arguments (most are required). The arguments are:
 
         ``'iterations'`` : int
             Number of iterations.
@@ -83,7 +84,8 @@ def marginal_likelihood_hyperparams_optim(
         ``'scheduler'`` : dict
             Scheduler keyword arguments.
 
-            Keywords in ``optim_kwargs['scheduler']``:
+            *Arguments in* ``optim_kwargs['scheduler']`` *are:*
+
             ``'use_scheduler'`` : bool
                 Whether to use a :class:`torch.optim.lr_scheduler.StepLR` scheduler.
             ``'step_size'`` : int
@@ -103,18 +105,23 @@ def marginal_likelihood_hyperparams_optim(
             otherwise the gradients are calculated exactly from the assembled matrix via
             :func:`torch.linalg.slogdet`.
 
-            Keywords in ``optim_kwargs['linear_cg']``:
+            *Arguments in* ``optim_kwargs['linear_cg']`` *are:*
+
             ``'preconditioner'`` : :class:`BasePreconditioner` or None
                 Left-preconditioner.
             ``'use_preconditioned_probes'`` : bool
                 Whether to use preconditioned probes, as described in Section 4.1 in [1]_.
-                If `True`, the `preconditioner` must not be `None`.
+                If ``True``, the ``preconditioner`` must not be ``None``.
+
+                .. [1] J.R. Gardner, G. Pleiss, D. Bindel, K.Q. Weinberger, A.G. Wilson, 2018,
+                       "GPyTorch: Blackbox Matrix-Matrix Gaussian Process Inference with GPU
+                       Acceleration". https://arxiv.org/pdf/1809.11165v6.pdf
             ``'update_freq'`` : int
                 Number of iterations between preconditioner updates.
             ``'max_iter'`` : int
                 Maximum number of CG iterations.
             ``'rtol'`` : float
-                Tolerance at which to stop early (before `max_iter`).
+                Tolerance at which to stop early (before ``max_iter``).
             ``'use_log_re_variant'`` : bool
                 Whether to use the low precision arithmetic variant by Maddox et al.,
                 :meth:`linear_log_cg_re`.
@@ -124,11 +131,12 @@ def marginal_likelihood_hyperparams_optim(
         ``'predcp'`` : dict, optional
             PredCP keyword arguments, required if ``optim_kwargs['include_predcp']``.
 
-            Keywords in ``optim_kwargs['predcp']``:
+            *Arguments in* ``optim_kwargs['predcp']`` *are:*
+
             ``'use_map_weights_mean'`` : bool
-                If `True`, use `recon` as the mean of the image samples;
-                if `False`, use ``recon - J @ map_weights`` instead, where
-                `J` is the Jacobian of the network and `map_weights` are the network weights.
+                If ``True``, use ``recon`` as the mean of the image samples;
+                if ``False``, use ``recon - J @ map_weights`` instead, where
+                ``J`` is the Jacobian of the network and ``map_weights`` are the network weights.
             ``'num_samples'`` : int
                 Number of image samples for estimating the PredCP term gradients.
             ``'gamma'`` : float
@@ -141,14 +149,10 @@ def marginal_likelihood_hyperparams_optim(
                 Additional scaling factor for the PredCP term.
                 See also ``optim_kwargs['predcp']['gamma']``.
     log_path : str, optional
-        Path for saving tensorboard logs. This function creates a sub-folder in `log_path`, starting
-        with the current time. The default is `'./'`.
+        Path for saving tensorboard logs. This function creates a sub-folder in ``log_path``,
+        starting with the current time. The default is ``'./'``.
     comment : str, optional
-        Suffix for the tensorboard log sub-folder. The default is `'mll'`.
-
-    .. [1] J.R. Gardner, G. Pleiss, D. Bindel, K.Q. Weinberger, A.G. Wilson, 2018, "GPyTorch:
-           Blackbox Matrix-Matrix Gaussian Process Inference with GPU Acceleration".
-           https://arxiv.org/pdf/1809.11165v6.pdf
+        Suffix for the tensorboard log sub-folder. The default is ``'mll'``.
     """
     # pylint: disable=too-many-locals,too-many-branches,too-many-statements
 

@@ -1,13 +1,14 @@
 """
-Interface to the dataset "A Cone-Beam X-Ray CT Data Collection Designed for
-Machine Learning".
-https://doi.org/10.1038/s41597-019-0235-y
-https://zenodo.org/record/2686726
-https://arxiv.org/abs/1905.04787
+Interface to the dataset [1]_ (`Zenodo <https://zenodo.org/record/2686726>`__,
+`arXiv <https://arxiv.org/pdf/1905.04787.pdf>`__).
 
-Based on https://github.com/cicwi/WalnutReconstructionCodes .
+Based on https://github.com/cicwi/WalnutReconstructionCodes.
 
 Features restriction to a z-slice of the volume.
+
+.. [1] H. Der Sarkissian, F. Lucka, M. van Eijnatten, G. Colacicco, S.B. Coban, and K.J. Batenburg,
+       2019, "A cone-beam X-ray computed tomography data collection designed for machine learning".
+       Scientific Data. https://doi.org/10.1038/s41597-019-0235-y
 """
 import os
 from math import ceil

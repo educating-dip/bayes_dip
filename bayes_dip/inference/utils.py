@@ -13,9 +13,10 @@ def get_image_patch_slices(
     """
     Return slice objects defining patches of an image.
 
-    The `i`-th patch of an `image` is defined as ``image[patch_slices_0[i], patch_slices_1[i]]``.
+    The ``i``-th patch of a 2D ``image`` tensor is defined as
+    ``image[patch_slices_0[i], patch_slices_1[i]]``.
 
-    If an `image_shape` dimension is not divisible by `patch_size`, the last patches along this
+    If an ``image_shape`` dimension is not divisible by ``patch_size``, the last patches along this
     dimension that would fit in the image are enlarged to also contain the remaining pixels in this
     dimension; patches can be non-square for this reason.
 
@@ -60,9 +61,9 @@ def get_image_patch_mask_inds(
     """
     Return mask indices defining patches of an image.
 
-    The flattened `i`-th patch of an `image` is defined as ``image[patch_mask_inds[i]]``.
+    The flattened ``i``-th patch of an ``image`` tensor is defined as ``image[patch_mask_inds[i]]``.
 
-    If an `image_shape` dimension is not divisible by `patch_size`, the last patches along this
+    If an ``image_shape`` dimension is not divisible by ``patch_size``, the last patches along this
     dimension that would fit in the image are enlarged to also contain the remaining pixels in this
     dimension; patches can be non-square for this reason.
 
@@ -74,7 +75,7 @@ def get_image_patch_mask_inds(
         Side length of the patches (patches are usually square).
         It is clipped to the maximum value ``min(*image_shape)``.
     flatten : bool, optional
-        Whether to flatten each array in the returned `patch_mask_inds`. The default is `True`.
+        Whether to flatten each array in the returned ``patch_mask_inds``. The default is ``True``.
 
     Returns
     -------
@@ -111,16 +112,16 @@ def yield_padded_batched_images_patches(
     patch_kwargs : dict, optional
         Keyword arguments specifying how to split the image into patches.
 
-        Items:
+        The arguments are:
             ``'patch_size'`` : int, optional
-                The default is `1`.
+                The default is ``1``.
             ``'patch_idx_list'`` : list of int, optional
-                Patch indices. If `None`, all patches are used.
+                Patch indices. If ``None``, all patches are used.
             ``'batch_size'`` : int, optional
-                The default is `1`.
+                The default is ``1``.
     return_patch_numels : bool, optional
-        If `True`, also return the number of pixels for each patch in the batch.
-        The default is `False`.
+        If ``True``, also return the number of pixels for each patch in the batch.
+        The default is ``False``.
 
     Yields
     ------
@@ -130,7 +131,7 @@ def yield_padded_batched_images_patches(
         Batch of patches from images.
         Shape: ``(eff_batch_size, num_samples, max(batch_len_mask_inds))``.
     batch_len_mask_inds : list of int, optional
-        Number of pixels for each patch. Only returned if `return_patch_numels`.
+        Number of pixels for each patch. Only returned if ``return_patch_numels``.
         These numbers can be used to remove the padding from the
         individual elements in the batch: ``batch_samples_patches[i, :, :batch_len_mask_inds[i]]``.
         The length is ``eff_batch_size``.

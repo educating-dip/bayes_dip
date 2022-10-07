@@ -43,7 +43,7 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
 
     def _func_model(self, func_params) -> Callable:
         """
-        Closure that hardcodes the input `nn_input`, leaving only a function of the NN weights.
+        Closure that hardcodes the input ``nn_input``, leaving only a function of the NN weights.
 
         Parameters
         ----------
@@ -61,8 +61,9 @@ class NeuralBasisExpansion(BaseNeuralBasisExpansion):
         Parameters
         ----------
         return_out : bool, optional
-            If `True`, let the closure return ``(out, jvp)``, i.e., also the output, not just `jvp`.
-            The default is `False`.
+            If ``True``, let the closure return ``(out, jvp)``, i.e., also the output, not just
+            ``jvp``.
+            The default is ``False``.
         """
 
         def f(v: Tensor):
@@ -139,7 +140,7 @@ class MatmulNeuralBasisExpansion(BaseMatmulNeuralBasisExpansion):
     def __init__(self, nn_model: nn.Module, *args, **kwargs) -> None:
 
         self.func_model_with_input, _ = ftch.make_functional(nn_model)
-        super().__init__(nn_model=nn_model, *args, **kwargs)
+        super().__init__(nn_model, *args, **kwargs)
         self.update_matrix()
 
     @property

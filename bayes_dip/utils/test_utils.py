@@ -16,10 +16,10 @@ def get_random_ellipses_images(
     """
     num_images : int, optional
         Number of images.
-        The default is `3`.
+        The default is ``3``.
     im_shape : 2-tuple of int, optional
         Image shape.
-        The default is `(128, 128)`.
+        The default is ``(128, 128)``.
     """
 
     space = uniform_discr([-1., -1.], [1., 1.], im_shape, dtype=np.float32)

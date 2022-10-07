@@ -7,7 +7,7 @@ from torch import nn
 def get_inds_from_ordered_params(
         nn_model: nn.Module, ordered_nn_params: Sequence[nn.Parameter]) -> List[int]:
     """
-    Return the indices into ``list(nn_model.parameters())`` that result in `ordered_nn_params`.
+    Return the indices into ``list(nn_model.parameters())`` that result in ``ordered_nn_params``.
 
     Parameters
     ----------
@@ -19,7 +19,7 @@ def get_inds_from_ordered_params(
     Returns
     -------
     inds_in_full_model : list of int
-        Indices into ``list(nn_model.parameters())`` that result in `ordered_nn_params`.
+        Indices into ``list(nn_model.parameters())`` that result in ``ordered_nn_params``.
     """
     params = list(nn_model.parameters())
 
@@ -44,7 +44,7 @@ def get_slices_from_ordered_params(ordered_nn_params: Sequence[nn.Parameter]) ->
     -------
     slices : list of slice
         Slice objects corresponding to the individual parameters in a flattened and concatenated
-        vector of all parameters. The slice step is always `None`.
+        vector of all parameters. The slice step is always ``None``.
     """
     slices = []
     w_pointer = 0

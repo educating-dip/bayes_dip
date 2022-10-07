@@ -33,9 +33,10 @@ def plot_hist(  # pylint: disable=too-many-arguments
     ax : :class:`matplotlib.axes.Axes`
         Matplotlib axes.
     n_list : list of array
-        For each element in `data`, the `n` array as returned by :func:`matplotlib.pyplot.hist`.
+        For each element in ``data``, the ``n`` array as returned by :func:`matplotlib.pyplot.hist`.
     bins_list : list of array
-        For each element in `data`, the `bins` array as returned by :func:`matplotlib.pyplot.hist`.
+        For each element in ``data``, the ``bins`` array as returned by
+        :func:`matplotlib.pyplot.hist`.
     """
     # pylint: disable=too-many-locals
     if ax is None:

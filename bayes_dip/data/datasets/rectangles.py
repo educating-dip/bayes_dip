@@ -63,29 +63,29 @@ class RectanglesDataset(torch.utils.data.IterableDataset):
         """
         shape : 2-tuple of int, optional
             Image shape.
-            The default is `(128, 128)`.
+            The default is ``(128, 128)``.
         num_rects : int, optional
             Number of rectangles (overlayed additively).
-            The default is `3`.
+            The default is ``3``.
         num_angle_modes : int, optional
             Number of Gaussian modes from which angles can be sampled.
             For each rectangle, one of the modes is selected (with equal
             probability for each mode).
-            The default is `1`.
+            The default is ``1``.
         angle_modes_sigma : float, optional
             Scale of each Gaussian mode.
-            The default is `0.05`.
+            The default is ``0.05``.
         length : int, optional
             Number of images in the dataset.
-            The default is `32000`.
+            The default is ``32000``.
         fixed_seed : int, optional
             Fixed random seed.
-            The default is `1`.
+            The default is ``1``.
         smooth_sr_fact : int, optional
             Super-resolution factor for the image generation.
             A higher factor leads to smoother edges (if not aligned with the
             pixel grid).
-            The default is `8`.
+            The default is ``8``.
         """
 
         super().__init__()

@@ -44,7 +44,7 @@ class LinearSandwichCov(nn.Module, ABC):
         Returns
         -------
         Tensor
-            Products. Shape: same as `v`.
+            Products. Shape: same as ``v``.
         """
 
         v = self.lin_op_transposed(v)

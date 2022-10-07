@@ -26,9 +26,10 @@ class BaseObservationCov(nn.Module, ABC):
         image_cov : :class:`bayes_dip.probabilistic_models.BaseImageCov`
             Image space covariance module.
         init_noise_variance : float, optional
-            Initial value for noise variance parameter. The default is `1.`.
+            Initial value for noise variance parameter. The default is ``1.``.
         device : str or torch.device, optional
-            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+            Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+            otherwise.
         """
 
         super().__init__()
@@ -66,8 +67,8 @@ class BaseObservationCov(nn.Module, ABC):
         """
         Return a closure that performs matrix multiplication with this covariance.
 
-        Note that the batch dimension is *last* here, i.e. we evaluate ``cov @ v``, where `cov` is a
-        matrix representation of `self`.
+        Note that the batch dimension is *last* here, i.e. we evaluate ``cov @ v``, where ``cov`` is
+        a matrix representation of ``self``.
 
         Parameters
         ----------
@@ -77,7 +78,7 @@ class BaseObservationCov(nn.Module, ABC):
         Returns
         -------
         Tensor
-            Products. Shape: same as `v`.
+            Products. Shape: same as ``v``.
         """
         def closure(v):
             batch_size = v.shape[1]

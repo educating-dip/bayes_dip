@@ -46,12 +46,12 @@ class DeepImagePriorReconstructor():
             Ray transform.
         torch_manual_seed : int or None, optional
             Random number generator seed, used for initializing the network.
-            If `None`, no seed is set and the global random generator is advanced;
+            If ``None``, no seed is set and the global random generator is advanced;
             otherwise, the manual seed is set on a forked generator used for the initialization.
-            The default is `1`.
+            The default is ``1``.
         device : str or torch.device, optional
             Device for the reconstruction.
-            If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+            If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'`` otherwise.
         net_kwargs : dict, optional
             Network architecture keyword arguments.
         load_params_path : str, optional
@@ -76,7 +76,7 @@ class DeepImagePriorReconstructor():
         ----------
         torch_manual_seed : int or None
             Random number generator seed.
-            If `None`, no seed is set and the global random generator is advanced;
+            If ``None``, no seed is set and the global random generator is advanced;
             otherwise, the manual seed is set on a forked generator used for the initialization.
         """
 
@@ -130,35 +130,35 @@ class DeepImagePriorReconstructor():
         noisy_observation : Tensor
             Noisy observation. Shape: ``(1, 1, *self.ray_trafo.obs_shape)``.
         filtbackproj : Tensor, optional
-            Filtered back-projection. Used as the network input if `recon_from_randn` is not `True`.
+            Filtered back-projection. Used as the network input if ``not recon_from_randn``.
             Shape: ``(1, 1, *self.ray_trafo.im_shape)``
         ground_truth : Tensor, optional
             Ground truth. Used to print and log PSNR values.
             Shape: ``(1, 1, *self.ray_trafo.im_shape)``
         recon_from_randn : bool, optional
-            If `True`, normal distributed noise with std-dev 0.1 is used as the network input;
-            if `False` (the default), `filtbackproj` is used as the network input.
+            If ``True``, normal distributed noise with std-dev 0.1 is used as the network input;
+            if ``False`` (the default), ``filtbackproj`` is used as the network input.
         use_tv_loss : bool, optional
             Whether to include the TV loss term.
-            The default is `True`.
+            The default is ``True``.
         log_path : str, optional
             Path for saving tensorboard logs. Each call to reconstruct creates a sub-folder
-            in `log_path`, starting with the time of the reconstruction call.
-            The default is `'.'`.
+            in ``log_path``, starting with the time of the reconstruction call.
+            The default is ``'.'``.
         show_pbar : bool, optional
             Whether to show a progress bar.
-            The default is `True`.
+            The default is ``True``.
         optim_kwargs : dict, optional
             Keyword arguments for optimization.
-            The following arguments are supported:
+            The arguments are:
 
-            * `gamma` (float)
+            ``'gamma'`` : float
                 Weighting factor of the TV loss term, the default is ``1e-4``.
-            * `lr` (float)
+            ``'lr'`` : float
                 Learning rate, the default is ``1e-4``.
-            * `iterations` (int)
+            ``'iterations'`` : int
                 Number of iterations, the default is ``10000``.
-            * `loss_function` (str)
+            ``'loss_function'`` : str
                 Discrepancy loss function, the default is ``'mse'``.
 
         Returns

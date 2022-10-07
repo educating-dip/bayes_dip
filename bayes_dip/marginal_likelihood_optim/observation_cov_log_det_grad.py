@@ -1,7 +1,7 @@
 """
 Provides :func:`approx_observation_cov_log_det_grads`.
 """
-from typing import Dict
+from typing import Dict, Tuple
 import torch
 from torch import nn
 from torch import Tensor
@@ -19,12 +19,46 @@ def approx_observation_cov_log_det_grads(
         use_log_re_variant: bool = False,
         use_preconditioned_probes: bool = False,
         ignore_numerical_warning: bool = False
-        ) -> Dict[nn.Parameter, Tensor]:
+        ) -> Tuple[Dict[nn.Parameter, Tensor], Tensor]:
     """
     Estimates the gradient for the log-determinant ``0.5*log|observation_cov|`` w.r.t. its
     parameters via Hutchinson's trace estimator
     ``E(0.5 * v.T @ observation_cov**-1 @ d observation_cov / d params @ v)``,
     with ``v.T @ observation_cov**-1`` being approximated by the conjugate gradient (CG) method.
+
+    Parameters
+    ----------
+    observation_cov : :class:`ObservationCov`
+        Observation covariance.
+    precon : :class:`BasePreconditioner`, optional
+        Left-preconditioner.
+    max_cg_iter : int, optional
+        Maximum number of CG iterations. The default is ``50``.
+    cg_rtol : float, optional
+        Tolerance at which to stop early (before ``max_iter``). The default is ``1e-3``.
+    num_probes : int, optional
+        Number of probes to use for the trace estimator. The default is ``1``.
+    use_log_re_variant : bool, optional
+        Whether to use the low precision arithmetic variant by Maddox et al.,
+        :meth:`linear_log_cg_re`. The default is ``False``.
+    use_preconditioned_probes : bool, optional
+        Whether to use preconditioned probes, as described in Section 4.1 in [1]_.
+        If ``True``, ``precon`` must not be ``None``. The default is ``False``.
+
+        .. [1] J.R. Gardner, G. Pleiss, D. Bindel, K.Q. Weinberger, A.G. Wilson, 2018,
+               "GPyTorch: Blackbox Matrix-Matrix Gaussian Process Inference with GPU
+               Acceleration". https://arxiv.org/pdf/1809.11165v6.pdf
+    ignore_numerical_warning : bool, optional
+        Not implemented yet. Should control whether numerical warnings are ignored.
+        The default is ``False``.
+
+    Returns
+    -------
+    grads : dict
+        Gradient dictionary, with :class:`torch.nn.Parameter` instances as keys and gradient tensors
+        as values.
+    residual_norm : Tensor
+        Residual norm of the CG solution.
     """
     # pylint: disable=too-many-locals
 

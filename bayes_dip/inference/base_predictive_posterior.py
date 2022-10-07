@@ -29,7 +29,7 @@ class BasePredictivePosterior(ABC):
             noise_x_correction_term: Optional[float] = None
             ) -> Tensor:
         """
-        Sample from the predictive posterior with the given `mean`.
+        Sample from the predictive posterior with the given ``mean``.
 
         Optional to implement by sub-classes.
 
@@ -71,8 +71,8 @@ class BasePredictivePosterior(ABC):
             noise_x_correction_term: Optional[float] = None
             ) -> Union[float, np.float64]:
         """
-        Return the log probability of `ground_truth` under the predictive posterior with the given
-        `mean`.
+        Return the log probability of ``ground_truth`` under the predictive posterior with the given
+        ``mean``.
 
         Parameters
         ----------

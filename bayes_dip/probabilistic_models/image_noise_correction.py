@@ -55,7 +55,7 @@ def get_image_noise_correction_term(observation_cov: ObservationCov) -> float:
     Return an image noise correction term computed as
     ``diag(mean(pinv(ray_trafo.T @ ray_trafo))) * noise_variance``.
 
-    This can be interpreted as a projection of the `noise_variance` in observation space to image
+    This can be interpreted as a projection of the ``noise_variance`` in observation space to image
     space.
 
     Parameters

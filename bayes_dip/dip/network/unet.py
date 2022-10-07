@@ -28,18 +28,18 @@ class UNet(nn.Module):
             Numbers of channels, specified individually for each scale.
         skip_channels : sequence of int
             Numbers of skip channels, specified individually for each scale.
-            Note that then length must match `channels`, but ``channels[-1]`` is unused,
+            Note that then length must match ``channels``, but ``channels[-1]`` is unused,
             since there is no skip connection at the coarsest scale.
         use_sigmoid : bool, optional
             Whether to include a sigmoid activation at the network output.
-            The default is `True`.
+            The default is ``True``.
         use_norm : bool, optional
             Whether to include group norm layers after each convolutional layer.
-            The default is `True`.
+            The default is ``True``.
         sigmoid_saturation_thresh : float, optional
             Threshold for clamping pre-sigmoid activations
-            if `saturation_safety` (is `True` by default) in :meth:`forward`.
-            Has no effect if not `use_sigmoid`.
+            if ``saturation_safety`` (is ``True`` by default) in :meth:`forward`.
+            Has no effect if not ``use_sigmoid``.
         """
         super().__init__()
         assert (len(channels) == len(skip_channels))
@@ -74,19 +74,19 @@ class UNet(nn.Module):
         saturation_safety : bool, optional
             If ``self.use_sigmoid``, this option controls whether the pre-sigmoid activations are
             clamped to ``(-self.sigmoid_saturation_thresh, self.sigmoid_saturation_thresh)``.
-            The default is `True`.
+            The default is ``True``.
         return_pre_sigmoid : bool, optional
             If ``self.use_sigmoid``, this option can be used to return the pre-sigmoid activations
             instead of the final network output. This may save from numerically unstable inversion
             of the sigmoid, while the user can still manually apply :func:`torch.sigmoid` to obtain
-            the final network output. If `saturation_safety` is active, the returned pre-sigmoid
+            the final network output. If ``saturation_safety`` is active, the returned pre-sigmoid
             activations are clamped.
-            The default is `False`.
+            The default is ``False``.
 
         Returns
         -------
         Tensor
-            Network output (or pre-sigmoid activations if `return_pre_sigmoid`).
+            Network output (or pre-sigmoid activations if ``return_pre_sigmoid``).
         """
         xs = [self.inc(x0)]
         for i in range(self.scales - 1):
@@ -125,7 +125,7 @@ class UNetReturnPreSigmoid(nn.Module):
         saturation_safety : bool, optional
             If ``self.unet.use_sigmoid``, this option controls whether the pre-sigmoid activations
             are clamped to ``(-self.sigmoid_saturation_thresh, self.sigmoid_saturation_thresh)``.
-            The default is `False`.
+            The default is ``False``.
 
         Returns
         -------
@@ -156,12 +156,12 @@ class DownBlock(nn.Module):
         out_ch : int
             Number of output channels.
         kernel_size : int, optional
-            Kernel size. The default is `3`.
+            Kernel size. The default is ``3``.
         num_groups : int, optional
-            Number of groups for group norm. The default is `4`.
+            Number of groups for group norm. The default is ``4``.
         use_norm : bool, optional
             Whether to include group norm layers after each convolutional layer.
-            The default is `True`.
+            The default is ``True``.
         """
         super().__init__()
         to_pad = int((kernel_size - 1) / 2)
@@ -216,12 +216,12 @@ class InBlock(nn.Module):
         out_ch : int
             Number of output channels.
         kernel_size : int, optional
-            Kernel size. The default is `3`.
+            Kernel size. The default is ``3``.
         num_groups : int, optional
-            Number of groups for group norm. The default is `2`.
+            Number of groups for group norm. The default is ``2``.
         use_norm : bool, optional
             Whether to include a group norm layer after the convolutional layer.
-            The default is `True`.
+            The default is ``True``.
         """
         super().__init__()
         to_pad = int((kernel_size - 1) / 2)
@@ -270,14 +270,14 @@ class UpBlock(nn.Module):
         out_ch : int
             Number of output channels.
         skip_ch : int, optional
-            Number of skip channels. The default is `4`.
+            Number of skip channels. The default is ``4``.
         kernel_size : int, optional
-            Kernel size. The default is `3`.
+            Kernel size. The default is ``3``.
         num_groups : int, optional
-            Number of groups for group norm. The default is `2`.
+            Number of groups for group norm. The default is ``2``.
         use_norm : bool, optional
             Whether to include a group norm layer after the convolutional layer.
-            The default is `True`.
+            The default is ``True``.
         """
         super().__init__()
         to_pad = int((kernel_size - 1) / 2)

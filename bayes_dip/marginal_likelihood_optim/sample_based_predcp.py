@@ -1,9 +1,9 @@
 """
 Provides sample based gradient estimation for the PredCP term, :func:`sample_based_predcp_grads`.
 """
-from typing import Sequence
+from typing import Sequence, Dict, Tuple, Union
 import torch
-from torch import autograd
+from torch import autograd, nn
 from torch import Tensor
 
 from ..probabilistic_models import (
@@ -16,14 +16,42 @@ def sample_based_predcp_grads(
         image_mean: Tensor,
         num_samples: int = 100,
         scale: float = 1.,
-        return_shifted_loss: bool = True):
+        return_shifted_loss: bool = True,
+        ) -> Union[Tuple[Dict[nn.Parameter, Tensor], Tensor], Dict[nn.Parameter, Tensor]]:
     """
-    Compute PredCP gradients.
+    Estimate PredCP gradients.
 
-    Assumes that each prior in prior_list_under_predcp has distinct parameters (i.e. no shared
+    Assumes that each prior in ``prior_list_under_predcp`` has distinct parameters (i.e. no shared
     parameter between priors).
 
-    `image_cov.inner_cov` should be a ParameterCov instance.
+    Parameters
+    ----------
+    image_cov : :class:`.BaseImageCov`
+        Image space covariance module. ``image_cov.inner_cov`` must be a :class:`.ParameterCov`
+        instance.
+    prior_list_under_predcp : sequence of :class:`bayes_dip.probabilistic_models.GPprior`
+        GP priors for whose hyperparameters (``log_lengthscale`` and ``log_variance``) gradients
+        are computed by this function.
+    image_mean : Tensor
+        Mean of the Gaussian image distribution (with covariance ``image_cov``).
+    num_samples : int, optional
+        Number of image samples to use for the gradient estimation. The default is ``100``.
+    scale : float, optional
+        Scaling factor; should usually be chosen proportional to the value ``optim_kwargs['gamma']``
+        passed to :meth:`bayes_dip.dip.DeepImagePriorReconstructor.reconstruct`.
+        The default is ``1.``.
+    return_shifted_loss : bool, optional
+        Whether to return a loss value; note that the value is not the PredCP loss, but an
+        equivalent shifted version of it. The default is ``True``.
+
+    Returns
+    -------
+    grads : dict
+        Gradient dictionary, with :class:`torch.nn.Parameter` instances as keys and gradient tensors
+        as values.
+    total_shifted_loss : Tensor, optional
+        Sum of shifted loss values for the priors in ``prior_list_under_predcp``.
+        Only returned if ``return_shifted_loss``.
     """
 
     assert isinstance(image_cov.inner_cov, ParameterCov)

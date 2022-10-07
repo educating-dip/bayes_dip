@@ -31,8 +31,8 @@ class TestParallelBeam2DRayTrafo(unittest.TestCase):
 
     def assert_psnr_greater(self, x, reco, min_psnr):
         """
-        Assert PSNR is greater `min_psnr` and show plot on failure if
-        `self.show_on_failure`.
+        Assert PSNR is greater ``min_psnr`` and show plot on failure if
+        ``self.show_on_failure``.
         """
         x = x.cpu().numpy().squeeze()
         reco = reco.cpu().numpy().squeeze()
@@ -57,7 +57,7 @@ class TestParallelBeam2DRayTrafo(unittest.TestCase):
 
     def test_fbp(self):
         """
-        Test if ``ray_trafo.fbp(ray_trafo(x))`` approx. matches `x`.
+        Test if ``ray_trafo.fbp(ray_trafo(x))`` approx. matches ``x``.
         """
         ray_trafo = ParallelBeam2DRayTrafo(
                 im_shape=(128, 128), num_angles=20, impl=self.impl)
@@ -115,7 +115,7 @@ class Test_get_parallel_beam_2d_matmul_ray_trafo(unittest.TestCase):
     def test_trafo_adjoint_same_as_via_odl(self):
         """
         Test if forward projection matches the ODL version (bound is not very
-        tight because `matrix.T` is used instead of back-projection).
+        tight because ``matrix.T`` is used instead of back-projection).
         """
         for x in get_random_ellipses_images(3):
             y = self.ray_trafo_via_matmul(x)

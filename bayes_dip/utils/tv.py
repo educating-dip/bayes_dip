@@ -41,7 +41,7 @@ def batch_tv_grad(x: Tensor) -> Tensor:
     Returns
     -------
     grad : Tensor
-        Gradient of the TV loss w.r.t. the input `x`. Has the same shape as `x`.
+        Gradient of the TV loss w.r.t. the input ``x``. Has the same shape as ``x``.
     """
     assert x.ndim == 4 and x.shape[1] == 1
     batch_size = x.shape[0]

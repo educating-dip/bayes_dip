@@ -1,5 +1,5 @@
 """
-Provides utilities for the preconditioners in :module:`.preconditioner`.
+Provides utilities for the preconditioners in :mod:`.preconditioner`.
 """
 from typing import Callable, Optional
 from math import ceil
@@ -12,7 +12,7 @@ def approx_diag(
         closure: Callable, size: int, num_samples: int, batch_size: int = 1,
         dtype=None, device=None):
     """
-    Return an approximate of a matrix diagonal, estimated using matrix-vector products.
+    Return an approximation of a matrix diagonal, estimated using matrix-vector products.
 
     This implements the matrix-free estimator described in Figure 1 in [1]_.
 
@@ -28,7 +28,7 @@ def approx_diag(
     num_samples : int
         Number of samples to use for the estimation.
     batch_size : int, optional
-        Batch size for evaluating the closure. The default is `1`.
+        Batch size for evaluating the closure. The default is ``1``.
     dtype : str or torch.dtype, optional
         Data type.
     device : str or torch.device, optional

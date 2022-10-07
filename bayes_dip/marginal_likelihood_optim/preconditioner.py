@@ -39,8 +39,8 @@ class BasePreconditioner(ABC):
             num_samples: int
             ) -> Tensor:
         """
-        Sample from a Gaussian with the covariance given by `self` (e.g., matrix-vector products of
-        the Cholesky factor of `self` with normal distributed samples) and mean zero.
+        Sample from a Gaussian with the covariance given by ``self`` (e.g., matrix-vector products
+        of the Cholesky factor of ``self`` with normal distributed samples) and mean zero.
 
         Parameters
         ----------
@@ -62,19 +62,19 @@ class BasePreconditioner(ABC):
         """
         Multiply with self or its inverse.
 
-        Evaluates ``mat @ v`` where `mat` is a matrix representation of `self` or its inverse.
+        Evaluates ``mat @ v`` where ``mat`` is a matrix representation of ``self`` or its inverse.
 
         Parameters
         ----------
         v : Tensor
             Vectors. Shape: ``(size, batch_size)``.
         use_inverse : bool
-            If `True`, multiply with the inverse.
+            If ``True``, multiply with the inverse.
 
         Returns
         -------
         Tensor
-            Products. Shape: same as `v`.
+            Products. Shape: same as ``v``.
         """
         raise NotImplementedError
 
@@ -83,19 +83,19 @@ class BasePreconditioner(ABC):
             **kwargs
             ) -> None:
         """
-        Update `self`, e.g. adapting the approximation to an updated matrix.
+        Update ``self``, e.g. adapting the approximation to an updated matrix.
         """
         raise NotImplementedError
 
     def get_closure(self) -> Callable[[Tensor], Tensor]:
         """
-        Return a preconditioning closure that multiplies with the inverse of `self`.
+        Return a preconditioning closure that multiplies with the inverse of ``self``.
 
         Returns
         -------
         closure : callable
-            Closure multiplying with the inverse of `self`. The closure receives and returns tensors
-            of shape ``(size, batch_size)``.
+            Closure multiplying with the inverse of ``self``. The closure receives and returns
+            tensors of shape ``(size, batch_size)``.
         """
         return partial(self.matmul, use_inverse=True)
 

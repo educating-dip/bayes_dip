@@ -34,7 +34,7 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             computations. The default is ``1e-6``.
         eps : float, optional
             Stabilizing value added to the diagonal of the image covariance matrix
-            ``J @ parameter_cov @ J.T`` (where `J` is the network Jacobian and `parameter_cov`
+            ``J @ parameter_cov @ J.T`` (where ``J`` is the network Jacobian and ``parameter_cov``
             represents ``self.observation_cov.image_cov.inner_cov``). The default is ``1e-6``.
 
         Returns
@@ -78,7 +78,7 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             **kwargs
             ) -> MultivariateNormal:
         """
-        Return the predictive posterior distribution with the given `mean` in form of a
+        Return the predictive posterior distribution with the given ``mean`` in form of a
         :class:`torch.distributions.MultivariateNormal` instance.
 
         Parameters
@@ -110,8 +110,8 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             **kwargs,
             ) -> np.float64:
         """
-        Return the log probability of `ground_truth` under the predictive posterior with the given
-        `mean`.
+        Return the log probability of ``ground_truth`` under the predictive posterior with the given
+        ``mean``.
 
         Parameters
         ----------
@@ -143,7 +143,7 @@ class ExactPredictivePosterior(BasePredictivePosterior):
             **kwargs
             ) -> Tensor:
         """
-        Sample from the predictive posterior with the given `mean`.
+        Sample from the predictive posterior with the given ``mean``.
 
         Parameters
         ----------

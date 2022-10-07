@@ -25,23 +25,23 @@ def get_walnut_2d_observation(
     Parameters
     ----------
     data_path : str
-        Walnut dataset path (containing `'Walnut1'` as a subfolder).
+        Walnut dataset path (containing ``'Walnut1'`` as a subfolder).
     walnut_id : int, optional
         Walnut ID, an integer from 1 to 42.
-        The default is `1`.
+        The default is ``1``.
     orbit_id : int, optional
-        Orbit (source position) ID, options are `1`, `2` or `3`.
-        The default is `2`.
+        Orbit (source position) ID, options are ``1``, ``2`` or ``3``.
+        The default is ``2``.
     angular_sub_sampling : int, optional
         Sub-sampling factor for the angles.
-        The default is `1` (no sub-sampling).
+        The default is ``1`` (no sub-sampling).
     proj_col_sub_sampling : int, optional
         Sub-sampling factor for the projection columns.
-        The default is `1` (no sub-sampling).
+        The default is ``1`` (no sub-sampling).
     scaling_factor : float, optional
         Scaling factor to multiply with.
-        The default is `DEFAULT_WALNUT_SCALING_FACTOR`, scaling image values to
-        approximately `[0., 1.]`.
+        The default is ``DEFAULT_WALNUT_SCALING_FACTOR``, scaling image values to
+        approximately ``[0., 1.]``.
 
     Returns
     -------
@@ -81,17 +81,17 @@ def get_walnut_2d_ground_truth(
     Parameters
     ----------
     data_path : str
-        Walnut dataset path (containing `'Walnut1'` as a subfolder).
+        Walnut dataset path (containing ``'Walnut1'`` as a subfolder).
     walnut_id : int, optional
         Walnut ID, an integer from 1 to 42.
-        The default is `1`.
+        The default is ``1``.
     orbit_id : int, optional
-        Orbit (source position) ID, options are `1`, `2` or `3`.
-        The default is `2`.
+        Orbit (source position) ID, options are ``1``, ``2`` or ``3``.
+        The default is ``2``.
     scaling_factor : float, optional
         Scaling factor to multiply with.
-        The default is `DEFAULT_WALNUT_SCALING_FACTOR`, scaling image values to
-        approximately `[0., 1.]`.
+        The default is ``DEFAULT_WALNUT_SCALING_FACTOR``, scaling image values to
+        approximately ``[0., 1.]``.
 
     Returns
     -------
@@ -156,7 +156,7 @@ def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
 def get_walnut_2d_inner_part_defined_by_patch_size(patch_size: int) -> Tuple[slice, slice]:
     """
     Return a pair of slices specifying the inner part of the walnut image, which depends (to a minor
-    extent) on the `patch_size`, since the inner part is defined by patch indices into the list
+    extent) on the ``patch_size``, since the inner part is defined by patch indices into the list
     returned by :func:`bayes_dip.inference.utils.get_image_patch_slices`.
 
     Parameters

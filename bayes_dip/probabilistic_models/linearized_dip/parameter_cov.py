@@ -25,17 +25,18 @@ class ParameterCov(nn.Module):
         prior_assignment_dict : dict
             Dictionary specifying the assignment of priors over network modules.
             The keys are prior names, and each value is a tuple ``(constructor, module_names)``,
-            where `constructor` is a callable with parameters
+            where ``constructor`` is a callable with parameters
             ``init_hyperparams: Dict, modules: List[nn.Module], device: Union[str, torch.device]``
-            and `module_names` is a list of module names in `nn_model` used to create the `modules`
-            list passed to `constructor`. The prior object created by `constructor` must be an
-            instance of :class:`BaseGaussPrior`.
+            and ``module_names`` is a list of module names in ``nn_model`` used to create the
+            ``modules`` list passed to ``constructor``. The prior object created by ``constructor``
+            must be an instance of :class:`BaseGaussPrior`.
         hyperparams_init_dict : dict
             Initial hyperparameter values for the priors.
-            The keys are prior names (same as `prior_assignment_dict`), and each value specifies
-            the `init_hyperparams` argument to `constructor` (see `prior_assignment_dict`).
+            The keys are prior names (same as ``prior_assignment_dict``), and each value specifies
+            the ``init_hyperparams`` argument to ``constructor`` (see ``prior_assignment_dict``).
         device : str or torch.device, optional
-            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+            Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+            otherwise.
         """
         super().__init__()
         self.prior_assignment_dict = prior_assignment_dict
@@ -53,7 +54,7 @@ class ParameterCov(nn.Module):
         List of all parameters under prior, in the order expected by :meth:`forward`.
 
         The parameters are ordered first (outer-most) by prior type, then by prior in the order of
-        occurence in :attr:`priors` (same order as in the `prior_assignment_dict`), and finally
+        occurence in :attr:`priors` (same order as in the ``prior_assignment_dict``), and finally
         (inner-most) in the order returned by ``prior.get_params_under_prior()``.
         """
         ordered_params_list = []
@@ -65,8 +66,8 @@ class ParameterCov(nn.Module):
     @property
     def log_variances(self) -> List[nn.Parameter]:
         """
-        List of all `log_variance` parameters, in the order of :attr:`self.priors` (same order as in
-        the `prior_assignment_dict`).
+        List of all ``log_variance`` parameters, in the order of :attr:`self.priors` (same order as
+        in the ``prior_assignment_dict``).
         """
         return [prior.log_variance for prior in self.priors.values()]
 
@@ -123,13 +124,13 @@ class ParameterCov(nn.Module):
         """
         Multiply with the covariance "matrix".
 
-        I.e., evaluate ``(cov @ v.T).T`` where `cov` is a matrix representation of `self`.
+        I.e., evaluate ``(cov @ v.T).T`` where ``cov`` is a matrix representation of ``self``.
 
         Parameters
         ----------
         v : Tensor
             Parameter sets.
-            Shape: ``(batch_size, num_params)``, where `num_params` is `self.shape[0]` if
+            Shape: ``(batch_size, num_params)``, where ``num_params`` is ``self.shape[0]`` if
             ``only_prior is None`` and otherwise the restricted parameter number
             ``params_slice.stop - params_slice.start`` with
             ``params_slice == self.params_slices_per_prior[only_prior]``.
@@ -137,7 +138,7 @@ class ParameterCov(nn.Module):
         Returns
         -------
         Tensor
-            Products. Shape: same as `v`.
+            Products. Shape: same as ``v``.
         """
         if only_prior is None:
             v_parameter_cov_mul = []
@@ -172,14 +173,14 @@ class ParameterCov(nn.Module):
         """
         Sample from a Gaussian with this covariance.
 
-        By default, the mean is zero, but a custom `mean` can be specified.
+        By default, the mean is zero, but a custom ``mean`` can be specified.
 
         Parameters
         ----------
         num_samples : int, optional
-            Number of samples. The default is `10`.
+            Number of samples. The default is ``10``.
         mean : Tensor, optional
-            Mean. If `None` (the default), the mean is zero.
+            Mean. If ``None`` (the default), the mean is zero.
             Shape: ``(batch_size, num_params)`` (same shape as the return value).
         sample_only_from_prior : :class:`nn.Module`, optional
             If specified, return only samples for the parameters under this prior.
@@ -187,8 +188,8 @@ class ParameterCov(nn.Module):
         Returns
         -------
         samples : Tensor
-            Samples. Shape: ``(batch_size, num_params)``, where `num_params` is `self.shape[0]` if
-            ``sample_only_from_prior is None`` and otherwise the restricted parameter number
+            Samples. Shape: ``(batch_size, num_params)``, where ``num_params`` is ``self.shape[0]``
+            if ``sample_only_from_prior is None`` and otherwise the restricted parameter number
             ``params_slice.stop - params_slice.start`` with
             ``params_slice == self.params_slices_per_prior[sample_only_from_prior]``.
         """

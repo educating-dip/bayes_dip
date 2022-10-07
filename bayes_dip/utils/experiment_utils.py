@@ -39,8 +39,8 @@ def get_standard_dataset(
         use_fixed_seeds_starting_from: Optional[int] = 1, device=None) -> Dataset:
     """
     Return a dataset of tuples ``noisy_observation, x, filtbackproj``, where
-        * `noisy_observation` has shape ``(1,) + obs_shape``
-        * `x` is the ground truth (label) and has shape ``(1,) + im_shape``
+        * ``noisy_observation`` has shape ``(1,) + obs_shape``
+        * ``x`` is the ground truth (label) and has shape ``(1,) + im_shape``
         * ``filtbackproj = FBP(noisy_observation)`` has shape ``(1,) + im_shape``
 
     Parameters
@@ -51,10 +51,10 @@ def get_standard_dataset(
         The default is ``'test'``.
     use_fixed_seeds_starting_from : int, optional
         Fixed seed for noise generation, only used in simulated datasets.
-        If ``fold == 'validation'``, `1000000` is added to the seed (if not `None`).
+        If ``fold == 'validation'``, ``1000000`` is added to the seed (if not ``None``).
     device : str or torch.device, optional
-        If specified, data will be moved to the device. `ray_trafo`
-        (including `ray_trafo.fbp`) must support tensors on the device.
+        If specified, data will be moved to the device. ``ray_trafo``
+        (including ``ray_trafo.fbp``) must support tensors on the device.
 
     Returns
     -------
@@ -147,18 +147,18 @@ def get_predefined_patch_idx_list(name: str, patch_size: int) -> List[int]:
 
 def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) -> None:
     """
-    Assert that the saved data for sample `i` in `path` matches the passed `data_sample`.
+    Assert that the saved data for sample ``i`` in ``path`` matches the passed ``data_sample``.
 
     Parameters
     ----------
     data_sample : 3-tuple of Tensor
-        Sample data ``(observation, ground_truth, filtbackproj)``. Only `filtbackproj` is used.
+        Sample data ``(observation, ground_truth, filtbackproj)``. Only ``filtbackproj`` is used.
     path : str
         Hydra output directory of a previous run.
     i : int
         Sample index.
     raise_if_file_not_found : bool, optional
-        If `False`, warn instead of raising a `FileNotFoundError`. The default is `True`.
+        If ``False``, warn instead of raising a ``FileNotFoundError``. The default is ``True``.
     """
     _, _, filtbackproj = data_sample
     try:
@@ -205,12 +205,12 @@ def load_samples(
         Data sample index.
     num_samples : int
         Minimum number of samples to load.
-        If `restrict_to_num_samples` or the number of saved samples is divisible by the chunk size,
-        this is the number of returned samples.
+        If ``restrict_to_num_samples`` or the number of saved samples is divisible by the chunk
+        size, this is the number of returned samples.
     restrict_to_num_samples : bool, optional
-        Whether to restrict the loaded samples to the first `num_samples` samples; otherwise more
+        Whether to restrict the loaded samples to the first ``num_samples`` samples; otherwise more
         samples may be returned (due to the chunk size of the saved files).
-        The default is `True`.
+        The default is ``True``.
     prefix : str, optional
         Prefix of the filename(s).
 
@@ -218,7 +218,7 @@ def load_samples(
     -------
     samples : Tensor
         Samples. Shape: ``(eff_num_samples, ...)``, where
-        `eff_num_samples` is `num_samples` if `restrict_to_num_samples` or
+        ``eff_num_samples`` is ``num_samples`` if ``restrict_to_num_samples`` or
         ``ceil(num_samples / chunk_size) * chunk_size`` otherwise.
     """
     sample_chunks = []

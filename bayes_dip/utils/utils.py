@@ -2,7 +2,8 @@
 General utilities.
 """
 
-from typing import List, Optional, Callable, Union, Any
+from __future__ import annotations  # postponed evaluation, to make ArrayLike look good in docs
+from typing import List, Tuple, Optional, Callable, Union, Any
 try:
     from numpy.typing import ArrayLike
 except ImportError:
@@ -40,8 +41,8 @@ def get_original_cwd() -> str:
 
 def list_norm_layer_params(nn_model: nn.Module) -> List[str]:
     """
-    Return a list of names of all parameters from `GroupNorm`, `BatchNorm2d` and `InstanceNorm2d`
-    layers in a model.
+    Return a list of names of all parameters from ``GroupNorm``, ``BatchNorm2d`` and
+    ``InstanceNorm2d`` layers in a model.
     """
     norm_layer_params = []
     for (name, module) in nn_model.named_modules():
@@ -136,7 +137,7 @@ def cg(
         rtol: float = 1e-6,
         use_log_re_variant: bool = False,
         ignore_numerical_warning: bool = False,
-        ) -> Tensor:
+        ) -> Tuple[Tensor, Tensor]:
     """
     Solve a linear system approximately with the conjugate gradients method (CG).
 
@@ -150,20 +151,20 @@ def cg(
     v : Tensor
         Right hand side, see second argument to :func:`linear_cg`.
     precon_closure : callable, optional
-        Left-preconditioning closure, see `preconditioner` argument to :func:`linear_cg`.
-        The default is `None`.
+        Left-preconditioning closure, see ``preconditioner`` argument to :func:`linear_cg`.
+        The default is ``None``.
     max_niter : int, optional
-        Maximum number of iterations, see `max_iter` argument to :func:`linear_cg`.
-        The default is `10`.
+        Maximum number of iterations, see ``max_iter`` argument to :func:`linear_cg`.
+        The default is ``10``.
     rtol : float, optional
-        Tolerance at which to stop early (before `max_niter`), see `tolerance` argument to
-        :func:`linear_cg`. The default is `1e-6`.
+        Tolerance at which to stop early (before ``max_niter``), see ``tolerance`` argument to
+        :func:`linear_cg`. The default is ``1e-6``.
     use_log_re_variant : bool, optional
         Whether to use the low precision arithmetic variant by Maddox et al.,
-        :meth:`linear_log_cg_re`.
+        :meth:`linear_log_cg_re`. The default is ``False``.
     ignore_numerical_warning : bool, optional
         Not implemented yet. Should control whether numerical warnings are ignored.
-        The default is `False`.
+        The default is ``False``.
 
     Returns
     -------
@@ -244,19 +245,20 @@ def make_choleskable(
         Square 2D tensor. Modified in-place.
     step : float, optional
         Step to add to the diagonal in each try.
-        The default is `1e-6`.
+        The default is ``1e-6``.
     max_nsteps : int, optional
         Maximum number of steps. This limits the value to be added to ``max_nsteps * step``.
-        The default is `1000`.
+        The default is ``1000``.
     verbose : bool, optional
-        If `True`, print the value that was added to the diagonal if anything was added.
-        The default is `True`.
+        If ``True``, print the value that was added to the diagonal if anything was added.
+        The default is ``True``.
 
     Returns
     -------
     chol : Tensor
         The Cholesky factor of the successfully decomposed matrix, i.e.
-        ``chol = torch.linalg.cholesky(mat)`` after `mat` being in-place modified by this function.
+        ``chol = torch.linalg.cholesky(mat)`` after ``mat`` being in-place modified by this
+        function.
     """
     succeed = False
     cnt = 0
@@ -289,7 +291,7 @@ class eval_mode:
 
 class CustomAutogradFunction(torch.autograd.Function):
     """
-    Custom autograd function defined by callables `forward_fun` and `backward_fun`.
+    Custom autograd function defined by callables ``forward_fun`` and ``backward_fun``.
     """
     # pylint: disable=abstract-method
 
@@ -317,7 +319,7 @@ class CustomAutogradFunction(torch.autograd.Function):
 
 class CustomAutogradModule(nn.Module):
     """
-    Custom autograd module defined by callables `forward_fun` and `backward_fun`.
+    Custom autograd module defined by callables ``forward_fun`` and ``backward_fun``.
     """
     def __init__(self, forward_fun: Callable, backward_fun: Callable):
         """
@@ -333,5 +335,5 @@ class CustomAutogradModule(nn.Module):
         self.backward_fun = backward_fun
 
     def forward(self, x: Any) -> Any:
-        """Apply `forward_fun`, saving `backward_fun` for the backward pass."""
+        """Apply ``forward_fun``, saving ``backward_fun`` for the backward pass."""
         return CustomAutogradFunction.apply(x, self.forward_fun, self.backward_fun)

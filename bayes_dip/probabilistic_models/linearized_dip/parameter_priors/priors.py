@@ -16,7 +16,7 @@ class BaseGaussPrior(nn.Module, ABC):
     """
     Base Gaussian prior class for :class:`nn.Conv2d` modules.
 
-    The prior is placed over all filters of `modules` (passed to :meth:`__init__`),
+    The prior is placed over all filters of ``modules`` (passed to :meth:`__init__`),
     i.e. all input-channel-output-channel combinations of all modules share the prior.
 
     Implements efficient batched multiplication with the covariance matrices of multiple priors of
@@ -35,7 +35,7 @@ class BaseGaussPrior(nn.Module, ABC):
             As a convention, if the actual parameter stores a log value, the initial values are
             still passed as the non-log value, e.g. for :attr:`log_variance`: ``'variance': 1.``.
         modules : sequence of :class:`nn.Conv2d`
-            Modules to place this prior over. The prior applies to all filters in all `weight`
+            Modules to place this prior over. The prior applies to all filters in all ``weight``
             parameters of these convolutional layers.
         device : str or torch.device
             Device.
@@ -50,8 +50,8 @@ class BaseGaussPrior(nn.Module, ABC):
     def get_params_under_prior_from_modules(cls,
             modules: Sequence[nn.Conv2d]) -> List[nn.Parameter]:
         """
-        Return the list of all parameters under a prior of this type given the `modules` it would be
-        placed over.
+        Return the list of all parameters under a prior of this type given the ``modules`` it would
+        be placed over.
 
         Parameters
         ----------
@@ -84,8 +84,8 @@ class BaseGaussPrior(nn.Module, ABC):
         """
         Initialization callback, called in :meth:`__init__` (after :meth:`_setup`).
 
-        Should initialize the hyperparameters of this prior using the `init_hyperparams` argument to
-        :meth:`__init__`.
+        Should initialize the hyperparameters of this prior using the ``init_hyperparams`` argument
+        to :meth:`__init__`.
         """
         raise NotImplementedError
 
@@ -103,7 +103,7 @@ class BaseGaussPrior(nn.Module, ABC):
         Parameters
         ----------
         shape : tuple of int
-            Sample shape (e.g. ``(n,)`` to draw `n` samples).
+            Sample shape (e.g. ``(n,)`` to draw ``n`` samples).
 
         Returns
         -------
@@ -115,7 +115,7 @@ class BaseGaussPrior(nn.Module, ABC):
     @abstractmethod
     def log_prob(self, x: Tensor) -> Tensor:
         """
-        Return the log probability of `x` under this prior.
+        Return the log probability of ``x`` under this prior.
 
         Parameters
         ----------
@@ -159,18 +159,18 @@ class BaseGaussPrior(nn.Module, ABC):
         Parameters
         ----------
         v : Tensor
-            Batch of flattened and concatenated `weight` parameters of :class:`Conv2d` modules.
-            Shape: ``(batch_size, n * kernel_size ** 2)``, where `n` is the sum of the numbers of
+            Batch of flattened and concatenated ``weight`` parameters of :class:`Conv2d` modules.
+            Shape: ``(batch_size, n * kernel_size ** 2)``, where ``n`` is the sum of the numbers of
             filters of all modules.
         cov : Tensor
             Covariance matrices.
-            Shape: ``(n, kernel_size ** 2, kernel_size ** 2)``, where `n` is the sum of the numbers
-            of filters of all modules.
+            Shape: ``(n, kernel_size ** 2, kernel_size ** 2)``, where ``n`` is the sum of the
+            numbers of filters of all modules.
 
         Returns
         -------
         v_cov_mul : Tensor
-            Products. Has the same shape as `v`.
+            Products. Has the same shape as ``v``.
         """
         N = v.shape[0]
         v = v.view(-1, cov.shape[0], cov.shape[-1])
@@ -197,23 +197,24 @@ class BaseGaussPrior(nn.Module, ABC):
             The covariance matrix of each prior is repeated ``prior.num_total_filters`` times,
             and the matrices of all priors are then concatenated.
         v : Tensor
-            Batch of flattened and concatenated `weight` parameters of :class:`Conv2d` modules.
-            Shape: ``(batch_size, n * kernel_size ** 2)``, where `n` is the sum of the numbers of
-            filters of all modules of all `priors`.
+            Batch of flattened and concatenated ``weight`` parameters of :class:`Conv2d` modules.
+            Shape: ``(batch_size, n * kernel_size ** 2)``, where ``n`` is the sum of the numbers of
+            filters of all modules of all ``priors``.
         use_cholesky : bool, optional
-            If `True`, multiply with the Cholesky factor instead. Cannot be combined with
-            `use_inverse`.
-            The default is `False`.
+            If ``True``, multiply with the Cholesky factor instead. Cannot be combined with
+            ``use_inverse``.
+            The default is ``False``.
         use_inverse : bool, optional
-            If `True`, multiply with the inverse instead. Cannot be combined with `use_cholesky`.
-            The default is `False`.
+            If ``True``, multiply with the inverse instead. Cannot be combined with
+            ``use_cholesky``.
+            The default is ``False``.
         cov_mat_kwargs : dict, optional
-            Keyword arguments passed to :meth:`cov_mat` of each prior (e.g. an `eps` value).
+            Keyword arguments passed to :meth:`cov_mat` of each prior (e.g. an ``eps`` value).
 
         Returns
         -------
         v_cov_mul : Tensor
-            Products. Has the same shape as `v`.
+            Products. Has the same shape as ``v``.
         """
         assert not (use_cholesky and use_inverse)
 
@@ -326,7 +327,7 @@ class RadialBasisFuncCov(nn.Module):
         Parameters
         ----------
         return_cholesky : bool, optional
-            If `True`, return the cholesky factor instead of the matrix itself.
+            If ``True``, return the cholesky factor instead of the matrix itself.
         eps : float, optional
             Stabilizing value that is added to the diagonal before scaling with the variance.
             The default is ``1e-6``.
@@ -334,7 +335,7 @@ class RadialBasisFuncCov(nn.Module):
         Returns
         -------
         cov_mat_or_chol : Tensor
-            Covariance matrix, or its cholesky factor if `return_cholesky`.
+            Covariance matrix, or its cholesky factor if ``return_cholesky``.
             Shape: ``(self.kernel_size ** 2, self.kernel_size ** 2)``.
         """
         variance = torch.exp(self.log_variance)
@@ -378,13 +379,14 @@ class GPprior(BaseGaussPrior):
         init_hyperparams : dict
             Initial prior hyperparameter values. Keys are ``'lengthscale'`` and ``'variance'``.
         modules : sequence of :class:`nn.Conv2d`
-            Modules to place this prior over. The prior applies to all filters in all `weight`
+            Modules to place this prior over. The prior applies to all filters in all ``weight``
             parameters of these convolutional layers.
         covariance_constructor : callable
-            Callable with arguments `kernel_size` and `device` returning a covariance object with
-            parameters `log_variance` and `log_lengthscale` and methods `init_parameters`,
-            `cov_mat`, `log_det`, `log_lengthscale_cov_mat_grad` and `log_variance_cov_mat_grad`
-            (see :class:`RadialBasisFuncCov` for an example implementation).
+            Callable with arguments ``kernel_size`` and ``device`` returning a covariance object
+            with parameters ``log_variance`` and ``log_lengthscale`` and methods
+            ``init_parameters()``, ``cov_mat()``, ``log_det()``, ``log_lengthscale_cov_mat_grad()``
+            and ``log_variance_cov_mat_grad()`` (see :class:`RadialBasisFuncCov` for an example
+            implementation).
         device : str or torch.device
             Device.
         """
@@ -453,14 +455,14 @@ class GPprior(BaseGaussPrior):
 def get_GPprior_RadialBasisFuncCov(init_hyperparams, modules, device, dist_func=None):
     """
     Return a :class:`GPprior` instance with a :class:`RadialBasisFuncCov` covariance with
-    `dist_func` defaulting to the Euclidean distance.
+    ``dist_func`` defaulting to the Euclidean distance.
 
     Parameters
     ----------
     init_hyperparams : dict
         Initial prior hyperparameter values. Keys are ``'lengthscale'`` and ``'variance'``.
     modules : sequence of :class:`nn.Conv2d`
-        Modules to place this prior over. The prior applies to all filters in all `weight`
+        Modules to place this prior over. The prior applies to all filters in all ``weight``
         parameters of these convolutional layers.
     device : str or torch.device
         Device.
@@ -569,24 +571,26 @@ class IsotropicPrior(BaseGaussPrior):
             A single :class:`IsotropicPrior`, wrapped in a sequence of length ``1``.
             This function is not implemented for more than one prior.
         v : Tensor
-            Batch of flattened and concatenated `weight` parameters of :class:`Conv2d` modules.
-            Shape: ``(batch_size, n * kernel_size ** 2)``, where `n` is the sum of the numbers of
+            Batch of flattened and concatenated ``weight`` parameters of :class:`Conv2d` modules.
+            Shape: ``(batch_size, n * kernel_size ** 2)``, where ``n`` is the sum of the numbers of
             filters of all modules of ``priors[0]``.
         use_cholesky : bool, optional
-            If `True`, multiply with the Cholesky factor instead. Cannot be combined with
-            `use_inverse`.
-            The default is `False`.
+            If ``True``, multiply with the Cholesky factor instead. Cannot be combined with
+            ``use_inverse``.
+            The default is ``False``.
         use_inverse : bool, optional
-            If `True`, multiply with the inverse instead. Cannot be combined with `use_cholesky`.
-            The default is `False`.
+            If ``True``, multiply with the inverse instead. Cannot be combined with
+            ``use_cholesky``.
+            The default is ``False``.
         eps : float, optional
-            Stabilizing value used with `use_inverse`, added to the scale before taking the inverse.
+            Stabilizing value used with ``use_inverse``, added to the scale before taking the
+            inverse.
             The default is ``1e-6``.
 
         Returns
         -------
         v_cov_mul : Tensor
-            Products. Has the same shape as `v`.
+            Products. Has the same shape as ``v``.
         """
 
         assert not (use_cholesky and use_inverse)

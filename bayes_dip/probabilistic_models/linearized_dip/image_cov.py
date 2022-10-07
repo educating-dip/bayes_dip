@@ -78,7 +78,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         num_samples : int
         return_weight_samples : bool
             Whether to return parameters samples from Gaussian prior over nn weights.
-            The default is `False`.
+            The default is ``False``.
 
         Returns
         -------

@@ -42,25 +42,26 @@ class LowRankObservationCov(BaseObservationCov):
         image_cov : :class:`bayes_dip.probabilistic_models.BaseImageCov`
             Image space covariance module.
         init_noise_variance : float, optional
-            Initial value for noise variance parameter. The default is `1.`.
+            Initial value for noise variance parameter. The default is ``1.``.
         low_rank_rank_dim : int, optional
-            Number of dimensions of the low-rank approximation. The default is `100`.
+            Number of dimensions of the low-rank approximation. The default is ``100``.
         oversampling_param : int, optional
-            Number of oversampling dimensions for the low-rank approximation. The default is `10`.
+            Number of oversampling dimensions for the low-rank approximation. The default is ``10``.
         load_state_dict : str or dict, optional
             State dict (or path to it) to load.
         load_approx_basis : str or dict, optional
             Approximate basis (or path to it) to load.
-            Only supported if `requires_grad=False`. If using this option, `load_state_dict` is
+            Only supported if ``requires_grad=False``. If using this option, ``load_state_dict`` is
             required, and the user is responsible for consistency.
         requires_grad : bool, optional
             Whether gradient computation should be enabled. Note that the parameters are only used
             in :meth:`update`, so computations will use the values from the last :meth:`update`
             call, and back-propagating from the output of any method (e.g. :meth:`forward`)
             repeatedly, without calling :meth:`update` in between, requires ``retain_graph=True``.
-            The default is `True`.
+            The default is ``True``.
         device : str or torch.device, optional
-            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+            Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+            otherwise.
         update_kwargs : dict, optional
             Keyword arguments passed to :meth:`update`.
         """
@@ -152,15 +153,15 @@ class LowRankObservationCov(BaseObservationCov):
         ----------
         use_cpu : bool, optional
             Whether to compute QR on CPU.
-            The default is `False`.
+            The default is ``False``.
         eps : float, optional
             Minimum value eigenvalues.
-            The default is `1e-3`.
+            The default is ``1e-3``.
         verbose : bool, optional
-            If `True`, print eigenvalue information. The default is `True`.
+            If ``True``, print eigenvalue information. The default is ``True``.
         batch_size : int, optional
             Batch size for multiplying with the observation covariance.
-            The default is `1`.
+            The default is ``1``.
 
         Returns
         -------
@@ -229,12 +230,12 @@ class LowRankObservationCov(BaseObservationCov):
         v : Tensor
             Observations. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``.
         use_inverse : bool, optional
-            If `True`, multiply with the inverse instead. The default is `False`.
+            If ``True``, multiply with the inverse instead. The default is ``False``.
 
         Returns
         -------
         Tensor
-            Products. Shape: same as `v`.
+            Products. Shape: same as ``v``.
         """
         batch_size = v.shape[0]
         v = v.view(batch_size, -1).T
@@ -249,7 +250,7 @@ class LowRankObservationCov(BaseObservationCov):
         """
         Multiply with the covariance "matrix" (or its inverse).
 
-        Evaluates ``mat @ v`` where `mat` is a matrix representation of `self` (or its inverse).
+        Evaluates ``mat @ v`` where ``mat`` is a matrix representation of ``self`` (or its inverse).
 
         See also the non-flat version: :meth:`forward`.
 
@@ -258,12 +259,12 @@ class LowRankObservationCov(BaseObservationCov):
         v : Tensor
             Observations. Shape: ``(np.prod(self.trafo.obs_shape), batch_size)``.
         use_inverse : bool, optional
-            If `True`, multiply with the inverse instead. The default is `False`.
+            If ``True``, multiply with the inverse instead. The default is ``False``.
 
         Returns
         -------
         Tensor
-            Products. Shape: same as `v`.
+            Products. Shape: same as ``v``.
         """
 
         if not use_inverse:
@@ -291,16 +292,16 @@ class LowRankObservationCov(BaseObservationCov):
         ----------
         use_cpu : bool, optional
             Whether to compute QR on CPU.
-            The default is `False`.
+            The default is ``False``.
         eps : float, optional
             Minumum value eigenvalues.
-            The default is `1e-3`.
+            The default is ``1e-3``.
         full_diag_eps : float, optional
             Value to add to the noise variance in :meth:`matmul` (for stabilization).
-            The default is `1e-6`.
+            The default is ``1e-6``.
         batch_size : int, optional
             Batch size for multiplying with the observation covariance.
-            The default is `1`.
+            The default is ``1``.
         """
 
         self.U, self.L = self.get_low_rank_observation_cov_basis(
@@ -321,7 +322,7 @@ class LowRankObservationCov(BaseObservationCov):
         num_samples : int
             Number of samples.
         flat : bool, optional
-            If `True`, return a flattened tensor with `num_samples` as second dimension (see the
+            If ``True``, return a flattened tensor with ``num_samples`` as second dimension (see the
             return value).
 
         Returns

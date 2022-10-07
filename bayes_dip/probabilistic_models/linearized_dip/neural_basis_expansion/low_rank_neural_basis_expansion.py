@@ -38,15 +38,16 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         low_rank_rank_dim : int
             Number of dimensions of the low-rank approximation.
         oversampling_param : int, optional
-            Number of oversampling dimensions for the low-rank approximation. The default is `10`.
+            Number of oversampling dimensions for the low-rank approximation. The default is ``10``.
         load_from_file : str, optional
             File path to load the approximation from (skipping computation).
         device : str or torch.device, optional
-            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+            Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+            otherwise.
         batch_size : int, optional
-            Batch size. The default is `1`.
+            Batch size. The default is ``1``.
         use_cpu : bool, optional
-            Whether to perform SVD on CPU. The default is `False`.
+            Whether to perform SVD on CPU. The default is ``False``.
         """
 
         super().__init__(
@@ -114,10 +115,10 @@ class LowRankNeuralBasisExpansion(BaseNeuralBasisExpansion):
         ----------
         use_cpu : bool, optional
             Whether to compute QR on CPU.
-            The default is `False`.
+            The default is ``False``.
         batch_size : int, optional
             Batch size for multiplying with the Jacobian.
-            The default is `1`.
+            The default is ``1``.
 
         Returns
         -------

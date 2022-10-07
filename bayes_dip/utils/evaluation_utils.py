@@ -120,8 +120,8 @@ def get_abs_diff(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> Tensor:
     """
-    Return the absolute difference between reconstruction and ground truth for sample `sample_idx`
-    from `run_path`.
+    Return the absolute difference between reconstruction and ground truth for sample ``sample_idx``
+    from ``run_path``.
 
     Parameters
     ----------
@@ -149,7 +149,7 @@ def get_density_data(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> Tuple[Dict, bool]:
     """
-    Return the density data for sample `sample_idx` from `run_path`.
+    Return the density data for sample ``sample_idx`` from ``run_path``.
 
     Supports both ``experiments/exact_density.py`` and ``experiments/sample_based_density.py`` runs.
 
@@ -159,9 +159,9 @@ def get_density_data(
         Density data from "exact_predictive_posterior_{sample_idx}.pt" or
         "sample_based_predictive_posterior_{sample_idx}.pt".
     is_exact : bool
-        If `True`, the run is a ``experiments/exact_density.py`` run; if `False` it is a
-        ``experiments/sample_based_density.py`` run. If the run is of neither kind, a `RuntimeError`
-        is raised.
+        If ``True``, the run is a ``experiments/exact_density.py`` run; if ``False`` it is a
+        ``experiments/sample_based_density.py`` run. If the run is of neither kind, a
+        ``RuntimeError`` is raised.
     """
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
     exact_filepath = os.path.join(
@@ -266,7 +266,7 @@ def get_sample_based_cov_diag(
         im_shape: Tuple[int, int]
         ) -> Tensor:
     """
-    Return the diagonal of the posterior covariance for the specified `patch_idx_list`.
+    Return the diagonal of the posterior covariance for the specified ``patch_idx_list``.
 
     Parameters
     ----------
@@ -274,8 +274,8 @@ def get_sample_based_cov_diag(
         Density data, like the first return value of :func:`get_density_data`.
     patch_idx_list : list of int, str or None
         Patch indices for which to populate the returned tensor. The pixels of patches that are not
-        selected will be `torch.nan` in the returned tensor.
-        Must be a subset of the `patch_idx_list` from the original run.
+        selected will be ``torch.nan`` in the returned tensor.
+        Must be a subset of the ``patch_idx_list`` from the original run.
     patch_size : int
         Side length of the patches (patches are usually square). Must be the same as for the
         original run.
@@ -323,12 +323,12 @@ def restrict_sample_based_density_data_to_new_patch_idx_list(
         The original density data, like the first return value of :func:`get_density_data`.
     patch_idx_list : list of int, str or None
         Patch indices to restrict to.
-        Must be a subset of `orig_patch_idx_list`.
+        Must be a subset of ``orig_patch_idx_list``.
         If a string,
         ``bayes_dip.utils.experiment_utils.get_predefined_patch_idx_list(patch_idx_list)`` is used.
-        If `None`, all patch indices are used.
+        If ``None``, all patch indices are used.
     orig_patch_idx_list : list of int, str or None
-        Value of `cfg.inference.patch_idx_list` from the original run.
+        Value of ``cfg.inference.patch_idx_list`` from the original run.
     patch_size : int
         Side length of the patches (patches are usually square). Must be the same as for the
         original run.
@@ -369,7 +369,7 @@ def get_stddev(run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> Tensor:
     """
     Return the standard deviation (i.e. the square root of the diagonal of the posterior covariance)
-    for sample `sample_idx` from `run_path`.
+    for sample ``sample_idx`` from ``run_path``.
 
     Parameters
     ----------
@@ -379,14 +379,14 @@ def get_stddev(run_path: str, sample_idx: int,
         Sample index.
     patch_idx_list : list of int or str, optional
         Patch indices to restrict to. Only supported with sample based density runs.
-        Must be a subset of `cfg.inference.patch_idx_list` of the original run.
+        Must be a subset of ``cfg.inference.patch_idx_list`` of the original run.
         If a string,
         ``bayes_dip.utils.experiment_utils.get_predefined_patch_idx_list(patch_idx_list)`` is used.
-        If `None` (the default), all patch indices are used.
+        If ``None`` (the default), all patch indices are used.
     subtract_image_noise_correction : bool, optional
         Whether to subtract the image noise correction term from the covariance diagonal before
         taking the square root.
-        The default is `True`.
+        The default is ``True``.
     experiment_paths : dict, optional
         See :func:`translate_path`.
 

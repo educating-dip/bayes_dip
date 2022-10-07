@@ -69,7 +69,7 @@ class BaseNeuralBasisExpansion(ABC):
         """
         Evaluate a batch of Jacobian vector products.
 
-        I.e., evaluate ``(J @ v.T).T`` where `J` is the Jacobian matrix.
+        I.e., evaluate ``(J @ v.T).T`` where ``J`` is the Jacobian matrix.
 
         Parameters
         ----------
@@ -88,7 +88,7 @@ class BaseNeuralBasisExpansion(ABC):
         """
         Evaluate a batch of vector Jacobian products.
 
-        I.e., evaluate ``v.view(v.shape[0], -1) @ J`` where `J` is the Jacobian matrix.
+        I.e., evaluate ``v.view(v.shape[0], -1) @ J`` where ``J`` is the Jacobian matrix.
 
         Parameters
         ----------

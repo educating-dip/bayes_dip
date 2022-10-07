@@ -61,7 +61,7 @@ def sample_from_bayesianized_model(nn_model, filtbackproj, mc_samples, device=No
     mc_samples : int
         Number of Monte-Carlo samples to draw.
     device : str or torch.device, optional
-        Device. If `None` (the default), ``filtbackproj.device`` is used.
+        Device. If ``None`` (the default), ``filtbackproj.device`` is used.
     """
     sampled_recons = []
     if device is None:
@@ -71,14 +71,14 @@ def sample_from_bayesianized_model(nn_model, filtbackproj, mc_samples, device=No
     return torch.cat(sampled_recons, dim=0)
 
 def approx_kernel_density(
-        ground_truth: Tensor, 
-        samples: Tensor, 
-        bw: float = 0.1, 
+        ground_truth: Tensor,
+        samples: Tensor,
+        bw: float = 0.1,
         noise_x_correction_term: Optional[float] = None
     ):
-    
+
     assert ground_truth.shape[1:] == samples.shape[1:]
-    
+
     if noise_x_correction_term is not None:
         samples = samples + torch.randn_like(samples) * noise_x_correction_term **.5
     kde = KernelDensity(

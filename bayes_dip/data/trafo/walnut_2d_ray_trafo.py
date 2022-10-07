@@ -32,27 +32,27 @@ def get_walnut_2d_ray_trafo(
 
     A single slice configuration must be defined in
     ``bayes_dip.data.walnut_utils.SINGLE_SLICE_CONFIGS`` for the requested
-    `walnut_id, orbit_id`.
+    ``walnut_id, orbit_id``.
 
     Parameters
     ----------
     data_path : str
-        Walnut dataset path (containing `'Walnut1'` as a subfolder).
+        Walnut dataset path (containing ``'Walnut1'`` as a subfolder).
     matrix_path : str, optional
-        Walnut ray transform matrix path (folder containing the `'.mat'` file).
-        If `None` (the default), the value of `data_path` is used.
+        Walnut ray transform matrix path (folder containing the ``'.mat'`` file).
+        If ``None`` (the default), the value of ``data_path`` is used.
     walnut_id : int, optional
         Walnut ID, an integer from 1 to 42.
-        The default is `1`.
+        The default is ``1``.
     orbit_id : int, optional
-        Orbit (source position) ID, options are `1`, `2` or `3`.
-        The default is `2`.
+        Orbit (source position) ID, options are ``1``, ``2`` or ``3``.
+        The default is ``2``.
     angular_sub_sampling : int, optional
         Sub-sampling factor for the angles.
-        The default is `1` (no sub-sampling).
+        The default is ``1`` (no sub-sampling).
     proj_col_sub_sampling : int, optional
         Sub-sampling factor for the projection columns.
-        The default is `1` (no sub-sampling).
+        The default is ``1`` (no sub-sampling).
     """
 
     matrix_path = data_path if matrix_path is None else matrix_path

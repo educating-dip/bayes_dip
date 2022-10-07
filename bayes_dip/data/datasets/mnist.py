@@ -18,7 +18,7 @@ class MNISTImageDataset(torch.utils.data.Dataset):
         Parameters
         ----------
         dataset_type : callable
-            Either `torchvision.datasets.MNIST` or `torchvision.datasets.KMNIST`.
+            Either ``torchvision.datasets.MNIST`` or ``torchvision.datasets.KMNIST``.
         path : str
             Root path for storing the dataset, either absolute or relative to the original current
             working directory.

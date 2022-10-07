@@ -16,7 +16,7 @@ def flatten_grad_functorch(
     Parameters
     ----------
     inds_from_ordered_params : sequence of int
-        Indices of the selected parameters in `grads` (which is usually ordered like the full list
+        Indices of the selected parameters in ``grads`` (which is usually ordered like the full list
         of parameters of a model, ``list(nn_model.parameters())``).
     grads : sequence of Tensor
         Gradient tensors.
@@ -39,8 +39,8 @@ def unflatten_nn_functorch(
     """
     Unpack flat and concatenated selected parameters into a tuple that can be passed to functorch.
 
-    For the parameters that are not selected by `inds_from_ordered_params`, zero tensors are placed
-    in the returned tuple.
+    For the parameters that are not selected by ``inds_from_ordered_params``, zero tensors are
+    placed in the returned tuple.
 
     Parameters
     ----------
@@ -49,7 +49,7 @@ def unflatten_nn_functorch(
     inds_from_ordered_params : sequence of int
         Indices of the selected parameters in ``list(nn_model.parameters())``.
     slices_from_ordered_params : sequence of slice
-        Slice objects to sub-slice `weights`, in the same order as `inds_from_ordered_params`.
+        Slice objects to sub-slice ``weights``, in the same order as ``inds_from_ordered_params``.
     weights : Tensor
         Flat and concatenated selected parameters. Shape: ``(total_selected_num_params,)``, i.e.
         ``sum(list(nn_model.parameters())[ind].numel() for ind in inds_from_ordered_params)``.
@@ -58,8 +58,8 @@ def unflatten_nn_functorch(
     -------
     weights_tuple : tuple of Tensor
         Weights tuple, in the order of ``nn_model.parameters()``.
-        Values for the parameters selected by `inds_from_ordered_params` are unpacked from
-        `weights`; for the other parameters, zeros are inserted.
+        Values for the parameters selected by ``inds_from_ordered_params`` are unpacked from
+        ``weights``; for the other parameters, zeros are inserted.
     """
     params = list(nn_model.parameters())
     weight_list = [None] * len(params)

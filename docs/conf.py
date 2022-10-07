@@ -30,9 +30,15 @@ author = 'Riccardo Barbano, Johannes Leuschner, Javier Antorán'
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
     'numpydoc',
     'sphinx_rtd_theme',
 ]
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/', None),
+    'torch': ('https://pytorch.org/docs/master/', None)
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -41,6 +47,10 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+autodoc_type_aliases = {
+    'ArrayLike': 'ArrayLike'
+}
 
 # One could use ``autoclass_content = 'both'`` to merge class and __init__
 # docstrings and show them directly after the class name and signature, but with

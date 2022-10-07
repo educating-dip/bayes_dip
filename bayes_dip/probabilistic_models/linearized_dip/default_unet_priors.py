@@ -52,9 +52,9 @@ def get_default_unet_gaussian_prior_dicts(
             }
     hyperparams_init_dict : dict
         Dictionary defining the initial hyperparameter values for the priors.
-        It has the same keys as `prior_assignment_dict`, containing
-        `gaussian_prior_hyperparams_init` for the GP priors and `normal_prior_hyperparams_init` for
-        the Normal priors (filled with the default initial values if any of them is not passed).
+        It has the same keys as ``prior_assignment_dict``, containing
+        ``gaussian_prior_hyperparams_init`` for the GP priors and ``normal_prior_hyperparams_init``
+        for the Normal priors (filled with the default initial values if any of them is not passed).
     """
 
     if gaussian_prior_hyperparams_init is None:
@@ -148,8 +148,8 @@ def get_default_unet_gprior_dicts(
             }
     hyperparams_init_dict : dict
         Dictionary defining the initial variance value for the isotropic g-prior.
-        It has the same single key as `prior_assignment_dict`, containing `gprior_hyperparams_init`
-        (filled with the default initial value if not passed).
+        It has the same single key as ``prior_assignment_dict``, containing
+        ``gprior_hyperparams_init`` (filled with the default initial value if not passed).
     """
 
     if gprior_hyperparams_init is None:

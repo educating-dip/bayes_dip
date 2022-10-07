@@ -47,15 +47,16 @@ def compute_scale(
         and the inversion. The default is ``True``.
     batch_size : int, optional
         Batch size for trafo adjoint and vjp evaluations. This is not used if a single matmul is
-        employed, see `use_single_batch`.
-    use_single_batch : bool or `None`, optional
+        employed, see ``use_single_batch``.
+    use_single_batch : bool or ``None``, optional
         Whether to perform a single matmul instead of evaluating in batches via a closure.
-        If `None`, a single matmul is used iff both `neural_basis_expansion` and `trafo` are
+        If ``None``, a single matmul is used iff both ``neural_basis_expansion`` and ``trafo`` are
         matmul implementations.
-        If `True`, a single matmul is used iff `isinstance(trafo, MatmulRayTrafo)`.
-        If `False`, batched closure evaluations are used.
+        If ``True``, a single matmul is used iff ``isinstance(trafo, MatmulRayTrafo)``.
+        If ``False``, batched closure evaluations are used.
     device : str or torch.device, optional
-        Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+        Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+        otherwise.
 
     Returns
     -------
@@ -174,9 +175,10 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
             Ray transform.
         scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``'neural_basis_expansion'`` and ``'trafo'``, which are passed on from this class.
         device : str or torch.device, optional
-            Device. If `None` (the default), `'cuda:0'` is chosen if available or `'cpu'` otherwise.
+            Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
+            otherwise.
         """
 
         super().__init__(
@@ -201,7 +203,7 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         ----------
         **scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``neural_basis_expansion`` and ``trafo``, which are passed on from this class.
         """
         self._scale = self.compute_scale(**scale_kwargs)
 
@@ -213,7 +215,7 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         ----------
         **scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``neural_basis_expansion`` and ``trafo``, which are passed on from this class.
 
         Returns
         -------
@@ -256,7 +258,7 @@ class MatmulGpriorNeuralBasisExpansion(
             Ray transform.
         scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``'neural_basis_expansion'`` and ``'trafo'``, which are passed on from this class.
         """
 
         super().__init__(
@@ -285,7 +287,7 @@ class MatmulGpriorNeuralBasisExpansion(
         ----------
         **scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``neural_basis_expansion`` and ``trafo``, which are passed on from this class.
 
         Returns
         -------
@@ -302,23 +304,23 @@ class MatmulGpriorNeuralBasisExpansion(
             **scale_kwargs
             ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
-        Return a matrix representing `self`.
+        Return a matrix representing ``self``.
 
         Parameters
         ----------
         return_scale : bool, optional
-            If `True`, also return the scale vector (which is recomputed in this method).
-            The default is `False`.
+            If ``True``, also return the scale vector (which is recomputed in this method).
+            The default is ``False``.
         **scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``neural_basis_expansion`` and ``trafo``, which are passed on from this class.
 
         Returns
         -------
         matrix : Tensor
-            Matrix representing `self`. Shape: ``self.neural_basis_expansion.jac_shape``.
+            Matrix representing ``self``. Shape: ``self.neural_basis_expansion.jac_shape``.
         scale : Tensor, optional
-            Scale vector. Only returned if `return_scale`.
+            Scale vector. Only returned if ``return_scale``.
             Shape: ``(self.neural_basis_expansion.num_params,)``.
         """
         matrix_no_scale = self.neural_basis_expansion.matrix
@@ -328,13 +330,13 @@ class MatmulGpriorNeuralBasisExpansion(
 
     def update(self, **scale_kwargs) -> None:
         """
-        Update the scale vector and the matrix representation of `self`.
+        Update the scale vector and the matrix representation of ``self``.
 
         Parameters
         ----------
         **scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
-            `neural_basis_expansion` and `trafo`, which are passed on from this class.
+            ``neural_basis_expansion`` and ``trafo``, which are passed on from this class.
         """
         self._matrix, self._scale = self.get_matrix(**scale_kwargs, return_scale=True)
 

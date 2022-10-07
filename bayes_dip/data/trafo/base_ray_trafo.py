@@ -17,12 +17,12 @@ class BaseRayTrafo(nn.Module, ABC):
     ----------
     im_shape : 2-tuple or 3-tuple of int
         Image shape.
-        For 2D geometries: `(im_0, im_1)`.
-        For 3D geometries: `(im_0, im_1, im_2)`.
+        For 2D geometries: ``(im_0, im_1)``.
+        For 3D geometries: ``(im_0, im_1, im_2)``.
     obs_shape : 2-tuple or 3-tuple of int
         Observation shape.
-        For 2D geometries: `(angles, det_cols)`.
-        For 3D geometries: `(det_rows, angles, det_cols)`.
+        For 2D geometries: ``(angles, det_cols)``.
+        For 3D geometries: ``(det_rows, angles, det_cols)``.
     """
 
     def __init__(self,
@@ -33,12 +33,12 @@ class BaseRayTrafo(nn.Module, ABC):
         ----------
         im_shape : 2-tuple or 3-tuple of int
             Image shape.
-            For 2D geometries: `(im_0, im_1)`.
-            For 3D geometries: `(im_0, im_1, im_2)`.
+            For 2D geometries: ``(im_0, im_1)``.
+            For 3D geometries: ``(im_0, im_1, im_2)``.
         obs_shape : 2-tuple or 3-tuple of int
             Observation shape.
-            For 2D geometries: `(angles, det_cols)`.
-            For 3D geometries: `(det_rows, angles, det_cols)`.
+            For 2D geometries: ``(angles, det_cols)``.
+            For 3D geometries: ``(det_rows, angles, det_cols)``.
         """
         super().__init__()  # nn.Module.__init__()
         self.im_shape = im_shape
@@ -58,15 +58,15 @@ class BaseRayTrafo(nn.Module, ABC):
         ----------
         x : :class:`torch.Tensor`
             Image of attenuation.
-            Shape for 2D geometries: `(batch, channels, im_0, im_1)`.
-            Shape for 3D geometries: `(batch, channels, im_0, im_1, im_2)`.
+            Shape for 2D geometries: ``(batch, channels, im_0, im_1)``.
+            Shape for 3D geometries: ``(batch, channels, im_0, im_1, im_2)``.
 
         Returns
         -------
         observation : :class:`torch.Tensor`
             Forward projection.
-            Shape for 2D geometries: `(batch, channels, angles, det_cols)`.
-            Shape for 3D geometries: `(batch, channels, det_rows, angles, det_cols)`.
+            Shape for 2D geometries: ``(batch, channels, angles, det_cols)``.
+            Shape for 3D geometries: ``(batch, channels, det_rows, angles, det_cols)``.
         """
         raise NotImplementedError
 
@@ -87,13 +87,13 @@ class BaseRayTrafo(nn.Module, ABC):
         ----------
         x : :class:`torch.Tensor`
             Image of attenuation.
-            1D or 2D tensor of shape `(im_numel,)` or `(im_numel, batch)`.
+            1D or 2D tensor of shape ``(im_numel,)`` or ``(im_numel, batch)``.
 
         Returns
         -------
         observation : :class:`torch.Tensor`
             Forward projection.
-            1D or 2D tensor of shape `(obs_numel,)` or `(obs_numel, batch)`.
+            1D or 2D tensor of shape ``(obs_numel,)`` or ``(obs_numel, batch)``.
         """
         raise NotImplementedError
 
@@ -118,15 +118,15 @@ class BaseRayTrafo(nn.Module, ABC):
         ----------
         observation : :class:`torch.Tensor`
             Projection values.
-            Shape for 2D geometries: `(batch, channels, angles, det_cols)`.
-            Shape for 3D geometries: `(batch, channels, det_rows, angles, det_cols)`.
+            Shape for 2D geometries: ``(batch, channels, angles, det_cols)``.
+            Shape for 3D geometries: ``(batch, channels, det_rows, angles, det_cols)``.
 
         Returns
         -------
         x : :class:`torch.Tensor`
             Result of the adjoint operation (back-projection).
-            Shape for 2D geometries: `(batch, channels, im_0, im_1)`.
-            Shape for 3D geometries: `(batch, channels, im_0, im_1, im_2)`.
+            Shape for 2D geometries: ``(batch, channels, im_0, im_1)``.
+            Shape for 3D geometries: ``(batch, channels, im_0, im_1, im_2)``.
         """
         raise NotImplementedError
 
@@ -150,13 +150,13 @@ class BaseRayTrafo(nn.Module, ABC):
         ----------
         observation : :class:`torch.Tensor`
             Projection values.
-            1D or 2D tensor of shape `(obs_numel,)` or `(obs_numel, batch)`.
+            1D or 2D tensor of shape ``(obs_numel,)`` or ``(obs_numel, batch)``.
 
         Returns
         -------
         x : :class:`torch.Tensor`
             Result of the adjoint operation (back-projection).
-            1D or 2D tensor of shape `(im_numel,)` or `(im_numel, batch)`.
+            1D or 2D tensor of shape ``(im_numel,)`` or ``(im_numel, batch)``.
         """
         raise NotImplementedError
 
@@ -179,15 +179,15 @@ class BaseRayTrafo(nn.Module, ABC):
         ----------
         observation : :class:`torch.Tensor`
             Projection values.
-            Shape for 2D geometries: `(batch, channels, angles, det_cols)`.
-            Shape for 3D geometries: `(batch, channels, det_rows, angles, det_cols)`.
+            Shape for 2D geometries: ``(batch, channels, angles, det_cols)``.
+            Shape for 3D geometries: ``(batch, channels, det_rows, angles, det_cols)``.
 
         Returns
         -------
         x : :class:`torch.Tensor`
             Filtered back-projection.
-            Shape for 2D geometries: `(batch, channels, im_0, im_1)`.
-            Shape for 3D geometries: `(batch, channels, im_0, im_1, im_2)`.
+            Shape for 2D geometries: ``(batch, channels, im_0, im_1)``.
+            Shape for 3D geometries: ``(batch, channels, im_0, im_1, im_2)``.
         """
         raise NotImplementedError
 

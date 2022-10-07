@@ -30,12 +30,12 @@ class ObservationCov(BaseObservationCov):
             Input. Shape: ``(batch_size, 1, *self.trafo.obs_shape)``
         use_noise_variance : bool, optional
             Whether to include the noise variance diagonal term.
-            The default is `True`.
+            The default is ``True``.
         use_cholesky : bool, optional
             Whether to multiply with one cholesky factor instead of the full matrix.
-            If `True`, :meth:`self.image_cov.forward` must support and implement the argument
+            If ``True``, :meth:`self.image_cov.forward` must support and implement the argument
             ``use_cholesky=True`` analogously.
-            The default is `False`.
+            The default is ``False``.
         kwargs : dict, optional
             Keyword arguments passed to :meth:`self.image_cov.forward`.
 
@@ -66,9 +66,9 @@ class ObservationCov(BaseObservationCov):
         Parameters
         ----------
         batch_size : int, optional
-            Batch size. The default is `1`.
+            Batch size. The default is ``1``.
         use_noise_variance : bool, optional
-            Whether to include the noise variance diagonal term. The default is `True`.
+            Whether to include the noise variance diagonal term. The default is ``True``.
         sub_slice_batches : slice, optional
             If specified, only assemble the specified subset (slice) of batches.
             Note that the slicing indices apply to the *batches* of rows (not the rows themselves).
@@ -128,27 +128,27 @@ class ObservationCov(BaseObservationCov):
             Assembled observation covariance matrix
             (e.g., returned from :meth:`assemble_observation_cov`).
         eps_mode : str
-            Mode for computing the stabilizing `eps`. Options are:
+            Mode for computing the stabilizing ``eps``. Options are:
 
                 * ``'abs'``: ``eps``
                 * ``'rel_mean_diag'``: ``eps * observation_cov_mat.diag().mean()``
                 * ``'auto_abs'``: as much as needed,
                         up to ``eps``,
-                        at least ``eps_min_for_auto`` (or ``0.`` if `include_zero_for_auto`)
+                        at least ``eps_min_for_auto`` (or ``0.`` if ``include_zero_for_auto``)
                 * ``'auto_rel_mean_diag'``: as much as needed,
                         up to ``eps * observation_cov_mat.diag().mean()``,
                         at least ``eps_min_for_auto * observation_cov_mat.diag().mean()`` (or ``0.``
-                        if `include_zero_for_auto`)
+                        if ``include_zero_for_auto``)
 
         eps : float
-            Absolute or relative epsilon or maximum epsilon, see `eps_mode`.
+            Absolute or relative epsilon or maximum epsilon, see ``eps_mode``.
         eps_min_for_auto : float, optional
-            Minimum absolute or relative epsilon for automatic mode, see `eps_mode`.
+            Minimum absolute or relative epsilon for automatic mode, see ``eps_mode``.
             Must be a positive number (defines the starting point of the log grid to test);
-            note that `include_zero_for_auto` controls whether zero is also included in the grid.
-            The default is `1e-6`.
+            note that ``include_zero_for_auto`` controls whether zero is also included in the grid.
+            The default is ``1e-6``.
         include_zero_for_auto : bool, optional
-            Whether to include zero in the grid for automatic mode. The default is `True`.
+            Whether to include zero in the grid for automatic mode. The default is ``True``.
 
         Returns
         -------
