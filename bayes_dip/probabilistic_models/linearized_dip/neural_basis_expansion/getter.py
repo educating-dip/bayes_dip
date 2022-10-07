@@ -1,3 +1,7 @@
+"""
+Provides getter (creator) functions for neural basis expansions.
+"""
+
 from typing import Sequence, Tuple, Optional
 from torch import nn, Tensor
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
