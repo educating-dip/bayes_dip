@@ -12,8 +12,8 @@ python create_kmnist_sample_based_density_table.py --noise_list 0.05 --patch_siz
 python create_kmnist_sample_based_density_table.py --noise_list 0.05 --patch_sizes 1 2 3 4 5 6 7 8 9 10 --root_path=$yaml_root_path --bayes_dip_folder results_kmnist_sample_based_density_reweight_off_diagonal_entries --save_to kmnist_sample_based_density_table_with_mcdo_baseline_reweight_off_diagonal_entries.tex
 
 # sample based density
-python create_kmnist_sample_based_density_table.py --root_path=$yaml_root_path --bayes_dip_folder results_kmnist_sample_based_density --baseline_mcdo_folder "" --save_to kmnist_sample_based_density_table_both_noise_cases.tex
-python create_kmnist_sample_based_density_table.py --root_path=$yaml_root_path --bayes_dip_folder results_kmnist_sample_based_density_reweight_off_diagonal_entries --baseline_mcdo_folder "" --save_to kmnist_sample_based_density_table_both_noise_cases_reweight_off_diagonal_entries.tex
+python create_kmnist_sample_based_density_table.py --root_path=$yaml_root_path --bayes_dip_folder results_kmnist_sample_based_density --baseline_mcdo_folder "" --save_to kmnist_sample_based_density_table.tex
+python create_kmnist_sample_based_density_table.py --root_path=$yaml_root_path --bayes_dip_folder results_kmnist_sample_based_density_reweight_off_diagonal_entries --baseline_mcdo_folder "" --save_to kmnist_sample_based_density_table_reweight_off_diagonal_entries.tex
 
 # sample based density with approx Jacs
 python create_kmnist_sample_based_density_table.py --root_path=$yaml_root_path --bayes_dip_folder results_kmnist_sample_based_density_approx_jacs --baseline_mcdo_folder "" --save_to kmnist_sample_based_density_table_approx_jacs.tex
