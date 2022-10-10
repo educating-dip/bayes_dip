@@ -13,6 +13,7 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('..'))
+from bayes_dip import __version__
 
 
 # -- Project information -----------------------------------------------------
@@ -21,6 +22,10 @@ project = 'Bayes-DIP'
 copyright = '2022, Riccardo Barbano, Johannes Leuschner, Javier Antorán'
 author = 'Riccardo Barbano, Johannes Leuschner, Javier Antorán'
 
+# The short X.Y version
+version = __version__
+# The full version, including alpha/beta/rc tags
+release = ''
 
 # -- General configuration ---------------------------------------------------
 
