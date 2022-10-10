@@ -42,13 +42,12 @@ conda config --append channels astra-toolbox
 conda config --append channels conda-forge
 
 # install pytorch
-conda install pytorch=1.12 torchvision -c pytorch
+conda install pytorch">=1.12" torchvision -c pytorch
 
 # install other conda packages
-conda install tensorboard tensorboardx scikit-image imageio opt_einsum tqdm tabulate gpytorch astra-toolbox
-
+conda install tensorboard tensorboardx scikit-image imageio opt_einsum tqdm gpytorch astra-toolbox
 
 # install pip packages
-pip install hydra-core https://github.com/odlgroup/odl/archive/master.zip bios functorch
+pip install hydra-core https://github.com/odlgroup/odl/archive/master.zip functorch
 
 echo -e "created env ${env_path}; to activate it, use:\n\tconda activate ${env_path}"
