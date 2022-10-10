@@ -1,6 +1,5 @@
 import pytest
 import torch
-import functorch as ftch
 from bayes_dip.data import get_ray_trafo, get_kmnist_testset, SimulatedDataset
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, ParameterCov
@@ -33,20 +32,20 @@ def parameter_cov():
     prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
             reconstructor.nn_model)
     parameter_cov = ParameterCov(reconstructor.nn_model, prior_assignment_dict, hyperparams_init_dict, device=device)
-    
+
     return parameter_cov
 
 def test_parameter_cov_fw(parameter_cov):
 
     torch.manual_seed(1)
     identity = torch.eye(parameter_cov.shape[0])
-    
+
     parameter_cov_mat_assembled = []
     for _, priors in parameter_cov.priors_per_prior_type.items():
         for prior in priors:
-            for _ in range(prior.num_total_filters): 
+            for _ in range(prior.num_total_filters):
                 parameter_cov_mat_assembled.append(prior.cov_mat())
-                
+
     parameter_cov_mat_assembled = torch.block_diag(*parameter_cov_mat_assembled)
     parameter_cov_mat = parameter_cov(identity)
     assert torch.allclose(parameter_cov_mat, parameter_cov_mat_assembled)
