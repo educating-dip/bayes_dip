@@ -53,7 +53,7 @@ class ImageCov(BaseImageCov, LinearSandwichCov):
         Parameters
         ----------
         v : Tensor
-            Input. Shape: ``(*self.neural_basis_expansion.nn_out_shape)``
+            Input. Shape: ``(batch_size, 1, *self.neural_basis_expansion.nn_out_shape[2:])``
 
         Returns
         -------
