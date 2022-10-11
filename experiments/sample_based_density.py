@@ -15,8 +15,8 @@ from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
         get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
 from bayes_dip.probabilistic_models import (
-        NeuralBasisExpansion, LowRankNeuralBasisExpansion, LowRankObservationCov, ParameterCov,
-        ImageCov, ObservationCov, GpriorNeuralBasisExpansion, get_image_noise_correction_term)
+        get_neural_basis_expansion, LowRankNeuralBasisExpansion, LowRankObservationCov,
+        ParameterCov, ImageCov, ObservationCov, get_image_noise_correction_term)
 from bayes_dip.marginal_likelihood_optim import LowRankObservationCovPreconditioner
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
 
@@ -98,18 +98,15 @@ def coordinator(cfg : DictConfig) -> None:
                 hyperparams_init_dict,
                 device=device
         )
-        neural_basis_expansion = NeuralBasisExpansion(
+        neural_basis_expansion = get_neural_basis_expansion(
                 nn_model=reconstructor.nn_model,
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
+                use_gprior=cfg.priors.use_gprior,
+                trafo=ray_trafo,
+                scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
         )
-        if cfg.priors.use_gprior:
-            neural_basis_expansion = GpriorNeuralBasisExpansion(
-                    neural_basis_expansion=neural_basis_expansion,
-                    trafo=ray_trafo,
-                    scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-            )
         if cfg.inference.use_low_rank_neural_basis_expansion:
             if cfg.inference.load_samples_from_path is None:
                 neural_basis_expansion = LowRankNeuralBasisExpansion(
