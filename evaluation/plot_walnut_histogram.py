@@ -4,7 +4,7 @@ import argparse
 from omegaconf import OmegaConf
 import torch
 from bayes_dip.utils.evaluation_utils import get_abs_diff, get_stddev
-from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
+from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist, DEFAULT_COLORS
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_walnut_sample_based_density.yaml', help='path of yaml file containing hydra output directory names')
@@ -55,9 +55,11 @@ print(f'Using {mask.sum()} pixels.')
 
 data = [d[mask].flatten().numpy() for d in [abs_diff, stddev, stddev_predcp]]
 label_list = ['$|x-x^*|$', 'std-dev (MLL)', 'std-dev (TV-MAP)']
+color_list = [DEFAULT_COLORS[k] for k in ['abs_diff', 'bayes_dip', 'bayes_dip_predcp']]
 
 yscale = 'linear' if args.do_not_use_log_yscale else 'log'
-ax, n_list, _ = plot_hist(data=data, label_list=label_list, yscale=yscale, remove_ticks=False)
+ax, n_list, _ = plot_hist(
+        data=data, label_list=label_list, yscale=yscale, remove_ticks=False, color_list=color_list)
 ax.set_xlim(_get_xlim(data))
 ax.set_ylim(_get_ylim(n_list))
 ax.get_figure().savefig(f'walnut_hist_{yscale}_yscale.pdf')

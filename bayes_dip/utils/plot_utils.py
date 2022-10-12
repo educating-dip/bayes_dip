@@ -24,6 +24,13 @@ def hex_to_rgb(value, alpha):
     out = [el / 255 for el in out] + [alpha]
     return tuple(out)
 
+DEFAULT_COLORS = {
+    'abs_diff': '#e63946',
+    'bayes_dip': '#5555ff',
+    'bayes_dip_predcp': '#5a6c17',
+    'mcdo': '#ee9b00',
+}
+
 def plot_hist(  # pylint: disable=too-many-arguments
         data, label_list, title=None, ax=None, xlim=None, ylim=None, yscale='log',
         remove_ticks=False, color_list=None, alpha_list=None, hist_kwargs=None,
