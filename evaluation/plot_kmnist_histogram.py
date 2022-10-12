@@ -8,15 +8,22 @@ from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_kmnist_exact_density.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
+parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
+parser.add_argument('--noise_list', type=float, nargs='+', default=[0.05, 0.1])
+parser.add_argument('--angles_list', type=int, nargs='+', default=[5, 10, 20, 30])
+parser.add_argument('--sample_idx', type=int, default=0)
 parser.add_argument('--do_not_subtract_image_noise_correction', action='store_true', default=False, help='do not subtract the image noise correction term from the covariance diagonals')
+parser.add_argument('--do_not_use_log_yscale', action='store_true', default=False, help='do not use logarithmic scale for y axis')
 args = parser.parse_args()
+
+experiment_paths = {
+        'outputs_path': args.experiments_outputs_path,
+        'multirun_path': args.experiments_multirun_path,
+}
 
 with open(args.runs_file, 'r') as f:
     runs = yaml.safe_load(f)
 
-NOISE_LIST = [0.05]  # [0.05, 0.1]
-ANGLES_LIST = [20]  # [5, 10, 20, 30]
-SAMPLE_IDX = 1
 
 def _get_xlim(data):
     return (0, max((d.max() for d in data)))
@@ -28,29 +35,29 @@ def _get_ylim(n_list, ylim_min_fct=0.5):
 
 configure_matplotlib()
 
-for noise in NOISE_LIST:
-    for angles in ANGLES_LIST:
+yscale = 'linear' if args.do_not_use_log_yscale else 'log'
+
+for noise in args.noise_list:
+    for angles in args.angles_list:
 
         dip_mll_optim_run = OmegaConf.load(
-                os.path.join(runs[noise][angles][f'include_predcp_False'], '.hydra', 'config.yaml')
+                os.path.join(runs[noise][angles]['include_predcp_False'], '.hydra', 'config.yaml')
                 ).inference.load_path
 
-        kwargs = {'sample_idx': SAMPLE_IDX, 'outputs_path': args.experiments_outputs_path}
+        kwargs = {'sample_idx': args.sample_idx, 'experiment_paths': experiment_paths}
 
         abs_diff = get_abs_diff(dip_mll_optim_run, **kwargs)
-        stddev = get_stddev(runs[noise][angles][f'include_predcp_False'],
+        stddev = get_stddev(runs[noise][angles]['include_predcp_False'],
                 subtract_image_noise_correction=not args.do_not_subtract_image_noise_correction,
                 **kwargs)
-        stddev_predcp = get_stddev(runs[noise][angles][f'include_predcp_True'],
+        stddev_predcp = get_stddev(runs[noise][angles]['include_predcp_True'],
                 subtract_image_noise_correction=not args.do_not_subtract_image_noise_correction,
                 **kwargs)
 
         data = [d.flatten().numpy() for d in [abs_diff, stddev, stddev_predcp]]
         label_list = ['$|x-x^*|$', 'std-dev (MLL)', 'std-dev (TV-MAP)']
 
-        ax, n_list, _ = plot_hist(data=data, label_list=label_list, remove_ticks=False)
+        ax, n_list, _ = plot_hist(data=data, label_list=label_list, yscale=yscale, remove_ticks=False)
         ax.set_xlim(_get_xlim(data))
         ax.set_ylim(_get_ylim(n_list))
-        ax.get_figure().savefig(f'kmnist_hist_noise_{noise}_angles_{angles}_sample_{SAMPLE_IDX}_log_yscale.pdf')
-        ax.set_yscale('linear')
-        ax.get_figure().savefig(f'kmnist_hist_noise_{noise}_angles_{angles}_sample_{SAMPLE_IDX}.pdf')
+        ax.get_figure().savefig(f'kmnist_hist_noise_{noise}_angles_{angles}_sample_{args.sample_idx}_{yscale}_yscale.pdf')

@@ -105,6 +105,7 @@ def translate_path(
         Translated path.
     """
     path = path.rstrip('/\\')
+    experiment_paths = experiment_paths or {}
     is_multirun = all(c in '0123456789' for c in os.path.basename(path))
     if is_multirun:
         multirun_path = experiment_paths.get('multirun_path', None)
@@ -115,6 +116,56 @@ def translate_path(
         outputs_path = outputs_path if outputs_path is not None else DEFAULT_OUTPUTS_PATH
         path = translate_output_path(path=path, outputs_path=outputs_path)
     return path
+
+def get_ground_truth(
+        run_path: str, sample_idx: int,
+        experiment_paths: Optional[Dict] = None) -> Tensor:
+    """
+    Return the ground truth for sample ``sample_idx`` from ``run_path``.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+
+    Returns
+    -------
+    ground_truth : Tensor
+        Ground truth. Shape: ``(im_size, im_size)``.
+    """
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    ground_truth = torch.load(os.path.join(run_path, f'sample_{sample_idx}.pt'),
+            map_location='cpu')['ground_truth'].detach()
+    return ground_truth.squeeze(1).squeeze(0)
+
+def get_recon(
+        run_path: str, sample_idx: int,
+        experiment_paths: Optional[Dict] = None) -> Tensor:
+    """
+    Return the reconstruction for sample ``sample_idx`` from ``run_path``.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+
+    Returns
+    -------
+    recon : Tensor
+        Reconstruction. Shape: ``(im_size, im_size)``.
+    """
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    recon = torch.load(os.path.join(run_path, f'recon_{sample_idx}.pt'),
+            map_location='cpu').detach()
+    return recon.squeeze(1).squeeze(0)
 
 def get_abs_diff(
         run_path: str, sample_idx: int,
@@ -137,12 +188,11 @@ def get_abs_diff(
     abs_diff : Tensor
         Absolute difference. Shape: ``(im_size, im_size)``.
     """
-    run_path = translate_path(run_path, experiment_paths=experiment_paths)
-    ground_truth = torch.load(os.path.join(run_path, f'sample_{sample_idx}.pt'),
-            map_location='cpu')['ground_truth'].detach()
-    recon = torch.load(os.path.join(run_path, f'recon_{sample_idx}.pt'),
-            map_location='cpu').detach()
-    abs_diff = torch.abs(ground_truth - recon).squeeze(1).squeeze(0)
+    ground_truth = get_ground_truth(
+            run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths)
+    recon = get_recon(
+            run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths)
+    abs_diff = torch.abs(ground_truth - recon)
     return abs_diff
 
 def get_density_data(
@@ -397,7 +447,8 @@ def get_stddev(run_path: str, sample_idx: int,
     """
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
     cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
-    data, is_exact = get_density_data(run_path=run_path, sample_idx=sample_idx)
+    data, is_exact = get_density_data(
+            run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths)
     if is_exact:
         assert patch_idx_list is None, 'cannot use patch_idx_list with exact density'
         cov_diag = data['cov'].detach().diag()
