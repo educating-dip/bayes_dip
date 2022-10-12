@@ -1,8 +1,11 @@
 """
 Utilities for plotting.
 """
+import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 
 def configure_matplotlib():
     """
@@ -83,3 +86,93 @@ def plot_hist(  # pylint: disable=too-many-arguments
     ax.set_ylabel('density', labelpad=2)
     ax.tick_params(labelbottom=not remove_ticks)
     return ax, n_list, bins_list
+
+def plot_image(
+        fig, ax, image,
+        title='', vmin=None, vmax=None, cmap='gray', interpolation='none',
+        insets=None, insets_mark_in_orig=False, colorbar=False):
+    """
+    Show an image.
+
+    A colorbar and insets can be added.
+
+    Returns
+    -------
+    im : :class:`matplotlib.image.AxesImage`
+        The object returned by ``ax.imshow(...)``.
+    """
+    im = ax.imshow(image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation=interpolation)
+    ax.set_title(title)
+    if insets:
+        for inset_spec in insets:
+            add_inset(fig, ax, image, **inset_spec, vmin=vmin, vmax=vmax, cmap=cmap, mark_in_orig=insets_mark_in_orig)
+    if colorbar:
+        cb = add_colorbar(fig, ax, im)
+        if colorbar == 'invisible':
+            cb.ax.set_visible(False)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    return im
+
+def add_colorbar(fig, ax, im):
+    """
+    Add a colorbar using ``mpl_toolkits.axes_grid1.axes_divider.make_axes_locatable``.
+
+    Returns
+    -------
+    cb : :class:`matplotlib.colorbar.Colorbar`
+        Colorbar.
+    """
+    ax_divider = make_axes_locatable(ax)
+    cax = ax_divider.append_axes('right', size='4%', pad='2%')
+    cb = fig.colorbar(im, cax=cax)
+    cax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(4))
+    return cb
+
+def add_inset(
+        fig, ax, image, axes_rect, rect,
+        cmap='gray', vmin=None, vmax=None, interpolation='none',
+        frame_color='#aa0000', frame_path=None, clip_path_closing=None, mark_in_orig=False,
+        origin='upper'):
+    """
+    Add an inset to an image plot.
+
+    Returns
+    -------
+    axins : :class:`matplotlib.axes.Axes`
+        Inset axes.
+    """
+    ip = InsetPosition(ax, axes_rect)
+    axins = matplotlib.axes.Axes(fig, [0., 0., 1., 1.])
+    axins.set_axes_locator(ip)
+    fig.add_axes(axins)
+    slice0 = slice(rect[0], rect[0]+rect[2])
+    slice1 = slice(rect[1], rect[1]+rect[3])
+    inset_image = image[slice0, slice1]
+    inset_image_handle = axins.imshow(
+            inset_image, cmap=cmap, vmin=vmin, vmax=vmax, interpolation=interpolation)
+    axins.set_xticks([])
+    axins.set_yticks([])
+    axins.patch.set_visible(False)
+    for spine in axins.spines.values():
+        spine.set_visible(False)
+    if frame_path is None:
+        frame_path = [[0., 0.], [1., 0.], [0., 1.], [1., 1]]
+    if frame_path:
+        frame_path_closed = frame_path + (clip_path_closing if clip_path_closing is not None else [])
+        if mark_in_orig:
+            scalex, scaley = rect[3], rect[2]
+            offsetx, offsety = rect[1], (image.shape[0]-(rect[0]+rect[2]) if origin == 'upper' else rect[0])
+            y_trans = matplotlib.transforms.Affine2D().scale(1., -1.).translate(0., image.shape[0]-1) if origin == 'upper' else matplotlib.transforms.IdentityTransform()
+            trans_data = matplotlib.transforms.Affine2D().scale(scalex, scaley).translate(offsetx, offsety) + y_trans + ax.transData
+            x, y = [*zip(*(frame_path_closed + [frame_path_closed[0]]))]
+            ax.plot(x, y, transform=trans_data, color=frame_color, linestyle='dashed', linewidth=1.)
+        axins.plot(
+                *np.array(frame_path).T,
+                transform=axins.transAxes,
+                color=frame_color,
+                solid_capstyle='butt')
+        inset_image_handle.set_clip_path(matplotlib.path.Path(frame_path_closed),
+                transform=axins.transAxes)
+        inset_image_handle.set_clip_on(True)
+    return axins
