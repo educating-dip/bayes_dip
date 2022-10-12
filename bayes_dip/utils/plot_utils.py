@@ -79,7 +79,7 @@ def plot_hist(  # pylint: disable=too-many-arguments
     for (el, hist_kwargs_overrides) in zip(data, hist_kwargs_per_data_list):
         hist_kwargs_merged = hist_kwargs.copy()
         hist_kwargs_merged.update(hist_kwargs_overrides)
-        n, bins, _ = ax.hist(el.flatten(), **hist_kwargs_merged)
+        n, bins, _ = ax.hist(np.asarray(el.flatten()), **hist_kwargs_merged)
         n_list.append(n)
         bins_list.append(bins)
     ax.set_title(title)
@@ -183,3 +183,61 @@ def add_inset(
                 transform=axins.transAxes)
         inset_image_handle.set_clip_on(True)
     return axins
+
+def add_inner_rect(ax, slice_0, slice_1, thickness=3., color='white') -> None:
+    """
+    Add a rectangular frame surrounding an inner part of an image plot.
+
+    The thickness of the frame is placed on the outside (to not hide the inner part).
+    """
+    start_0, end_0 = slice_0.start, slice_0.stop
+    start_1, end_1 = slice_1.start, slice_1.stop
+    rect_parts = [
+        ([start_0 - thickness, start_1 - thickness], end_0+1-start_0 + 2*thickness, thickness),
+        ([start_0 - thickness, end_1+1], end_0+1-start_0 + 2*thickness, thickness),
+        ([start_0 - thickness, start_1 - thickness], thickness, end_1+1-start_1 + 2*thickness),
+        ([end_0+1, start_1 - thickness], thickness, end_1+1-start_1 + 2*thickness)]
+    for rect_part in rect_parts:
+        rect = matplotlib.patches.Rectangle(*rect_part, fill=True, color=color, edgecolor=None)
+        ax.add_patch(rect)
+
+def add_metrics(ax, psnr, ssim, as_xlabel=True, pos=None, **kwargs):
+    s_psnr = 'PSNR: ${:.3f}$\\,dB'.format(psnr)
+    s_ssim = 'SSIM: ${:.4f}$'.format(ssim)
+    if as_xlabel:
+        ax.set_xlabel(s_psnr + ';\;' + s_ssim)
+    else:
+        assert pos is not None, 'pos is required when using `as_xlabel=False`'
+        kwargs.setdefault('ha', 'right')
+        kwargs.setdefault('va', 'top')
+        ax.text(*pos, s_psnr + '\n' + s_ssim, **kwargs)
+
+def add_log_lik(ax, log_lik, as_xlabel=True, pos=None, **kwargs):
+    s = 'log-likelihood: ${:.4f}$'.format(log_lik)
+    if as_xlabel:
+        ax.set_xlabel(s)
+    else:
+        assert pos is not None, 'pos is required when using `as_xlabel=False`'
+        kwargs.setdefault('ha', 'right')
+        kwargs.setdefault('va', 'top')
+        ax.text(*pos, s, **kwargs)
+
+def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, legend_kwargs=None):
+    """
+    Plot a Q-Q (quantile-quantile) plot.
+    """
+    qq_xintv = [np.min(data[0][0]), np.max(data[0][0])]
+    ax.plot(qq_xintv, qq_xintv, color='k', linestyle='--')
+    if color_list is None:
+        color_list = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    if zorder_list is None:
+        zorder_list = range(len(data))
+    for (osm, osr), label, color, zorder in zip(data, label_list, color_list, zorder_list):
+        ax.plot(osm, osr, label=label, alpha=0.75, zorder=zorder, linewidth=1.75, color=color)
+    abs_ylim = max(map(abs, ax.get_ylim()))
+    ax.set_ylim(-abs_ylim, abs_ylim)
+    ax.set_title(title)
+    ax.grid(alpha=0.3)
+    ax.legend(**(legend_kwargs or {}))
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)

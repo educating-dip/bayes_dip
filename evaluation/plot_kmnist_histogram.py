@@ -12,7 +12,7 @@ parser.add_argument('--experiments_multirun_path', type=str, default='../experim
 parser.add_argument('--noise_list', type=float, nargs='+', default=[0.05, 0.1])
 parser.add_argument('--angles_list', type=int, nargs='+', default=[5, 10, 20, 30])
 parser.add_argument('--sample_idx', type=int, default=0)
-parser.add_argument('--do_not_subtract_image_noise_correction', action='store_true', default=False, help='do not subtract the image noise correction term from the covariance diagonals')
+parser.add_argument('--do_not_subtract_image_noise_correction', action='store_true', default=False, help='do not subtract the image noise correction term (if any) from the covariance diagonals')
 parser.add_argument('--do_not_use_log_yscale', action='store_true', default=False, help='do not use logarithmic scale for y axis')
 args = parser.parse_args()
 
@@ -48,10 +48,10 @@ for noise in args.noise_list:
 
         abs_diff = get_abs_diff(dip_mll_optim_run, **kwargs)
         stddev = get_stddev(runs[noise][angles]['include_predcp_False'],
-                subtract_image_noise_correction=not args.do_not_subtract_image_noise_correction,
+                subtract_image_noise_correction_if_any=not args.do_not_subtract_image_noise_correction,
                 **kwargs)
         stddev_predcp = get_stddev(runs[noise][angles]['include_predcp_True'],
-                subtract_image_noise_correction=not args.do_not_subtract_image_noise_correction,
+                subtract_image_noise_correction_if_any=not args.do_not_subtract_image_noise_correction,
                 **kwargs)
 
         data = [d.flatten().numpy() for d in [abs_diff, stddev, stddev_predcp]]

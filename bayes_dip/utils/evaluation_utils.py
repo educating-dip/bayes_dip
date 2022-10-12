@@ -415,7 +415,7 @@ def restrict_sample_based_density_data_to_new_patch_idx_list(
 
 def get_stddev(run_path: str, sample_idx: int,
         patch_idx_list: Optional[Union[List[int], str]] = None,
-        subtract_image_noise_correction: bool = True,
+        subtract_image_noise_correction_if_any: bool = True,
         experiment_paths: Optional[Dict] = None) -> Tensor:
     """
     Return the standard deviation (i.e. the square root of the diagonal of the posterior covariance)
@@ -433,7 +433,7 @@ def get_stddev(run_path: str, sample_idx: int,
         If a string,
         ``bayes_dip.utils.experiment_utils.get_predefined_patch_idx_list(patch_idx_list)`` is used.
         If ``None`` (the default), all patch indices are used.
-    subtract_image_noise_correction : bool, optional
+    subtract_image_noise_correction_if_any : bool, optional
         Whether to subtract the image noise correction term from the covariance diagonal before
         taking the square root.
         The default is ``True``.
@@ -458,7 +458,10 @@ def get_stddev(run_path: str, sample_idx: int,
                 patch_idx_list=patch_idx_list,
                 patch_size=cfg.inference.patch_size,
                 im_shape=(cfg.dataset.im_size,) * 2)
-    if subtract_image_noise_correction:
+    if (subtract_image_noise_correction_if_any and cfg.inference.get(
+            'add_image_noise_correction_term',
+            True,  # in old runs without this config, image_noise_correction_term was added
+            )):
         image_noise_correction_term = data.get('image_noise_correction_term', None)
         if image_noise_correction_term is None:
             image_noise_correction_term = _recompute_image_noise_correction_term(

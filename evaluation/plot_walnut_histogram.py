@@ -11,7 +11,7 @@ parser.add_argument('--runs_file', type=str, default='runs_walnut_sample_based_d
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
 parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
 parser.add_argument('--include_outer_part', action='store_true', default=False, help='include the outer part of the walnut image (that only contains background)')
-parser.add_argument('--do_not_subtract_image_noise_correction', action='store_true', default=False, help='do not subtract the image noise correction term from the covariance diagonals')
+parser.add_argument('--do_not_subtract_image_noise_correction', action='store_true', default=False, help='do not subtract the image noise correction term (if any) from the covariance diagonals')
 parser.add_argument('--do_not_use_log_yscale', action='store_true', default=False, help='do not use logarithmic scale for y axis')
 args = parser.parse_args()
 
@@ -43,7 +43,7 @@ kwargs = {
         }
 stddev_kwargs = {
         'patch_idx_list': None if args.include_outer_part else 'walnut_inner',
-        'subtract_image_noise_correction': not args.do_not_subtract_image_noise_correction,
+        'subtract_image_noise_correction_if_any': not args.do_not_subtract_image_noise_correction,
         }
 
 abs_diff = get_abs_diff(dip_mll_optim_run, **kwargs)
