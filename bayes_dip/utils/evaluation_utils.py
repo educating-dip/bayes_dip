@@ -142,6 +142,31 @@ def get_ground_truth(
             map_location='cpu')['ground_truth'].detach()
     return ground_truth.squeeze(1).squeeze(0)
 
+def get_observation(
+        run_path: str, sample_idx: int,
+        experiment_paths: Optional[Dict] = None) -> Tensor:
+    """
+    Return the ground truth for sample ``sample_idx`` from ``run_path``.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+
+    Returns
+    -------
+    observation : Tensor
+        Ground truth. Shape: ``(im_size, im_size)``.
+    """
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    observation = torch.load(os.path.join(run_path, f'sample_{sample_idx}.pt'),
+            map_location='cpu')['observation'].detach()
+    return observation.squeeze(1).squeeze(0)
+
 def get_recon(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None) -> Tensor:
