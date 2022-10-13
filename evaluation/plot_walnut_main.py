@@ -198,8 +198,8 @@ if args.save_data_to:
 configure_matplotlib()
 
 
-fig, axs = plt.subplots(2, 8, figsize=(14, 5), gridspec_kw={
-    'width_ratios': [1., 0.075, 1., 1., 0.11, 1., 0.4, 1.25],  # includes spacer columns
+fig, axs = plt.subplots(2, 8, figsize=(15, 5), gridspec_kw={
+    'width_ratios': [1., 0.1, 1., 1., 0.2, 1., 0.52, 1.3],  # includes spacer columns
     'wspace': 0.01, 'hspace': 0.25})
 
 
@@ -239,9 +239,9 @@ vmax_row_0 = max(torch.max(stddev_predcp), torch.max(abs_diff))
 
 
 print('plotting images')
-plot_image(fig, axs[0, 0], ground_truth, title='${\mathbf{x}}$', vmin=0., insets=insets, insets_mark_in_orig=True)
+plot_image(fig, axs[0, 0], ground_truth, title='$x^\star$', vmin=0., insets=insets, insets_mark_in_orig=True)
 add_inner_rect(axs[0, 0], slice_0, slice_1)
-plot_image(fig, axs[0, 2], recon, title='${\mathbf{f}^\star}$', vmin=0., insets=insets)
+plot_image(fig, axs[0, 2], recon, title='$\hat x$', vmin=0., insets=insets)
 add_inner_rect(axs[0, 2], slice_0, slice_1)
 add_metrics(axs[0, 2], data['psnr'], data['ssim'])
 plot_image(fig, axs[1, 2], data['recon_mcdo'], vmin=0., insets=insets)
@@ -252,7 +252,7 @@ axs[1, 2].set_ylabel('DIP-MCDO', fontsize=plt.rcParams['axes.titlesize'])
 # spacer
 axs[0, 1].remove()
 axs[1, 1].remove()
-plot_image(fig, axs[0, 3], abs_diff, title='$|{\mathbf{x} - \mathbf{f}^\star}|$', vmin=0., vmax=vmax_row_0, insets=insets, colorbar='invisible')
+plot_image(fig, axs[0, 3], abs_diff, title='$|\hat x - x^\star|$', vmin=0., vmax=vmax_row_0, insets=insets, colorbar='invisible')
 add_inner_rect(axs[0, 3], slice_0, slice_1)
 plot_image(fig, axs[1, 3], abs_diff_mcdo, vmin=0., insets=insets, colorbar=True)
 add_inner_rect(axs[1, 3], slice_0, slice_1)
@@ -267,7 +267,7 @@ add_inner_rect(axs[1, 5], slice_0, slice_1)
 add_log_lik(axs[1, 5], data['log_lik_mcdo'])
 
 axs[1, 0].imshow(data['observation_2d'].T, cmap='gray')
-axs[1, 0].set_title('${\mathbf{y}_\delta}$')
+axs[1, 0].set_title('$y$')
 axs[1, 0].set_xticks([])
 axs[1, 0].set_yticks([])
 
@@ -279,33 +279,40 @@ axs[1, 6].remove()
 print('plotting histograms')
 plot_hist(
     [abs_diff[slice_0, slice_1], stddev_predcp[slice_0, slice_1]],
-    ['$|{\mathbf{x} - \mathbf{f}^\star}|$', 'std-dev -- Bayes DIP'],
+    ['$|\hat x - x^\star|$', 'std-dev -- Bayes DIP'],
     title='marginal std-dev',
     ax=axs[0, 7],
+    xlim=(0., 1.6),
+    ylim=(1e-4, 1000.),
     remove_ticks=True,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip_predcp']],
-    legend_kwargs={'loc': 'upper right', 'bbox_to_anchor': (1.015, 0.99)},
+    legend_kwargs={'loc': 'upper right', 'bbox_to_anchor': (1.015, 1.02), 'prop': {'size': 'small'}},
     )
+axs[0, 7].tick_params(axis='both', which='major', labelsize='small')
 plot_hist(
     [abs_diff_mcdo[slice_0, slice_1], stddev_mcdo[slice_0, slice_1]],
-    ['$|{\mathbf{x} - \mathbf{f}^\star}|$', 'std-dev -- DIP-MCDO'],
+    ['$|\hat x - x^\star|$', 'std-dev -- DIP-MCDO'],
     title='',
     ax=axs[1, 7],
+    xlim=(0., 1.6),
+    ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['mcdo']],
-    legend_kwargs={'loc': 'lower right', 'bbox_to_anchor': (1.015, 0.02)},
+    legend_kwargs={'loc': 'lower right', 'bbox_to_anchor': (1.015, -0.02), 'prop': {'size': 'small'}},
     )
+axs[1, 7].tick_params(axis='both', which='major', labelsize='small')
 
 
 print('plotting Q-Q plot')
 qq_host_axis = axs[1, 7]
-qq_axes_rect = [0.48, 0.44, 0.52, 0.64]
+qq_axes_rect = [0.52, 0.48, 0.48, 0.62]
 ip = InsetPosition(qq_host_axis, qq_axes_rect)
 ax_qq = matplotlib.axes.Axes(fig, [0., 0., 1., 1.])
 ax_qq.set_axes_locator(ip)
 ax_qq.set_clip_on(False)
-border_0, border_1 = 0.185, 0.25
-corner_crop_0, corner_crop_1 = 0.25, 0.3
+ax_qq.tick_params(axis='both', which='major', labelsize='small')
+border_0, border_1 = 0.22, 0.22
+corner_crop_0, corner_crop_1 = 0.15, 0.3
 qq_background = matplotlib.patches.Polygon(
         [
             [qq_axes_rect[0] - border_0, qq_axes_rect[1] - border_1 + corner_crop_1],
@@ -324,9 +331,9 @@ plot_qq(
         ax=ax_qq,
         data=[(osm_map, osr_map), (osm_mcdo, osr_mcdo)],
         label_list=['Bayes DIP', 'DIP-MCDO'],
-        color_list=[DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['mcdo']],
+        color_list=[DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['mcdo']],
         zorder_list=[10, 5],
-        legend_kwargs={'loc': 'lower right', 'bbox_to_anchor': (1., 0.)})
+        legend_kwargs={'loc': 'upper left', 'bbox_to_anchor': (-0.1, 1.1), 'prop': {'size': 'small'}})
 ax_qq.add_patch(matplotlib.patches.Rectangle([0.05, 0.95], 0.9, 0.05,
         fill=True, color='#ffffff', edgecolor=None, transform=ax_qq.transAxes, zorder=3))
 ax_qq.set_title('calibration: Q-Q', y=0.95)
