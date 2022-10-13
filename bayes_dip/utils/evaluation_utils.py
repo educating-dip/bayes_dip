@@ -451,7 +451,7 @@ def get_stddev(run_path: str, sample_idx: int,
             run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths)
     if is_exact:
         assert patch_idx_list is None, 'cannot use patch_idx_list with exact density'
-        cov_diag = data['cov'].detach().diag()
+        cov_diag = data['cov'].detach().diag().reshape((cfg.dataset.im_size,) * 2)
     else:
         cov_diag = get_sample_based_cov_diag(
                 data=data,
