@@ -18,8 +18,6 @@ from bayes_dip.utils.plot_utils import (
         add_log_lik)
 from baselines.evaluation_utils import compute_mcdo_reconstruction, get_mcdo_density_data, get_mcdo_stddev
 
-# TODO needs fine-tuning
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_walnut_sample_based_density_reweight_off_diagonal_entries/patch_size_1.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--baseline_mcdo_runs_file', type=str, default='runs_baseline_walnut_mcdo_density_reweight_off_diagonal_entries/patch_size_1.yaml', help='path of yaml file containing hydra output directory names')
