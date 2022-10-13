@@ -202,8 +202,8 @@ def add_inner_rect(ax, slice_0, slice_1, thickness=3., color='white') -> None:
         ax.add_patch(rect)
 
 def add_metrics(ax, psnr, ssim, as_xlabel=True, pos=None, **kwargs):
-    s_psnr = 'PSNR: ${:.3f}$\\,dB'.format(psnr)
-    s_ssim = 'SSIM: ${:.4f}$'.format(ssim)
+    s_psnr = 'PSNR: ${:.2f}$\\,dB'.format(psnr)
+    s_ssim = 'SSIM: ${:.3f}$'.format(ssim)
     if as_xlabel:
         ax.set_xlabel(s_psnr + ';\;' + s_ssim)
     else:
@@ -213,7 +213,7 @@ def add_metrics(ax, psnr, ssim, as_xlabel=True, pos=None, **kwargs):
         ax.text(*pos, s_psnr + '\n' + s_ssim, **kwargs)
 
 def add_log_lik(ax, log_lik, as_xlabel=True, pos=None, **kwargs):
-    s = 'log-likelihood: ${:.4f}$'.format(log_lik)
+    s = 'log-likelihood: ${:.2f}$'.format(log_lik)
     if as_xlabel:
         ax.set_xlabel(s)
     else:
