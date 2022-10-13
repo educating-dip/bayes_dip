@@ -81,7 +81,7 @@ def get_mcdo_stddev(run_path: str, sample_idx: int,
             patch_size=cfg.inference.patch_size,
             im_shape=(cfg.dataset.im_size,) * 2)
     if subtract_image_noise_correction_if_any and cfg.inference.add_image_noise_correction_term:
-        image_noise_correction_term = data.image_noise_correction_term
+        image_noise_correction_term = data['image_noise_correction_term']
         print(f'subtracting {image_noise_correction_term} (image noise correction) from cov_diag')
         cov_diag -= image_noise_correction_term
     stddev = torch.sqrt(cov_diag)
