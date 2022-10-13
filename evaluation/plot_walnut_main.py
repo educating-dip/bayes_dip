@@ -331,7 +331,7 @@ plot_qq(
         label_list=['Bayes DIP', 'DIP-MCDO'],
         color_list=[DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['mcdo']],
         zorder_list=[10, 5],
-        legend_kwargs={'loc': 'upper left', 'bbox_to_anchor': (-0.1, 1.1), 'prop': {'size': 'small'}})
+        legend_kwargs={'loc': 'upper left', 'bbox_to_anchor': (-0.03, 1.03), 'prop': {'size': 'small'}, 'borderpad': 0.2})
 ax_qq.add_patch(matplotlib.patches.Rectangle([0.05, 0.95], 0.9, 0.05,
         fill=True, color='#ffffff', edgecolor=None, transform=ax_qq.transAxes, zorder=3))
 ax_qq.set_title('calibration: Q-Q', y=0.95)
