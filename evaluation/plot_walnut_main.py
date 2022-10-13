@@ -237,7 +237,7 @@ vmax_row_0 = max(torch.max(stddev_predcp), torch.max(abs_diff))
 
 
 print('plotting images')
-plot_image(fig, axs[0, 0], ground_truth, title='$x^\star$', vmin=0., insets=insets, insets_mark_in_orig=True)
+plot_image(fig, axs[0, 0], ground_truth, title='$x^*$', vmin=0., insets=insets, insets_mark_in_orig=True)
 add_inner_rect(axs[0, 0], slice_0, slice_1)
 plot_image(fig, axs[0, 2], recon, title='$\hat x$', vmin=0., insets=insets)
 add_inner_rect(axs[0, 2], slice_0, slice_1)
@@ -250,7 +250,7 @@ axs[1, 2].set_ylabel('DIP-MCDO', fontsize=plt.rcParams['axes.titlesize'])
 # spacer
 axs[0, 1].remove()
 axs[1, 1].remove()
-plot_image(fig, axs[0, 3], abs_diff, title='$|\hat x - x^\star|$', vmin=0., vmax=vmax_row_0, insets=insets, colorbar='invisible')
+plot_image(fig, axs[0, 3], abs_diff, title='$|\hat x - x^*|$', vmin=0., vmax=vmax_row_0, insets=insets, colorbar='invisible')
 add_inner_rect(axs[0, 3], slice_0, slice_1)
 plot_image(fig, axs[1, 3], abs_diff_mcdo, vmin=0., insets=insets, colorbar=True)
 add_inner_rect(axs[1, 3], slice_0, slice_1)
@@ -277,7 +277,7 @@ axs[1, 6].remove()
 print('plotting histograms')
 plot_hist(
     [abs_diff[slice_0, slice_1], stddev_predcp[slice_0, slice_1]],
-    ['$|\hat x - x^\star|$', 'std-dev -- Bayes DIP'],
+    ['$|\hat x - x^*|$', 'std-dev -- Bayes DIP'],
     title='marginal std-dev',
     ax=axs[0, 7],
     xlim=(0., 1.6),
@@ -289,7 +289,7 @@ plot_hist(
 axs[0, 7].tick_params(axis='both', which='major', labelsize='small')
 plot_hist(
     [abs_diff_mcdo[slice_0, slice_1], stddev_mcdo[slice_0, slice_1]],
-    ['$|\hat x - x^\star|$', 'std-dev -- DIP-MCDO'],
+    ['$|\hat x - x^*|$', 'std-dev -- DIP-MCDO'],
     title='',
     ax=axs[1, 7],
     xlim=(0., 1.6),
