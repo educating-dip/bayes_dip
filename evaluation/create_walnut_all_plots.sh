@@ -9,3 +9,5 @@ python plot_walnut_mini.py --runs_file $yaml_root_path/runs_walnut_sample_based_
 
 python plot_walnut_histogram.py --runs_file $yaml_root_path/runs_walnut_sample_based_density.yaml --save_data_to walnut_histogram_figure_data_log_yscale.pt
 python plot_walnut_histogram.py --runs_file $yaml_root_path/runs_walnut_sample_based_density.yaml --do_not_use_log_yscale --save_data_to walnut_histogram_figure_data_linear_yscale.pt
+
+python plot_walnut_hyperparams.py --runs_file $yaml_root_path/runs_walnut_dip_mll_optim.yaml --tag_list GPprior_lengthscale_0 GPprior_variance_0 NormalPrior_variance_2 observation_noise_variance --rows 2 --legend_pos 1 --save_data_to walnut_hyperparams_figure_data_small.pt

@@ -495,3 +495,68 @@ def get_stddev(run_path: str, sample_idx: int,
         cov_diag -= image_noise_correction_term
     stddev = torch.sqrt(cov_diag)
     return stddev
+
+def find_single_log_file(log_dir: str) -> str:
+    """
+    Return path of a single log file found in a log directory by recursing its sub-directories.
+
+    Parameters
+    ----------
+    log_dir : str
+        Log directory that contains exactly one log file in any sub-directory (including itself).
+
+    Returns
+    -------
+    log_file : str
+        Full path of the single log file (the path includes ``log_dir`` as a prefix).
+    """
+    log_file = None
+    for path, _, files in os.walk(log_dir):
+        for file in files:
+            if file.startswith('events.out.tfevents.'):
+                if log_file is None:
+                    log_file = os.path.join(path, file)
+                else:
+                    raise RuntimeError(f'found multiple log files in {log_dir}')
+    if log_file is None:
+        raise RuntimeError(f'did not find log file in {log_dir}')
+    return log_file
+
+def extract_tensorboard_scalars(
+        log_file: str, save_as_npz: str = '', tags: Optional[List[str]] = None) -> dict:
+    """
+    Extract scalars from a tensorboard log file.
+
+    Parameters
+    ----------
+    log_file : str
+        Tensorboard log filepath.
+    save_as_npz : str, optional
+        File path to save the extracted scalars as a npz file.
+    tags : list of str, optional
+        If specified, only extract these tags.
+    """
+    try:
+        from tensorboard.backend.event_processing import event_accumulator
+    except ModuleNotFoundError:
+        raise RuntimeError('Tensorboard\'s event_accumulator could not be imported, which is '
+                           'required by `extract_tensorboard_scalars`')
+
+    ea = event_accumulator.EventAccumulator(
+            log_file, size_guidance={event_accumulator.SCALARS: 0})
+    ea.Reload()
+
+    tags = tags or ea.Tags()['scalars']
+
+    scalars = {}
+    for tag in tags:
+        events = ea.Scalars(tag)
+        steps = [event.step for event in events]
+        values = [event.value for event in events]
+        scalars[tag + '_steps'] = np.asarray(steps)
+        scalars[tag + '_scalars'] = np.asarray(values)
+
+    if save_as_npz:
+        np.savez(save_as_npz, **scalars)
+
+    return scalars
