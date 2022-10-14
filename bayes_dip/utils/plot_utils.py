@@ -205,7 +205,7 @@ def add_metrics(ax, psnr, ssim, as_xlabel=True, pos=None, **kwargs):
     s_psnr = 'PSNR: ${:.2f}$\\,dB'.format(psnr)
     s_ssim = 'SSIM: ${:.3f}$'.format(ssim)
     if as_xlabel:
-        ax.set_xlabel(s_psnr + ';\;' + s_ssim)
+        ax.set_xlabel(s_psnr + ';\;' + s_ssim, **kwargs)
     else:
         assert pos is not None, 'pos is required when using `as_xlabel=False`'
         kwargs.setdefault('ha', 'right')
@@ -215,14 +215,14 @@ def add_metrics(ax, psnr, ssim, as_xlabel=True, pos=None, **kwargs):
 def add_log_lik(ax, log_lik, as_xlabel=True, pos=None, **kwargs):
     s = 'log-likelihood: ${:.2f}$'.format(log_lik)
     if as_xlabel:
-        ax.set_xlabel(s)
+        ax.set_xlabel(s, **kwargs)
     else:
         assert pos is not None, 'pos is required when using `as_xlabel=False`'
         kwargs.setdefault('ha', 'right')
         kwargs.setdefault('va', 'top')
         ax.text(*pos, s, **kwargs)
 
-def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, legend_kwargs=None):
+def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, ylim=None, legend_kwargs=None):
     """
     Plot a Q-Q (quantile-quantile) plot.
     """
@@ -235,7 +235,7 @@ def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, l
     for (osm, osr), label, color, zorder in zip(data, label_list, color_list, zorder_list):
         ax.plot(osm, osr, label=label, alpha=0.75, zorder=zorder, linewidth=1.75, color=color)
     abs_ylim = max(map(abs, ax.get_ylim()))
-    ax.set_ylim(-abs_ylim, abs_ylim)
+    ax.set_ylim((-abs_ylim, abs_ylim) if ylim is None else ylim)
     ax.set_title(title)
     ax.grid(alpha=0.3)
     ax.legend(**(legend_kwargs or {}))
