@@ -15,8 +15,12 @@ parser.add_argument('--experiments_multirun_path', type=str, default='../experim
 parser.add_argument('--save_data_to', type=str, default='', help='path to cache the plot data, such that they can be loaded with --load_data_from')
 parser.add_argument('--load_data_from', type=str, default='', help='load data cached from a previous run with --save_data_to')
 parser.add_argument('--tag_list', type=str, nargs='*', default=[], help='tensorboard tags to plot (e.g. "GPprior_lengthscale_0 GPprior_variance_0 NormalPrior_variance_2 observation_noise_variance"); if empty, plots all hyperparameters of GPprior and NormalPrior priors and the noise variance')
+parser.add_argument('--suffix', type=str, default='', help='suffix for the figure filenames (e.g. summarizing the --tag_list)')
 parser.add_argument('--rows', type=int, default=1, help='number of subplot rows')
+parser.add_argument('--skip_sub_plots', type=int, nargs='*', default=[], help='subplot indices to skip (will be empty subplots)')
 parser.add_argument('--legend_pos', type=int, default=-1, help='subplot index to place the legend in')
+parser.add_argument('--hspace', type=float, default=0.275, help='matplotlib\'s "hspace" gridspec_kw')
+parser.add_argument('--wspace', type=float, default=0.275, help='matplotlib\'s "wspace" gridspec_kw')
 args = parser.parse_args()
 
 experiment_paths = {
@@ -70,8 +74,8 @@ num_rows, num_cols = args.rows, ceil(len(tag_list) / args.rows)
 
 fig, axs = plt.subplots(num_rows, num_cols,
         figsize=(2.25 * num_cols, 2. * num_rows),
-        gridspec_kw={'hspace': 0.275, 'wspace': 0.275})
-axs = np.atleast_2d(axs)
+        gridspec_kw={'hspace': args.hspace, 'wspace': args.wspace})
+axs = np.atleast_1d(axs).flatten()
 
 def get_hyperparam_tex_from_tensor_board_tag(tag):
     title = None
@@ -81,15 +85,16 @@ def get_hyperparam_tex_from_tensor_board_tag(tag):
         tag_base, idx = tag.rsplit('_', 1)
         idx = int(idx) + 1
         if tag_base == 'GPprior_variance':
-            title = f'\sigma_{idx}^2'
+            title = f'\sigma_{{{idx}}}^2'
         elif tag_base == 'GPprior_lengthscale':
-            title = f'\ell_{idx}^2'
+            title = f'\ell_{{{idx}}}^2'
         elif tag_base == 'NormalPrior_variance':
             title = f'\sigma_{{1\\times 1,{idx}}}^2'
     return title
 
 
-for ax, tag in zip(axs.flat, tag_list):
+for ax, tag in zip(
+        axs[[i for i in range(axs.size) if i not in args.skip_sub_plots]], tag_list):
     ax.plot(data['scalars'][f'{tag}_steps'], data['scalars'][f'{tag}_scalars'],
         label='MLL', color=DEFAULT_COLORS['bayes_dip'], alpha=0.9)
     ax.plot(data['scalars_predcp'][f'{tag}_steps'], data['scalars_predcp'][f'{tag}_scalars'],
@@ -97,15 +102,26 @@ for ax, tag in zip(axs.flat, tag_list):
     ax.set_yscale('log')
     ax.set_title(f'${get_hyperparam_tex_from_tensor_board_tag(tag)}$')
     ax.tick_params(axis='both', which='major', labelsize='small')
+    ax.tick_params(axis='both', which='minor', labelsize='xx-small')
     ax.grid(alpha=0.2)
 
-for ax in axs[:-1, :].flatten():
-    ax.tick_params(labelbottom=False)
-for ax in axs[-1, :]:
-    ax.set_xlabel('iterations', fontsize='small')
+for i, ax in enumerate(axs):
+    if i // num_cols < num_rows - 1 and (i + num_cols) not in args.skip_sub_plots:
+        ax.tick_params(labelbottom=False)
+    else:
+        ax.set_xlabel('iterations', fontsize='small')
+    if i in args.skip_sub_plots:
+        if i != args.legend_pos:
+            ax.remove()
+        else:
+            ax.set_axis_off()
 
-axs.flatten()[args.legend_pos].legend()
+handles, labels = next(
+        ax.get_legend_handles_labels() for i, ax in enumerate(axs)
+        if i not in args.skip_sub_plots)
+legend_kwargs = {'loc': 'center'} if args.legend_pos in args.skip_sub_plots else {}
+axs[args.legend_pos].legend(handles, labels, **legend_kwargs)
 
-
-fig.savefig(f'walnut_hyperparams.pdf', bbox_inches='tight', pad_inches=0.)
-fig.savefig(f'walnut_hyperparams.png', bbox_inches='tight', pad_inches=0., dpi=600)
+suffix = '_' + args.suffix if args.suffix and not args.suffix.startswith('_') else args.suffix
+fig.savefig(f'walnut_hyperparams{suffix}.pdf', bbox_inches='tight', pad_inches=0.)
+fig.savefig(f'walnut_hyperparams{suffix}.png', bbox_inches='tight', pad_inches=0., dpi=600)
