@@ -27,7 +27,9 @@ def hex_to_rgb(value, alpha):
 DEFAULT_COLORS = {
     'abs_diff': '#e63946',
     'bayes_dip': '#5555ff',
+    'bayes_dip_approx': '#55c3ff',
     'bayes_dip_predcp': '#5a6c17',
+    'bayes_dip_predcp_approx': '#54db39',
     'mcdo': '#ee9b00',
 }
 
@@ -227,13 +229,13 @@ def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, y
     Plot a Q-Q (quantile-quantile) plot.
     """
     qq_xintv = [np.min(data[0][0]), np.max(data[0][0])]
-    ax.plot(qq_xintv, qq_xintv, color='k', linestyle='--')
+    ax.plot(qq_xintv, qq_xintv, color='k', linestyle='-.')
     if color_list is None:
         color_list = plt.rcParams['axes.prop_cycle'].by_key()['color']
     if zorder_list is None:
         zorder_list = range(len(data))
     for (osm, osr), label, color, zorder in zip(data, label_list, color_list, zorder_list):
-        ax.plot(osm, osr, label=label, alpha=0.75, zorder=zorder, linewidth=1.75, color=color)
+        ax.plot(osm, osr, label=label, alpha=0.75, zorder=zorder, linestyle='dashed', linewidth=3, color=color)
     abs_ylim = max(map(abs, ax.get_ylim()))
     ax.set_ylim((-abs_ylim, abs_ylim) if ylim is None else ylim)
     ax.set_title(title)

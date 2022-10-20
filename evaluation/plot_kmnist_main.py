@@ -8,10 +8,9 @@ import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
 from bayes_dip.utils.utils import PSNR, SSIM
 from bayes_dip.utils.evaluation_utils import (
-        get_abs_diff, get_density_data, get_recon, get_ground_truth, get_observation, get_stddev, restrict_sample_based_density_data_to_new_patch_idx_list, translate_path)
+        get_abs_diff, get_density_data, get_recon, get_ground_truth, get_observation, get_stddev, translate_path)
 from bayes_dip.utils.plot_utils import (
-        DEFAULT_COLORS, configure_matplotlib, plot_hist, plot_image, plot_qq, add_metrics,
-        add_log_lik)
+        DEFAULT_COLORS, configure_matplotlib, plot_hist, plot_image, add_metrics)
 from baselines.evaluation_utils import compute_mcdo_reconstruction, get_mcdo_density_data, get_mcdo_stddev
 
 parser = argparse.ArgumentParser()
@@ -149,7 +148,7 @@ plot_image(fig, axs[0, 2], recon, title='$\hat x$', vmin=0.)
 add_metrics(axs[0, 2], data['psnr'], data['ssim'], **{'size': 'small'})
 plot_image(fig, axs[1, 2], data['recon_mcdo'], vmin=0.)
 add_metrics(axs[1, 2], data['psnr_mcdo'], data['ssim_mcdo'], **{'size': 'small'})
-axs[0, 2].set_ylabel('\\textbf{Bayes DIP}',  fontsize=plt.rcParams['axes.titlesize'], )
+axs[0, 2].set_ylabel('\\textbf{lin.-DIP}',  fontsize=plt.rcParams['axes.titlesize'], )
 axs[1, 2].set_ylabel('\\textbf{DIP-MCDO}',  fontsize=plt.rcParams['axes.titlesize'], )
 # spacer
 axs[0, 1].remove()

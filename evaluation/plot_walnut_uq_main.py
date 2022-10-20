@@ -3,6 +3,8 @@ import yaml
 import argparse
 import numpy as np
 import torch
+import scipy
+import matplotlib
 import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
 from bayes_dip.data.walnut_utils import get_projection_data, get_single_slice_ray_trafo
@@ -11,12 +13,12 @@ from bayes_dip.utils.utils import PSNR, SSIM
 from bayes_dip.utils.evaluation_utils import (
         get_abs_diff, get_density_data, get_recon, get_ground_truth, get_stddev, restrict_sample_based_density_data_to_new_patch_idx_list, translate_path)
 from bayes_dip.utils.plot_utils import (
-        configure_matplotlib,  plot_image, add_inner_rect, add_metrics,
-        )
+        DEFAULT_COLORS, configure_matplotlib, plot_hist, plot_qq)
 from baselines.evaluation_utils import compute_mcdo_reconstruction, get_mcdo_density_data, get_mcdo_stddev
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_walnut_sample_based_density_reweight_off_diagonal_entries/patch_size_1.yaml', help='path of yaml file containing hydra output directory names')
+parser.add_argument('--runs_file_approx', type=str, default='runs_walnut_sample_based_density_approx_jacs_cg_reweight_off_diagonal_entries/patch_size_1.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--baseline_mcdo_runs_file', type=str, default='runs_baseline_walnut_mcdo_density_reweight_off_diagonal_entries/patch_size_1.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
 parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
@@ -36,6 +38,9 @@ experiment_paths = {
 
 with open(args.runs_file, 'r') as f:
     runs = yaml.safe_load(f)
+
+with open(args.runs_file_approx, 'r') as f:
+    runs_approx = yaml.safe_load(f)
 
 with open(args.baseline_mcdo_runs_file, 'r') as f:
     run_mcdo = yaml.safe_load(f)
@@ -66,11 +71,9 @@ def get_walnut_pseudo_2d_sinogram(cfg, walnut_data_path):
             axis=0).squeeze()
     return observation_2d
 
-
 def normalized_error_for_qq_plot(recon, image, std):
     normalized_error = (recon - image) / std
     return normalized_error
-
 
 def collect_walnut_main_figure_data(args, cfg, runs, run_mcdo):
     data = {}
@@ -97,7 +100,9 @@ def collect_walnut_main_figure_data(args, cfg, runs, run_mcdo):
     data['recon'] = get_recon(dip_mll_optim_run, **kwargs)
     data['abs_diff'] = get_abs_diff(dip_mll_optim_run, **kwargs)
     data['stddev'] = get_stddev(runs['include_predcp_False'], **kwargs, **stddev_kwargs)
+    data['stddev_approx'] = get_stddev(runs_approx['include_predcp_False'], **kwargs, **stddev_kwargs)
     data['stddev_predcp'] = get_stddev(runs['include_predcp_True'], **kwargs, **stddev_kwargs)
+    data['stddev_predcp_approx'] = get_stddev(runs_approx['include_predcp_True'], **kwargs, **stddev_kwargs)
 
     print('collecting mcdo data')
     try:
@@ -109,7 +114,6 @@ def collect_walnut_main_figure_data(args, cfg, runs, run_mcdo):
                 run_mcdo, sample_idx=0, device='cpu').squeeze(1).squeeze(0)
     data['abs_diff_mcdo'] = torch.abs(data['recon_mcdo'] - data['ground_truth'])
     data['stddev_mcdo'] = get_mcdo_stddev(run_mcdo, **kwargs, **stddev_kwargs)
-
 
     data['mask'] = torch.logical_not(torch.isnan(data['stddev']))
     print(f'Using {data["mask"].sum()} pixels.')
@@ -135,6 +139,31 @@ def collect_walnut_main_figure_data(args, cfg, runs, run_mcdo):
             orig_patch_idx_list=cfg_predcp.inference.patch_idx_list,
             patch_size=args.patch_size,
             im_shape=data['ground_truth'].shape)['log_prob']
+    data['log_lik_predcp_approx'] = restrict_sample_based_density_data_to_new_patch_idx_list(
+            data=get_density_data(
+                    run_path=runs_approx['include_predcp_True'], sample_idx=0,
+                    experiment_paths=experiment_paths)[0],
+            patch_idx_list=stddev_kwargs['patch_idx_list'],
+            orig_patch_idx_list=cfg_predcp.inference.patch_idx_list,
+            patch_size=args.patch_size,
+            im_shape=data['ground_truth'].shape)['log_prob']
+    data['log_lik_no_predcp'] = restrict_sample_based_density_data_to_new_patch_idx_list(
+            data=get_density_data(
+                    run_path=runs['include_predcp_False'], sample_idx=0,
+                    experiment_paths=experiment_paths)[0],
+            patch_idx_list=stddev_kwargs['patch_idx_list'],
+            orig_patch_idx_list=cfg_predcp.inference.patch_idx_list,
+            patch_size=args.patch_size,
+            im_shape=data['ground_truth'].shape)['log_prob']
+    data['log_lik_no_predcp_approx'] = restrict_sample_based_density_data_to_new_patch_idx_list(
+            data=get_density_data(
+                    run_path=runs_approx['include_predcp_False'], sample_idx=0,
+                    experiment_paths=experiment_paths)[0],
+            patch_idx_list=stddev_kwargs['patch_idx_list'],
+            orig_patch_idx_list=cfg_predcp.inference.patch_idx_list,
+            patch_size=args.patch_size,
+            im_shape=data['ground_truth'].shape)['log_prob']
+
     print('computing mcdo log prob')
     data['log_lik_mcdo'] = restrict_sample_based_density_data_to_new_patch_idx_list(
             data=get_mcdo_density_data(
@@ -147,25 +176,22 @@ def collect_walnut_main_figure_data(args, cfg, runs, run_mcdo):
             patch_size=args.patch_size,
             im_shape=data['ground_truth'].shape)['log_prob']
 
-
-    data['psnr'] = PSNR(
-            data['recon'][slice_0, slice_1].cpu().numpy(),
-            data['ground_truth'][slice_0, slice_1].cpu().numpy())
-    data['ssim'] = SSIM(
-            data['recon'][slice_0, slice_1].cpu().numpy(),
-            data['ground_truth'][slice_0, slice_1].cpu().numpy())
-    data['psnr_mcdo'] = PSNR(
-            data['recon_mcdo'][slice_0, slice_1].cpu().numpy(),
-            data['ground_truth'][slice_0, slice_1].cpu().numpy())
-    data['ssim_mcdo'] = SSIM(
-            data['recon_mcdo'][slice_0, slice_1].cpu().numpy(),
-            data['ground_truth'][slice_0, slice_1].cpu().numpy())
-
-
+    data['qq_err_mll'] = normalized_error_for_qq_plot(
+            data['recon'][slice_0, slice_1],
+            data['ground_truth'][slice_0, slice_1],
+            data['stddev'][slice_0, slice_1])
+    data['qq_err_mll_approx'] = normalized_error_for_qq_plot(
+            data['recon'][slice_0, slice_1],
+            data['ground_truth'][slice_0, slice_1],
+            data['stddev_approx'][slice_0, slice_1])
     data['qq_err_map'] = normalized_error_for_qq_plot(
             data['recon'][slice_0, slice_1],
             data['ground_truth'][slice_0, slice_1],
             data['stddev_predcp'][slice_0, slice_1])
+    data['qq_err_map_approx'] = normalized_error_for_qq_plot(
+            data['recon'][slice_0, slice_1],
+            data['ground_truth'][slice_0, slice_1],
+            data['stddev_predcp_approx'][slice_0, slice_1])
     data['qq_err_mcdo'] = normalized_error_for_qq_plot(
             data['recon_mcdo'][slice_0, slice_1],
             data['ground_truth'][slice_0, slice_1],
@@ -175,7 +201,6 @@ def collect_walnut_main_figure_data(args, cfg, runs, run_mcdo):
     data['observation_2d'] = get_walnut_pseudo_2d_sinogram(cfg, walnut_data_path=walnut_data_path)
 
     return data
-
 
 if args.load_data_from:
     print(f'loading data from {args.load_data_from}')
@@ -190,11 +215,9 @@ if args.save_data_to:
 
 configure_matplotlib()
 
-
-fig, axs = plt.subplots(2, 6, figsize=(16, 7.25), gridspec_kw={
-    'width_ratios': [1., 0.01, 1., 1., 0.01, 1.],  # includes spacer columns
-    'wspace': 0.01, 'hspace': 0.25})
-
+fig, axs = plt.subplots(2, 2, figsize=(5, 5), gridspec_kw={
+    'width_ratios': [1., 1.],  # includes spacer columns
+    'wspace': 0.45, 'hspace': 0.4})
 
 ground_truth = data['ground_truth']
 recon = data['recon']
@@ -204,65 +227,84 @@ abs_diff_mcdo = data['abs_diff_mcdo']
 # nan parts black
 stddev = data['stddev'].clone()
 stddev[torch.logical_not(data['mask'])] = 0.
+stddev_approx = data['stddev_approx'].clone()
+stddev_approx[torch.logical_not(data['mask'])] = 0.
 stddev_predcp = data['stddev_predcp'].clone()
 stddev_predcp[torch.logical_not(data['mask'])] = 0.
+stddev_predcp_approx = data['stddev_predcp_approx'].clone()
+stddev_predcp_approx[torch.logical_not(data['mask'])] = 0.
 stddev_mcdo = data['stddev_mcdo'].clone()
 stddev_mcdo[torch.logical_not(data['mask'])] = 0.
 
 slice_0, slice_1 = data['slice_0'], data['slice_1']
+vmax_row_0 = max(torch.max(stddev), torch.max(abs_diff))
 
+print('plotting histograms')
 
-insets = [
-    {
-        'rect': [190, 345, 133, 70],
-        'axes_rect': [0.8, 0.62, 0.2, 0.38],
-        'frame_path': [[0., 1.], [0., 0.], [1., 0.]],
-        'clip_path_closing': [[1., 1.]],
-    },
-    {
-        'rect': [220, 200, 55, 65],
-        'axes_rect': [0., 0., 0.39, 0.33],
-        'frame_path': [[1., 0.], [1., 0.45], [0.3, 1.], [0., 1.]],
-        'clip_path_closing': [[0., 0.]],
-    },
-]
+plot_hist(
+    [abs_diff[slice_0, slice_1], stddev[slice_0, slice_1], stddev_approx[slice_0, slice_1]],
+    ['$|\hat x - x|$',  'std-dev -- LL: ${:.2f}$'.format(data['log_lik_no_predcp']), 'std-dev -- $\\tilde J \&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_no_predcp_approx'])],
+    title='marginal std-dev \n lin.-DIP -- MLL',
+    ax=axs[0, 0],
+    xlim=(0., 0.75),
+    ylim=(1e-4, 1000.),
+    remove_ticks=False,
+    color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['bayes_dip_approx']],
+    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
+    )
 
+plot_hist(
+    [abs_diff[slice_0, slice_1], stddev_predcp[slice_0, slice_1], stddev_predcp_approx[slice_0, slice_1]],
+    ['$|\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_predcp']), 'std-dev -- $\\tilde J \&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_predcp_approx'])],
+    title='marginal std-dev \n lin.-DIP -- TV-MAP',
+    ax=axs[1, 0],
+    xlim=(0., 0.75),
+    ylim=(1e-4, 1000.),
+    remove_ticks=False,
+    color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['bayes_dip_predcp_approx']],
+    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
+    )
 
-vmax_row_0 = max(torch.max(stddev_predcp), torch.max(abs_diff))
+plot_hist(
+    [abs_diff_mcdo[slice_0, slice_1], stddev_mcdo[slice_0, slice_1]],
+    ['$|\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_mcdo'])],
+    title='marginal std-dev \n DIP-MCDO',
+    ax=axs[0, 1],
+    xlim=(0., 0.75),
+    ylim=(1e-4, 1000.),
+    remove_ticks=False,
+    color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['mcdo']],
+    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
+    )
 
+print('plotting Q-Q plot')
 
-print('plotting images')
-plot_image(fig, axs[0, 0], ground_truth, title='$x$', vmin=0., insets=insets, insets_mark_in_orig=True)
-add_inner_rect(axs[0, 0], slice_0, slice_1)
-plot_image(fig, axs[0, 2], recon, title='$\hat x$', vmin=0., insets=insets)
-add_inner_rect(axs[0, 2], slice_0, slice_1, )
-add_metrics(axs[0, 2], data['psnr'], data['ssim'], **{'fontsize': 14})
-plot_image(fig, axs[1, 2], data['recon_mcdo'], vmin=0., insets=insets)
-add_inner_rect(axs[1, 2], slice_0, slice_1)
-add_metrics(axs[1, 2], data['psnr_mcdo'], data['ssim_mcdo'], **{'fontsize': 14})
-axs[0, 2].set_ylabel('\\textbf{lin.-DIP}', fontsize=16)
-axs[1, 2].set_ylabel('\\textbf{DIP-MCDO}', fontsize=16)
-# spacer
-axs[0, 1].remove()
-axs[1, 1].remove()
-plot_image(fig, axs[0, 3], abs_diff, title='$|\\hat x - x|$', vmin=0., vmax=vmax_row_0, insets=insets, colorbar='invisible')
-add_inner_rect(axs[0, 3], slice_0, slice_1)
-plot_image(fig, axs[1, 3], abs_diff_mcdo, vmin=0., insets=insets, colorbar=True)
-add_inner_rect(axs[1, 3], slice_0, slice_1)
-# spacer
-axs[0, 4].remove()
-axs[1, 4].remove()
-plot_image(fig, axs[0, 5], stddev_predcp, vmin=0., vmax=vmax_row_0, title='std-dev', insets=insets, colorbar=True)
-add_inner_rect(axs[0, 5], slice_0, slice_1)
-axs[0, 5].set_ylabel('TV-MAP', fontsize=14, labelpad=2)
-plot_image(fig, axs[1, 5], stddev_mcdo, vmin=0., insets=insets, colorbar=True)
-add_inner_rect(axs[1, 5], slice_0, slice_1)
+osm_mll, osr_mll = scipy.stats.probplot(data['qq_err_mll'].flatten(), fit=False)
+osm_mll_approx, osr_mll_approx = scipy.stats.probplot(data['qq_err_mll_approx'].flatten(), fit=False)
+osm_map, osr_map = scipy.stats.probplot(data['qq_err_map'].flatten(), fit=False)
+osm_map_approx, osr_map_approx = scipy.stats.probplot(data['qq_err_map_approx'].flatten(), fit=False)
+osm_mcdo, osr_mcdo = scipy.stats.probplot(data['qq_err_mcdo'].flatten(), fit=False)
 
-axs[1, 0].imshow(data['observation_2d'].T, cmap='gray')
-axs[1, 0].set_title('$y$')
-axs[1, 0].set_xticks([])
-axs[1, 0].set_yticks([])
+plot_qq(
+        ax=axs[1, 1],
+        data=[(osm_mll, osr_mll), (osm_mll_approx, osr_mll_approx), (osm_map, osr_map), (osm_map_approx, osr_map_approx), (osm_mcdo, osr_mcdo)],
+        label_list=['lin.-DIP -- MLL', 'lin.-DIP -- MLL -- $\\tilde J \&$ PCG', 'lin.-DIP -- TV-MAP', 'lin.-DIP -- TV-MAP -- $\\tilde J \&$ PCG', 'DIP-MCDO'],
+        color_list=[DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['bayes_dip_approx'], DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['bayes_dip_predcp_approx'], DEFAULT_COLORS['mcdo']],
+        legend_kwargs={'loc': 'upper center', 'prop': {'size': 'small'}, 'bbox_to_anchor': (-0.35, -0.25), 'ncol': 2})
+axs[1, 1].set_title('calibration: Q-Q')
+axs[1, 1].set_xlabel('prediction quantiles', labelpad=2)
+axs[1, 1].set_ylabel('error quantiles', labelpad=2)
+order = [0, 1, 4, 2, 3]
+handles, labels = axs[1, 1].get_legend_handles_labels()
+legend = axs[1, 1].legend([handles[idx] for idx in order], [labels[idx] for idx in order], **{'loc': 'upper center', 'prop': {'size': 'small'}, 'bbox_to_anchor': (-0.35, -0.25), 'ncol': 2, 'markerscale': 3})
+for i, (t, l) in enumerate(zip(legend.get_texts(), legend.get_lines())):
+    if i == 2:
+        t.set_ha('right') # ha is alias for horizontalalignment
+        t.set_position((800,0))
+        l._xorig[0] = 111
+        l._xorig[1] = 111
+        l._xorig[2] = 92
 
 print('saving figures')
-fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}.pdf', bbox_inches='tight', pad_inches=0.)
-fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}.png', bbox_inches='tight', pad_inches=0., dpi=600)
+fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}_uq_main.pdf',  bbox_extra_artists=(legend,), bbox_inches='tight', pad_inches=0.1)
+fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}_uq_main.png', bbox_extra_artists=(legend,), bbox_inches='tight', pad_inches=0.1, dpi=600)
