@@ -84,7 +84,7 @@ stddev = data['stddev']
 stddev_predcp = data['stddev_predcp']
 
 hist_data = [d[data['mask']].flatten().numpy() for d in [abs_diff, stddev, stddev_predcp]]
-label_list = ['$|x-x^*|$', 'std-dev (MLL)', 'std-dev (TV-MAP)']
+label_list = ['$|\\hat x-x|$', 'std-dev (MLL)', 'std-dev (TV-MAP)']
 color_list = [DEFAULT_COLORS[k] for k in ['abs_diff', 'bayes_dip', 'bayes_dip_predcp']]
 
 yscale = 'linear' if args.do_not_use_log_yscale else 'log'

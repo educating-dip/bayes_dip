@@ -83,7 +83,7 @@ if args.save_data_to:
 configure_matplotlib()
 
 
-fig, ax = plt.subplots(figsize=(3, 1.5), gridspec_kw={'left': 0., 'right': 0.5})
+fig, ax = plt.subplots(figsize=(4.5, 2.25), gridspec_kw={'left': 0., 'right': 0.5})
 
 
 ground_truth = data['ground_truth']
@@ -96,7 +96,7 @@ stddev[torch.logical_not(data['mask'])] = 0.
 slice_0, slice_1 = data['slice_0'], data['slice_1']
 
 plot_image(fig, ax, ground_truth[slice_0, slice_1], vmin=0.)
-rect = [120-slice_0.start, 230-slice_0.start, 52, 104]
+rect = [240-slice_0.start, 230-slice_0.start, 52, 104]
 ax_abs_error = add_inset(fig, ax, abs_diff[slice_0, slice_1], [1.01, 0.505, 0.99, 0.495], rect, vmin=None, vmax=None, interpolation='none', frame_color='#aa0000', frame_path=[[0., 1.], [0., 0.], [1., 0.], [1., 1.], [0., 1.]], clip_path_closing=[], mark_in_orig=True)
 ax_std = add_inset(fig, ax, stddev[slice_0, slice_1], [1.01, 0., 0.99, 0.495], rect, vmin=None, vmax=None, interpolation='none', frame_color='#aa0000', frame_path=[[0., 1.], [0., 0.], [1., 0.], [1., 1.], [0., 1.]], clip_path_closing=[], mark_in_orig=False)
 ax_abs_error_twin = ax_abs_error.twinx()

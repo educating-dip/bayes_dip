@@ -144,7 +144,7 @@ stddev_mcdo = data['stddev_mcdo'].clone()
 vmax_row_0 = max(torch.max(stddev), torch.max(abs_diff))
 print('plotting images')
 plot_image(fig, axs[0, 0], ground_truth, title='$x$', vmin=0.)
-plot_image(fig, axs[0, 2], recon, title='$\hat x$', vmin=0.)
+plot_image(fig, axs[0, 2], recon, title='$\\hat x$', vmin=0.)
 add_metrics(axs[0, 2], data['psnr'], data['ssim'], **{'size': 'small'})
 plot_image(fig, axs[1, 2], data['recon_mcdo'], vmin=0.)
 add_metrics(axs[1, 2], data['psnr_mcdo'], data['ssim_mcdo'], **{'size': 'small'})
@@ -153,7 +153,7 @@ axs[1, 2].set_ylabel('\\textbf{DIP-MCDO}',  fontsize=plt.rcParams['axes.titlesiz
 # spacer
 axs[0, 1].remove()
 axs[1, 1].remove()
-plot_image(fig, axs[0, 3], abs_diff, title='$|\hat x - x|$', vmin=0., vmax=vmax_row_0, colorbar='invisible')
+plot_image(fig, axs[0, 3], abs_diff, title='$|\\hat x - x|$', vmin=0., vmax=vmax_row_0, colorbar='invisible')
 plot_image(fig, axs[1, 3], abs_diff_mcdo, vmin=0., colorbar=True)
 # spacer
 axs[0, 4].remove()
@@ -172,7 +172,7 @@ axs[1, 0].set_yticks([])
 print('plotting histograms')
 plot_hist(
     [abs_diff, stddev, stddev_predcp],
-    ['$|\hat x - x|$',  'std-dev -- MLL (LL: ${:.2f}$)'.format(data['log_lik_no_predcp']), 'std-dev -- TV-MAP (LL: ${:.2f}$)'.format(data['log_lik_predcp'])],
+    ['$|\\hat x - x|$',  'std-dev -- MLL (LL: ${:.2f}$)'.format(data['log_lik_no_predcp']), 'std-dev -- TV-MAP (LL: ${:.2f}$)'.format(data['log_lik_predcp'])],
     title='marginal std-dev',
     ax=axs[0, 7],
     remove_ticks=True,
@@ -183,7 +183,7 @@ plot_hist(
     )
 plot_hist(
     [abs_diff_mcdo, stddev_mcdo],
-    ['$|\hat x - x|$', 'std-dev -- MCDO (LL: ${:.2f}$)'.format(data['log_lik_mcdo'])],
+    ['$|\\hat x - x|$', 'std-dev -- MCDO (LL: ${:.2f}$)'.format(data['log_lik_mcdo'])],
     title='',
     ax=axs[1, 7],
     remove_ticks=False,

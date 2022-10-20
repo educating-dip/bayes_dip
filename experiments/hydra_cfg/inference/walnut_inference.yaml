@@ -4,6 +4,7 @@ defaults:
 add_image_noise_correction_term: False
 low_rank_neural_basis_expansion:
   low_rank_rank_dim: 500
+  batch_size: 16
   use_cpu: True
 save_samples_chunk_size: 1024
 verbose: False

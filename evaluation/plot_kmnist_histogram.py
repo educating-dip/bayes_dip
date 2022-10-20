@@ -89,7 +89,7 @@ for noise in args.noise_list:
         stddev_predcp = data[noise][angles]['stddev_predcp']
 
         hist_data = [d.flatten().numpy() for d in [abs_diff, stddev, stddev_predcp]]
-        label_list = ['$|x-x^*|$', 'std-dev (MLL)', 'std-dev (TV-MAP)']
+        label_list = ['$|\\hat x-x|$', 'std-dev (MLL)', 'std-dev (TV-MAP)']
 
         ax, n_list, _ = plot_hist(data=hist_data, label_list=label_list, yscale=yscale, remove_ticks=False)
         ax.set_xlim(_get_xlim(hist_data))
