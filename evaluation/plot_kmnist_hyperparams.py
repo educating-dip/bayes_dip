@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--runs_file', type=str, default='runs_walnut_sample_based_density.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--angles', type=int, default=5)
 parser.add_argument('--noise', type=float, default=0.05)
-parser.add_argument('--num_samples', type=int, default=50)
+parser.add_argument('--num_images', type=int, default=50)
 parser.add_argument('--experiments_outputs_path', type=str, default='../experiments/outputs', help='base path containing the hydra output directories (usually "[...]/outputs/")')
 parser.add_argument('--experiments_multirun_path', type=str, default='../experiments/multirun', help='base path containing the hydra multirun directories (usually "[...]/multirun/")')
 parser.add_argument('--save_data_to', type=str, default='', help='path to cache the plot data, such that they can be loaded with --load_data_from')
@@ -41,7 +41,7 @@ runs = runs[args.noise][args.angles]
 def collect_kmnist_hyperparams_figure_data(runs):
     data = {'scalars': [], 'scalars_predcp': []}
 
-    for i in range(args.num_samples):
+    for i in range(args.num_images):
         log_file = find_single_log_file(os.path.join(
                 translate_path(runs['include_predcp_False'], experiment_paths=experiment_paths),
                 f'mrglik_optim_{i}'))
@@ -57,7 +57,6 @@ def collect_kmnist_hyperparams_figure_data(runs):
 if args.load_data_from:
     print(f'loading data from {args.load_data_from}')
     data = torch.load(args.load_data_from)
-    breakpoint()
 else:
     data = collect_kmnist_hyperparams_figure_data(runs)
 
@@ -97,12 +96,12 @@ def get_hyperparam_tex_from_tensor_board_tag(tag):
 
 for ax, tag in zip(
         axs[[i for i in range(axs.size) if i not in args.skip_sub_plots]], tag_list):
-    for i in range(args.num_samples): 
+    for i in range(args.num_images):
         ax.plot(data['scalars'][i][f'{tag}_steps'], data['scalars'][i][f'{tag}_scalars'],
-            label='MLL', color=DEFAULT_COLORS['bayes_dip'], alpha=0.05 if i != args.sample2highlight else .9, 
+            label='MLL', color=DEFAULT_COLORS['bayes_dip'], alpha=0.05 if i != args.sample2highlight else .9,
             linewidth=1 if i != args.sample2highlight else 2, linestyle='solid' if i != args.sample2highlight else 'dashed')
         ax.plot(data['scalars_predcp'][i][f'{tag}_steps'], data['scalars_predcp'][i][f'{tag}_scalars'],
-            label='TV-MAP', color=DEFAULT_COLORS['bayes_dip_predcp'], alpha=0.05 if i != args.sample2highlight else .9, 
+            label='TV-MAP', color=DEFAULT_COLORS['bayes_dip_predcp'], alpha=0.05 if i != args.sample2highlight else .9,
             linewidth=1 if i != args.sample2highlight else 2, linestyle='solid' if i != args.sample2highlight else 'dashed')
     ax.set_yscale('log')
     ax.set_title(f'${get_hyperparam_tex_from_tensor_board_tag(tag)}$')
@@ -127,7 +126,7 @@ handles, labels = next(
         if i not in args.skip_sub_plots)
 legend_kwargs = {'loc': 'center'} if args.legend_pos in args.skip_sub_plots else {}
 axs[-1].legend(
-        [handles[args.sample2highlight*2], handles[args.sample2highlight*2 + 1]], 
+        [handles[args.sample2highlight*2], handles[args.sample2highlight*2 + 1]],
         [labels[args.sample2highlight*2], labels[args.sample2highlight*2 + 1]],
         **legend_kwargs
     )

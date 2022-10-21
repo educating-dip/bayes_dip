@@ -3,6 +3,8 @@ yaml_root_path=../../../bayes_dip/scripts
 
 # Bayes-DIP exact density
 python evaluate_kmnist_exact_density.py --runs_file $yaml_root_path/runs_kmnist_exact_density.yaml --save_to $yaml_root_path/results_kmnist_exact_density.yaml
+# Bayes-DIP exact density, using angles 20 and 10 images to compare with sample based density
+python evaluate_kmnist_exact_density.py --runs_file $yaml_root_path/runs_kmnist_exact_density.yaml --angles_list 20 --num_images 10 --save_to $yaml_root_path/results_kmnist_exact_density_first_10_images.yaml
 
 # Bayes-DIP sample based density
 python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density.yaml
