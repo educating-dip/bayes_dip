@@ -14,5 +14,5 @@ sampling:
   cg_kwargs:
     max_niter: 150
   cg_preconditioner:
-    low_rank_rank_dim: 400
+    low_rank_rank_dim: 200
     batch_size: 32

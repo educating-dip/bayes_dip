@@ -13,5 +13,5 @@ cov_obs_mat:
 sampling:
   batch_size: 16
   cg_preconditioner:
-    low_rank_rank_dim: 1000
+    low_rank_rank_dim: 400
     batch_size: 16
