@@ -16,6 +16,8 @@ from omegaconf import OmegaConf
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_predefined_patch_idx_list
 from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mean
 from bayes_dip.inference import get_image_patch_mask_inds
+from bayes_dip.inference.sample_based_predictive_posterior import (
+        predictive_cov_image_patch_log_prob_unscaled_batched)
 from bayes_dip.dip import UNet
 
 DEFAULT_OUTPUTS_PATH = '../experiments/outputs'
@@ -495,6 +497,64 @@ def get_stddev(run_path: str, sample_idx: int,
         cov_diag -= image_noise_correction_term
     stddev = torch.sqrt(cov_diag)
     return stddev
+
+def compute_log_prob_for_patch_size_from_cov(
+        cov: Tensor,
+        patch_size: int,
+        mean: Tensor,
+        ground_truth: Tensor,
+        ) -> float:
+    """
+    Compute a patch-based log probability from a given covariance matrix, e.g. computed by
+    ``experiments/exact_density.py``.
+
+    Parameters
+    ----------
+    cov : Tensor
+        Covariance matrix. Shape: ``(np.prod(im_shape), np.prod(im_shape))``.
+    patch_size : int
+        Patch size.
+    mean : Tensor
+        Mean of the posterior image distribution. Shape: ``(1, 1, *im_shape)``.
+    ground_truth : Tensor
+        Ground truth. Shape: ``(1, 1, *im_shape)``.
+
+    Returns
+    -------
+    log_prob : float
+        Patch-based log probability.
+    """
+    assert len(cov.shape) == 2
+    assert len(mean.shape) >= 2 and np.prod(mean.shape[:-2]) == 1
+    im_shape = mean.shape[-2:]
+    assert np.prod(im_shape) == cov.shape[0]
+    cov = cov.detach()
+    all_patch_mask_inds = get_image_patch_mask_inds(im_shape, patch_size=patch_size)
+    # compute all log probs in a single batch (cov should be small since it is passed as a matrix)
+    batch_len_mask_inds = [len(mask_inds) for mask_inds in all_patch_mask_inds]
+    max_len_mask_inds = max(batch_len_mask_inds)
+    batch_recon = torch.stack([
+            torch.nn.functional.pad(mean.flatten()[all_patch_mask_inds[patch_idx]],
+                    (0, max_len_mask_inds - len_mask_inds))
+            for patch_idx, len_mask_inds in enumerate(batch_len_mask_inds)])
+    batch_ground_truth = torch.stack([
+            torch.nn.functional.pad(ground_truth.flatten()[all_patch_mask_inds[patch_idx]],
+                    (0, max_len_mask_inds - len_mask_inds))
+            for patch_idx, len_mask_inds in enumerate(batch_len_mask_inds)])
+    # use identity for padding dims in predictive_cov_image_patch
+    # (the determinant then is the same as for
+    #  predictive_cov_image_patch[:len(mask_inds), :len(mask_inds)])
+    batch_predictive_cov_image_patch = torch.stack([
+            torch.block_diag(
+                    cov[mask_inds][:, mask_inds],
+                    torch.eye(max_len_mask_inds-len(mask_inds),
+                            dtype=cov.dtype, device=cov.device))
+            for mask_inds in all_patch_mask_inds])
+    log_probs_unscaled = predictive_cov_image_patch_log_prob_unscaled_batched(
+            recon_masked=batch_recon,
+            ground_truth_masked=batch_ground_truth,
+            predictive_cov_image_patch=batch_predictive_cov_image_patch)
+    return (np.sum(log_probs_unscaled.cpu().numpy()) / cov.shape[0]).item()
 
 def find_single_log_file(log_dir: str) -> str:
     """

@@ -13,6 +13,11 @@ mkdir -p $yaml_root_path/results_kmnist_sample_based_density
 for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density/patch_size_$patch_size.yaml; done
 mkdir -p $yaml_root_path/results_kmnist_sample_based_density_reweight_off_diagonal_entries
 for patch_size in $(seq 1 28); do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_reweight_off_diagonal_entries/patch_size_$patch_size.yaml; done
+# Bayes-DIP sample based density for different patch sizes and different numbers of samples
+mkdir -p $yaml_root_path/results_kmnist_sample_based_density_varying_num_samples
+for num_samples in 32 64 128 256 512 1024 2048 4096 8192 16384; do for patch_size in 1 2 4 7 14 28; do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_varying_num_samples/patch_size_${patch_size}_num_samples_${num_samples}.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_varying_num_samples/patch_size_${patch_size}_num_samples_${num_samples}.yaml; done; done
+mkdir -p $yaml_root_path/results_kmnist_sample_based_density_varying_num_samples_reweight_off_diagonal_entries
+for num_samples in 32 64 128 256 512 1024 2048 4096 8192 16384; do for patch_size in 1 2 4 7 14 28; do python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_varying_num_samples_reweight_off_diagonal_entries/patch_size_${patch_size}_num_samples_${num_samples}.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_varying_num_samples_reweight_off_diagonal_entries/patch_size_${patch_size}_num_samples_${num_samples}.yaml; done; done
 
 # Bayes-DIP sample based density with approx Jacs
 python evaluate_kmnist_sample_based_density.py --runs_file $yaml_root_path/runs_kmnist_sample_based_density_approx_jacs.yaml --save_to $yaml_root_path/results_kmnist_sample_based_density_approx_jacs.yaml
