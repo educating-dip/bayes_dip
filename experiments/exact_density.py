@@ -1,7 +1,7 @@
 import os
 from itertools import islice
 import hydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import torch
 from torch.utils.data import DataLoader
 from bayes_dip.utils.experiment_utils import (
@@ -10,7 +10,7 @@ from bayes_dip.utils import PSNR, SSIM, eval_mode
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts
 from bayes_dip.probabilistic_models import (
-        ParameterCov, ImageCov, MatmulObservationCov, MatmulNeuralBasisExpansion,
+        ParameterCov, ImageCov, MatmulObservationCov, get_matmul_neural_basis_expansion,
         get_image_noise_correction_term)
 from bayes_dip.inference import ExactPredictivePosterior
 
@@ -75,12 +75,15 @@ def coordinator(cfg : DictConfig) -> None:
                 hyperparams_init_dict,
                 device=device
         )
-        neural_basis_expansion = MatmulNeuralBasisExpansion(
+        neural_basis_expansion = get_matmul_neural_basis_expansion(
                 nn_model=reconstructor.nn_model,
                 nn_input=filtbackproj,
                 ordered_nn_params=parameter_cov.ordered_nn_params,
                 nn_out_shape=filtbackproj.shape,
-        )
+                use_gprior=cfg.priors.use_gprior,
+                trafo=ray_trafo,
+                scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale),
+                )
         image_cov = ImageCov(
                 parameter_cov=parameter_cov,
                 neural_basis_expansion=neural_basis_expansion
