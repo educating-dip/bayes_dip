@@ -63,7 +63,6 @@ def plot_hist(  # pylint: disable=too-many-arguments
     hist_kwargs.setdefault('histtype', 'stepfilled')
     hist_kwargs.setdefault('bins', 25)
     hist_kwargs.setdefault('linewidth', 0.75)
-    hist_kwargs.setdefault('alpha', 0.3)
     hist_kwargs.setdefault('linestyle', 'dashed')
     hist_kwargs.setdefault('density', True)
     hist_kwargs_per_data = hist_kwargs_per_data or {}
@@ -88,7 +87,8 @@ def plot_hist(  # pylint: disable=too-many-arguments
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
     ax.grid(alpha=0.3)
-    ax.legend(**(legend_kwargs or {}))
+    if legend_kwargs != 'off':
+        ax.legend(**(legend_kwargs or {}))
     ax.set_yscale(yscale)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)

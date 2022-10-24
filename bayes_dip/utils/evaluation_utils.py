@@ -14,7 +14,9 @@ import torch
 from torch import Tensor
 from omegaconf import OmegaConf
 from bayes_dip.utils.experiment_utils import get_standard_ray_trafo, get_predefined_patch_idx_list
-from bayes_dip.probabilistic_models import get_trafo_t_trafo_pseudo_inv_diag_mean
+from bayes_dip.probabilistic_models import (
+        get_trafo_t_trafo_pseudo_inv_diag_mean, get_default_unet_gaussian_prior_dicts, ImageCov,
+        NeuralBasisExpansion, MatmulNeuralBasisExpansion, ParameterCov)
 from bayes_dip.inference import get_image_patch_mask_inds
 from bayes_dip.inference.sample_based_predictive_posterior import (
         predictive_cov_image_patch_log_prob_unscaled_batched)
@@ -555,6 +557,82 @@ def compute_log_prob_for_patch_size_from_cov(
             ground_truth_masked=batch_ground_truth,
             predictive_cov_image_patch=batch_predictive_cov_image_patch)
     return (np.sum(log_probs_unscaled.cpu().numpy()) / cov.shape[0]).item()
+
+def get_image_cov(run_path: str, sample_idx: int,
+        use_matmul_neural_basis_expansion: bool = False,
+        experiment_paths: Optional[Dict] = None, device=None) -> ImageCov:
+    """
+    Reinstantiate the image covariance object with the network parameters and prior hyperparameter
+    state from a run of ``experiments/dip_mll_optim.py`` or ``experiments/exact_dip_mll_optim.py``.
+
+    Does not support the isotropic g-prior, i.e. ``cfg.priors.use_gprior`` must be ``False``.
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    use_matmul_neural_basis_expansion : bool, optional
+        Whether to use :class:`MatmulNeuralBasisExpansion` instead of :class:`NeuralBasisExpansion`.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+    device : str or torch.device, optional
+        Device.
+
+    Returns
+    -------
+    image_cov : :class:`bayes_dip.probabilistic_models.linearized_dip.image_cov.ImageCov`
+        Image covariance object.
+    """
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
+    net_kwargs = {
+            'scales': cfg.dip.net.scales,
+            'channels': cfg.dip.net.channels,
+            'skip_channels': cfg.dip.net.skip_channels,
+            'use_norm': cfg.dip.net.use_norm,
+            'use_sigmoid': cfg.dip.net.use_sigmoid,
+            'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
+    filtbackproj = torch.load(
+            os.path.join(run_path, f'sample_{sample_idx}.pt'), map_location=device)['filtbackproj']
+    nn_model = UNet(
+            in_ch=1,
+            out_ch=1,
+            channels=net_kwargs['channels'][:net_kwargs['scales']],
+            skip_channels=net_kwargs['skip_channels'][:net_kwargs['scales']],
+            use_sigmoid=net_kwargs['use_sigmoid'],
+            use_norm=net_kwargs['use_norm'],
+            sigmoid_saturation_thresh=net_kwargs['sigmoid_saturation_thresh']
+            ).to(device)
+    nn_model.load_state_dict(
+            torch.load(os.path.join(run_path, f'dip_model_{sample_idx}.pt'), map_location=device))
+    assert not cfg.dip.recon_from_randn  # would need to re-create random input
+
+    prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
+            nn_model)
+    parameter_cov = ParameterCov(
+            nn_model,
+            prior_assignment_dict,
+            hyperparams_init_dict,
+            device=device
+    )
+    assert not cfg.priors.use_gprior
+    neural_basis_expansion_kwargs = dict(
+            nn_model=nn_model,
+            nn_input=filtbackproj,
+            ordered_nn_params=parameter_cov.ordered_nn_params,
+            nn_out_shape=filtbackproj.shape)
+    if use_matmul_neural_basis_expansion:
+        neural_basis_expansion = MatmulNeuralBasisExpansion(**neural_basis_expansion_kwargs)
+    else:
+        neural_basis_expansion = NeuralBasisExpansion(**neural_basis_expansion_kwargs)
+    image_cov = ImageCov(
+            parameter_cov=parameter_cov,
+            neural_basis_expansion=neural_basis_expansion
+    )
+    return image_cov
 
 def find_single_log_file(log_dir: str) -> str:
     """

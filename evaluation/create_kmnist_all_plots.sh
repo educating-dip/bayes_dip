@@ -1,5 +1,6 @@
 #!/bin/sh
 yaml_root_path=../../../bayes_dip/scripts
+hmc_priors_data_file=../../../bayes_dip/experiments/old_results/ICML_HMC/prior_HMC/prior_samples.pickle
 
 python plot_kmnist_histogram.py --runs_file $yaml_root_path/runs_kmnist_exact_density.yaml --sample_idx 1 --save_data_to kmnist_histogram_figure_data.pt
 python plot_kmnist_histogram.py --runs_file $yaml_root_path/runs_kmnist_exact_density.yaml --sample_idx 1 --do_not_use_log_yscale --load_data_from kmnist_histogram_figure_data.pt
@@ -17,3 +18,5 @@ python plot_kmnist_hyperparams.py --runs_file $yaml_root_path/runs_kmnist_exact_
 python plot_kmnist_hyperparams.py --runs_file $yaml_root_path/runs_kmnist_exact_dip_mll_optim.yaml --tag_list NormalPrior_variance_{0..1} NormalPrior_variance_2 observation_noise_variance --suffix _normalpriors --rows 1 --wspace 0.4 --noise 0.05 --angles 5 --load_data_from kmnist_hyperparams_figure_data_0.05_5.pt
 
 python plot_kmnist_sample_based_vs_exact.py --runs_file $yaml_root_path/runs_kmnist_exact_density.yaml --runs_folder_sample_based $yaml_root_path/runs_kmnist_sample_based_density_varying_num_samples/ --num_subplots 2 --ylim_min 2.5 --save_data_to kmnist_sample_based_vs_exact_figure_data.pt
+
+python plot_kmnist_tv_hists_and_samples_from_dists.py --runs_file $yaml_root_path/runs_kmnist_exact_dip_mll_optim.yaml --hmc_priors_data_file $hmc_priors_data_file --save_data_to kmnist_tv_hists_and_samples_from_dists_figure_data.pt
