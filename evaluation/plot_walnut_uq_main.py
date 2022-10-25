@@ -4,12 +4,10 @@ import argparse
 import numpy as np
 import torch
 import scipy
-import matplotlib
 import matplotlib.pyplot as plt
 from omegaconf import OmegaConf
 from bayes_dip.data.walnut_utils import get_projection_data, get_single_slice_ray_trafo
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_part_defined_by_patch_size
-from bayes_dip.utils.utils import PSNR, SSIM
 from bayes_dip.utils.evaluation_utils import (
         get_abs_diff, get_density_data, get_recon, get_ground_truth, get_stddev, restrict_sample_based_density_data_to_new_patch_idx_list, translate_path)
 from bayes_dip.utils.plot_utils import (
@@ -246,8 +244,9 @@ plot_hist(
     ['$|\\hat x - x|$',  'std-dev -- LL: ${:.2f}$'.format(data['log_lik_no_predcp']), 'std-dev -- $\\tilde J \&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_no_predcp_approx'])],
     title='marginal std-dev \n lin.-DIP -- MLL',
     ax=axs[0, 0],
-    xlim=(0., 0.75),
-    ylim=(1e-4, 1000.),
+    xlim=(0., 1),
+    yscale='linear',
+#     ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['bayes_dip_approx']],
     legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
@@ -258,8 +257,9 @@ plot_hist(
     ['$|\\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_predcp']), 'std-dev -- $\\tilde J \&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_predcp_approx'])],
     title='marginal std-dev \n lin.-DIP -- TV-MAP',
     ax=axs[1, 0],
-    xlim=(0., 0.75),
-    ylim=(1e-4, 1000.),
+    xlim=(0., 1),
+    yscale='linear',
+#     ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['bayes_dip_predcp_approx']],
     legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
@@ -270,8 +270,9 @@ plot_hist(
     ['$|\\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_mcdo'])],
     title='marginal std-dev \n DIP-MCDO',
     ax=axs[0, 1],
-    xlim=(0., 0.75),
-    ylim=(1e-4, 1000.),
+    xlim=(0., 1),
+    yscale='linear',
+#     ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['mcdo']],
     legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
