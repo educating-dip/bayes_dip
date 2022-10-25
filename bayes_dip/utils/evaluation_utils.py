@@ -559,7 +559,7 @@ def compute_log_prob_for_patch_size_from_cov(
     return (np.sum(log_probs_unscaled.cpu().numpy()) / cov.shape[0]).item()
 
 def get_image_cov(run_path: str, sample_idx: int,
-        use_matmul_neural_basis_expansion: bool = False,
+        iter: Optional[int] = None, use_matmul_neural_basis_expansion: bool = False,
         experiment_paths: Optional[Dict] = None, device=None) -> ImageCov:
     """
     Reinstantiate the image covariance object with the network parameters and prior hyperparameter
@@ -573,6 +573,9 @@ def get_image_cov(run_path: str, sample_idx: int,
         Path of the hydra run.
     sample_idx : int
         Sample index.
+    iter : int, optional
+        Iteration of the MLL optimization from which to load the hyperparameters.
+        If `None`, the final state is used.
     use_matmul_neural_basis_expansion : bool, optional
         Whether to use :class:`MatmulNeuralBasisExpansion` instead of :class:`NeuralBasisExpansion`.
     experiment_paths : dict, optional
@@ -632,6 +635,18 @@ def get_image_cov(run_path: str, sample_idx: int,
             parameter_cov=parameter_cov,
             neural_basis_expansion=neural_basis_expansion
     )
+
+    observation_cov_filename = (
+            f'observation_cov_{sample_idx}.pt' if iter is None else
+            f'observation_cov_{sample_idx}_iter_{iter}.pt')
+    observation_cov_state_dict = torch.load(
+            os.path.join(run_path, observation_cov_filename), map_location='cpu')
+
+    image_cov_state_dict = {
+            k[len('image_cov.'):]: v for k, v in observation_cov_state_dict.items()
+            if k.startswith('image_cov.')}
+    image_cov.load_state_dict(image_cov_state_dict)
+
     return image_cov
 
 def find_single_log_file(log_dir: str) -> str:
