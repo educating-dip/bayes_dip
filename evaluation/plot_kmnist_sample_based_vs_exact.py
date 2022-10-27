@@ -116,7 +116,7 @@ if args.save_data_to:
 
 configure_matplotlib()
 
-fig, axs = plt.subplots(1, args.num_subplots, figsize=(5 * args.num_subplots, 5))
+fig, axs = plt.subplots(1, args.num_subplots, figsize=(4 * args.num_subplots, 3))
 axs = np.atleast_1d(axs)
 
 max_num_patch_sizes_per_ax = ceil(len(PATCH_SIZES) / args.num_subplots)
@@ -157,7 +157,8 @@ for patch_size, color in zip(PATCH_SIZES, color_list):
                 for num_samples in NUM_SAMPLES_LIST],
             color=color, alpha=0.1)
 for i, ax in enumerate(axs.flat):
-    ax.set_ylabel('test log-likelihood')
+    if i == 0:
+        ax.set_ylabel('test log-likelihood')
     ax.set_xlabel('number of samples')
     ax.set_xscale('log', base=2)
     ax.xaxis.set_ticks(NUM_SAMPLES_LIST)
