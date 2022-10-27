@@ -34,7 +34,7 @@ parser.add_argument('--prior_key_list', type=str, nargs='*', default=['inc', 'do
 parser.add_argument('--suffix', type=str, default='', help='suffix for the figure filenames (e.g. summarizing the --prior_key_list)')
 parser.add_argument('--rows', type=int, default=1, help='number of subplot rows')
 parser.add_argument('--hspace', type=float, default=0.2, help='matplotlib\'s "hspace" gridspec_kw')
-parser.add_argument('--wspace', type=float, default=0.2, help='matplotlib\'s "wspace" gridspec_kw')
+parser.add_argument('--wspace', type=float, default=0.45, help='matplotlib\'s "wspace" gridspec_kw')
 parser.add_argument('--figsize_add', type=float, nargs=2, default=[0., 0.], help='matplotlib\'s "figsize" will computed as the sum of `(2 * cols, 2 * rows)` and the values passed with this argument')
 parser.add_argument('--num_images', type=int, default=50)
 parser.add_argument('--image2highlight', type=int, default=4)
@@ -151,7 +151,8 @@ for i, (ax, key) in enumerate(zip(axs, args.prior_key_list)):
     for sample_idx in range(args.num_images):
         tv_data = data[sample_idx][key]
         if not args.do_not_normalize:
-            tv_data = (tv_data - tv_data[-1]) / (tv_data[0] - tv_data[-1])
+            tv_data_min, tv_data_max = min(tv_data[0], tv_data[-1]), max(tv_data[0], tv_data[-1])
+            tv_data = (tv_data - tv_data_min) / (tv_data_max - tv_data_min)
         ax.plot(np.logspace(-2, 2, args.sweep_grid_points), tv_data,
                 color=DEFAULT_COLORS['bayes_dip'],
                 alpha=0.05 if sample_idx != args.image2highlight else 0.9,
@@ -166,7 +167,7 @@ for i, (ax, key) in enumerate(zip(axs, args.prior_key_list)):
     if not args.do_not_normalize:
         ax.set_ylim(-0.2, 1.2)
         ax.set_yticks([0., 1.])
-        ax.set_yticklabels(['min', 'max'])
+        ax.set_yticklabels(['low', 'high'])
     else:
         ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     ax.spines['top'].set_visible(False)
