@@ -9,7 +9,7 @@ from bayes_dip.utils.plot_utils import DEFAULT_COLORS, configure_matplotlib
 from bayes_dip.utils.evaluation_utils import extract_tensorboard_scalars, find_single_log_file, translate_path
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--runs_file', type=str, default='runs_walnut_sample_based_density.yaml', help='path of yaml file containing hydra output directory names')
+parser.add_argument('--runs_file', type=str, default='runs_kmnist_exact_dip_mll_optim.yaml', help='path of yaml file containing hydra output directory names')
 parser.add_argument('--angles', type=int, default=5)
 parser.add_argument('--noise', type=float, default=0.05)
 parser.add_argument('--num_images', type=int, default=50)
@@ -22,8 +22,10 @@ parser.add_argument('--suffix', type=str, default='', help='suffix for the figur
 parser.add_argument('--rows', type=int, default=1, help='number of subplot rows')
 parser.add_argument('--skip_sub_plots', type=int, nargs='*', default=[], help='subplot indices to skip (will be empty subplots)')
 parser.add_argument('--legend_pos', type=int, default=-1, help='subplot index to place the legend in')
+parser.add_argument('--legend_loc', type=str, default='', help='legend loc argument')
+parser.add_argument('--legend_bbox_to_anchor', type=float, nargs='*', default=[], help='legend bbox_to_anchor argument')
 parser.add_argument('--hspace', type=float, default=0.275, help='matplotlib\'s "hspace" gridspec_kw')
-parser.add_argument('--wspace', type=float, default=0.275, help='matplotlib\'s "wspace" gridspec_kw')
+parser.add_argument('--wspace', type=float, default=0.4, help='matplotlib\'s "wspace" gridspec_kw')
 parser.add_argument('--image2highlight', type=int, default=4)
 
 args = parser.parse_args()
@@ -124,8 +126,14 @@ for i, ax in enumerate(axs):
 handles, labels = next(
         ax.get_legend_handles_labels() for i, ax in enumerate(axs)
         if i not in args.skip_sub_plots)
-legend_kwargs = {'loc': 'center'} if args.legend_pos in args.skip_sub_plots else {}
-axs[-1].legend(
+legend_kwargs = {}
+if args.legend_bbox_to_anchor:
+    legend_kwargs['bbox_to_anchor'] = args.legend_bbox_to_anchor
+if args.legend_loc:
+    legend_kwargs['loc'] = args.legend_loc
+elif args.legend_pos in args.skip_sub_plots:
+    legend_kwargs['loc'] = 'center'
+axs[args.legend_pos].legend(
         [handles[args.image2highlight*2], handles[args.image2highlight*2 + 1]],
         [labels[args.image2highlight*2], labels[args.image2highlight*2 + 1]],
         **legend_kwargs
