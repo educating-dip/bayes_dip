@@ -24,7 +24,7 @@ parser.add_argument('--skip_sub_plots', type=int, nargs='*', default=[], help='s
 parser.add_argument('--legend_pos', type=int, default=-1, help='subplot index to place the legend in')
 parser.add_argument('--hspace', type=float, default=0.275, help='matplotlib\'s "hspace" gridspec_kw')
 parser.add_argument('--wspace', type=float, default=0.275, help='matplotlib\'s "wspace" gridspec_kw')
-parser.add_argument('--sample2highlight', type=int, default=4)
+parser.add_argument('--image2highlight', type=int, default=4)
 
 args = parser.parse_args()
 
@@ -98,11 +98,11 @@ for ax, tag in zip(
         axs[[i for i in range(axs.size) if i not in args.skip_sub_plots]], tag_list):
     for i in range(args.num_images):
         ax.plot(data['scalars'][i][f'{tag}_steps'], data['scalars'][i][f'{tag}_scalars'],
-            label='MLL', color=DEFAULT_COLORS['bayes_dip'], alpha=0.05 if i != args.sample2highlight else .9,
-            linewidth=1 if i != args.sample2highlight else 2, linestyle='solid' if i != args.sample2highlight else 'dashed')
+            label='MLL', color=DEFAULT_COLORS['bayes_dip'], alpha=0.05 if i != args.image2highlight else .9,
+            linewidth=1 if i != args.image2highlight else 2, linestyle='solid' if i != args.image2highlight else 'dashed')
         ax.plot(data['scalars_predcp'][i][f'{tag}_steps'], data['scalars_predcp'][i][f'{tag}_scalars'],
-            label='TV-MAP', color=DEFAULT_COLORS['bayes_dip_predcp'], alpha=0.05 if i != args.sample2highlight else .9,
-            linewidth=1 if i != args.sample2highlight else 2, linestyle='solid' if i != args.sample2highlight else 'dashed')
+            label='TV-MAP', color=DEFAULT_COLORS['bayes_dip_predcp'], alpha=0.05 if i != args.image2highlight else .9,
+            linewidth=1 if i != args.image2highlight else 2, linestyle='solid' if i != args.image2highlight else 'dashed')
     ax.set_yscale('log')
     ax.set_title(f'${get_hyperparam_tex_from_tensor_board_tag(tag)}$')
     ax.tick_params(axis='both', which='major', labelsize='small')
@@ -126,8 +126,8 @@ handles, labels = next(
         if i not in args.skip_sub_plots)
 legend_kwargs = {'loc': 'center'} if args.legend_pos in args.skip_sub_plots else {}
 axs[-1].legend(
-        [handles[args.sample2highlight*2], handles[args.sample2highlight*2 + 1]],
-        [labels[args.sample2highlight*2], labels[args.sample2highlight*2 + 1]],
+        [handles[args.image2highlight*2], handles[args.image2highlight*2 + 1]],
+        [labels[args.image2highlight*2], labels[args.image2highlight*2 + 1]],
         **legend_kwargs
     )
 
