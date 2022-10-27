@@ -273,6 +273,59 @@ def _recompute_image_noise_correction_term(
     image_noise_correction_term = diag_mean * log_noise_variance.exp().item()
     return image_noise_correction_term
 
+def get_nn_model(
+        run_path: str, sample_idx: int,
+        experiment_paths: Optional[Dict] = None,
+        device=None,
+        ) -> Tensor:
+    """
+    Return the U-Net, with the model parameters loaded from the specified run, and the filtered
+    back-projection (which is the network input).
+
+    Parameters
+    ----------
+    run_path : str
+        Path of the hydra run.
+    sample_idx : int
+        Sample index.
+    experiment_paths : dict, optional
+        See :func:`translate_path`.
+    device : str or torch.device, optional
+        Device.
+
+    Returns
+    -------
+    nn_model : :class:`bayes_dip.dip.network.unet.UNet`
+        U-Net used for DIP, with loaded model parameters.
+    filtbackproj : Tensor
+        Filtered back-projection (network input). Shape: ``(1, 1, *im_shape)``.
+    """
+    run_path = translate_path(run_path, experiment_paths=experiment_paths)
+    device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
+    assert not cfg.dip.recon_from_randn  # would need to re-create random input
+    net_kwargs = {
+            'scales': cfg.dip.net.scales,
+            'channels': cfg.dip.net.channels,
+            'skip_channels': cfg.dip.net.skip_channels,
+            'use_norm': cfg.dip.net.use_norm,
+            'use_sigmoid': cfg.dip.net.use_sigmoid,
+            'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
+    filtbackproj = torch.load(
+            os.path.join(run_path, f'sample_{sample_idx}.pt'), map_location=device)['filtbackproj']
+    nn_model = UNet(
+            in_ch=1,
+            out_ch=1,
+            channels=net_kwargs['channels'][:net_kwargs['scales']],
+            skip_channels=net_kwargs['skip_channels'][:net_kwargs['scales']],
+            use_sigmoid=net_kwargs['use_sigmoid'],
+            use_norm=net_kwargs['use_norm'],
+            sigmoid_saturation_thresh=net_kwargs['sigmoid_saturation_thresh']
+            ).to(device)
+    nn_model.load_state_dict(
+            torch.load(os.path.join(run_path, f'dip_model_{sample_idx}.pt'), map_location=device))
+    return nn_model, filtbackproj
+
 def recompute_reconstruction(
         run_path: str, sample_idx: int,
         experiment_paths: Optional[Dict] = None,
@@ -297,30 +350,9 @@ def recompute_reconstruction(
     reconstruction : Tensor
         DIP reconstruction. Shape: ``(1, 1, *im_shape)``.
     """
-    run_path = translate_path(run_path, experiment_paths=experiment_paths)
-    device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
-    cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
-    net_kwargs = {
-            'scales': cfg.dip.net.scales,
-            'channels': cfg.dip.net.channels,
-            'skip_channels': cfg.dip.net.skip_channels,
-            'use_norm': cfg.dip.net.use_norm,
-            'use_sigmoid': cfg.dip.net.use_sigmoid,
-            'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
-    filtbackproj = torch.load(
-            os.path.join(run_path, f'sample_{sample_idx}.pt'), map_location=device)['filtbackproj']
-    nn_model = UNet(
-            in_ch=1,
-            out_ch=1,
-            channels=net_kwargs['channels'][:net_kwargs['scales']],
-            skip_channels=net_kwargs['skip_channels'][:net_kwargs['scales']],
-            use_sigmoid=net_kwargs['use_sigmoid'],
-            use_norm=net_kwargs['use_norm'],
-            sigmoid_saturation_thresh=net_kwargs['sigmoid_saturation_thresh']
-            ).to(device)
-    nn_model.load_state_dict(
-            torch.load(os.path.join(run_path, f'dip_model_{sample_idx}.pt'), map_location=device))
-    assert not cfg.dip.recon_from_randn  # would need to re-create random input
+    nn_model, filtbackproj = get_nn_model(
+            run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths,
+            device=device)
     recon = nn_model(filtbackproj).detach()  # pylint: disable=not-callable
     return recon
 
@@ -591,27 +623,10 @@ def get_image_cov(run_path: str, sample_idx: int,
     run_path = translate_path(run_path, experiment_paths=experiment_paths)
     device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
     cfg = OmegaConf.load(os.path.join(run_path, '.hydra', 'config.yaml'))
-    net_kwargs = {
-            'scales': cfg.dip.net.scales,
-            'channels': cfg.dip.net.channels,
-            'skip_channels': cfg.dip.net.skip_channels,
-            'use_norm': cfg.dip.net.use_norm,
-            'use_sigmoid': cfg.dip.net.use_sigmoid,
-            'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
-    filtbackproj = torch.load(
-            os.path.join(run_path, f'sample_{sample_idx}.pt'), map_location=device)['filtbackproj']
-    nn_model = UNet(
-            in_ch=1,
-            out_ch=1,
-            channels=net_kwargs['channels'][:net_kwargs['scales']],
-            skip_channels=net_kwargs['skip_channels'][:net_kwargs['scales']],
-            use_sigmoid=net_kwargs['use_sigmoid'],
-            use_norm=net_kwargs['use_norm'],
-            sigmoid_saturation_thresh=net_kwargs['sigmoid_saturation_thresh']
-            ).to(device)
-    nn_model.load_state_dict(
-            torch.load(os.path.join(run_path, f'dip_model_{sample_idx}.pt'), map_location=device))
-    assert not cfg.dip.recon_from_randn  # would need to re-create random input
+
+    nn_model, filtbackproj = get_nn_model(
+            run_path=run_path, sample_idx=sample_idx, experiment_paths=experiment_paths,
+            device=device)
 
     prior_assignment_dict, hyperparams_init_dict = get_default_unet_gaussian_prior_dicts(
             nn_model)

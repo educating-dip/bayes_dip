@@ -21,5 +21,7 @@ python plot_kmnist_sample_based_vs_exact.py --runs_file $yaml_root_path/runs_kmn
 
 python plot_kmnist_tv_hists_and_samples_from_dists.py --runs_file $yaml_root_path/runs_kmnist_exact_dip_mll_optim.yaml --hmc_priors_data_file $hmc_priors_data_file --save_data_to kmnist_tv_hists_and_samples_from_dists_figure_data.pt
 
-python linear_sweep_bijectivity.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --do_not_fix_marginal_1 --num_samples 10000 --sweep_grid_points 100 --save_data_to biject_False.pt
-python linear_sweep_bijectivity.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --num_samples 10000 --sweep_grid_points 100 --save_data_to biject_True.pt
+python plot_kmnist_sweep_bijectivity.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --do_not_fix_marginal_1 --num_samples 10000 --sweep_grid_points 100 --prior_key_list inc down_0 down_1 up_0 up_1 --wspace 0.45 --save_data_to biject_False.pt
+python plot_kmnist_sweep_bijectivity.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --do_not_fix_marginal_1 --num_samples 10000 --sweep_grid_points 100 --prior_key_list inc up_1 --wspace 0.25 --suffix _mini --load_data_from biject_False.pt
+python plot_kmnist_sweep_bijectivity.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --num_samples 10000 --sweep_grid_points 100 --prior_key_list inc down_0 down_1 up_0 up_1 --wspace 0.45 --save_data_to biject_True.pt
+python plot_kmnist_sweep_bijectivity.py --runs_file $yaml_root_path/runs_kmnist_dip.yaml --num_samples 10000 --sweep_grid_points 100 --prior_key_list inc up_1 --wspace 0.25 --suffix _mini --load_data_from biject_True.pt
