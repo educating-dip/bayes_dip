@@ -125,9 +125,9 @@ if args.save_data_to:
 num_rows, num_cols = args.rows, ceil(len(args.prior_key_list) / args.rows)
 
 fig, axs = plt.subplots(
-        1, 5, figsize=(2 * num_cols + args.figsize_add[0], 2 * num_rows + args.figsize_add[1]),
-        gridspec_kw={
-        'wspace': args.wspace, 'hspace': args.hspace})
+        num_rows, num_cols,
+        figsize=(2 * num_cols + args.figsize_add[0], 2 * num_rows + args.figsize_add[1]),
+        gridspec_kw={'wspace': args.wspace, 'hspace': args.hspace})
 
 labels = {
     'inc': '$(\\ell_1, \sigma_1^2)$',
