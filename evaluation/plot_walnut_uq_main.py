@@ -242,7 +242,7 @@ print('plotting histograms')
 
 plot_hist(
     [abs_diff[slice_0, slice_1], stddev[slice_0, slice_1], stddev_approx[slice_0, slice_1]],
-    ['$|\\hat x - x|$',  'std-dev -- LL: ${:.2f}$'.format(data['log_lik_no_predcp']), 'std-dev -- $\\tilde J$ $\&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_no_predcp_approx'])],
+    ['$|\\hat x - x|$',  'std-dev (LL: ${:.2f})$'.format(data['log_lik_no_predcp']), 'std-dev -- $\\tilde J$ $\&$ PCG (LL: ${:.2f})$'.format(data['log_lik_no_predcp_approx'])],
     title='marginal std-dev \n lin.-DIP -- MLL',
     ax=axs[0, 0],
     xlim=(0., 1),
@@ -256,7 +256,7 @@ plot_hist(
 
 plot_hist(
     [abs_diff[slice_0, slice_1], stddev_predcp[slice_0, slice_1], stddev_predcp_approx[slice_0, slice_1]],
-    ['$|\\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_predcp']), 'std-dev -- $\\tilde J$ $\&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_predcp_approx'])],
+    ['$|\\hat x - x|$', 'std-dev (LL: ${:.2f})$'.format(data['log_lik_predcp']), 'std-dev -- $\\tilde J$ $\&$ PCG (LL: ${:.2f})$'.format(data['log_lik_predcp_approx'])],
     title='marginal std-dev \n lin.-DIP -- TV-MAP',
     ax=axs[1, 0],
     xlim=(0., 1),
@@ -270,7 +270,7 @@ plot_hist(
 
 plot_hist(
     [abs_diff_mcdo[slice_0, slice_1], stddev_mcdo[slice_0, slice_1]],
-    ['$|\\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_mcdo'])],
+    ['$|\\hat x - x|$', 'std-dev (LL: ${:.2f})$'.format(data['log_lik_mcdo'])],
     title='marginal std-dev \n DIP-MCDO',
     ax=axs[0, 1],
     xlim=(0., 1),
