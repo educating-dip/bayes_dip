@@ -131,13 +131,15 @@ for ax, tag in zip(
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
+legend_pos = args.legend_pos % len(axs)
+
 for i, ax in enumerate(axs):
     if i // num_cols < num_rows - 1 and (i + num_cols) not in args.skip_sub_plots:
         ax.tick_params(labelbottom=False)
     else:
         ax.set_xlabel('iterations', fontsize='small')
     if i in args.skip_sub_plots:
-        if i != args.legend_pos:
+        if i != legend_pos:
             ax.remove()
         else:
             ax.set_axis_off()
@@ -149,9 +151,9 @@ if args.legend_bbox_to_anchor:
     legend_kwargs['bbox_to_anchor'] = args.legend_bbox_to_anchor
 if args.legend_loc:
     legend_kwargs['loc'] = args.legend_loc
-elif args.legend_pos in args.skip_sub_plots:
+elif legend_pos in args.skip_sub_plots:
     legend_kwargs['loc'] = 'center'
-axs[args.legend_pos].legend(
+axs[legend_pos].legend(
         [handles[args.image2highlight*2], handles[args.image2highlight*2 + 1]],
         [labels[args.image2highlight*2], labels[args.image2highlight*2 + 1]],
         **legend_kwargs
