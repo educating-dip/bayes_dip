@@ -77,11 +77,19 @@ if args.save_data_to:
 
 configure_matplotlib()
 
-tag_list = args.tag_list or [
-        k[:-len('_scalars')] for k in data['scalars_exact'].keys() if k.endswith('_scalars') and (
+all_tags = [
+        k[:-len('_scalars')] for k in data['scalars_exact'][0].keys() if k.endswith('_scalars') and (
                 k[:-len('_scalars')].rstrip('0123456789') in (
                         'GPprior_variance_', 'GPprior_lengthscale_', 'NormalPrior_variance_') or
                 k[:-len('_scalars')] == 'observation_noise_variance')]
+
+tag_list = args.tag_list or all_tags
+
+# GPprior blocks are: In + (num_scales - 1) * Down + (num_scales - 1) * Up
+num_scales = (len([t for t in all_tags if t.startswith('GPprior_lengthscale_')]) - 1) // 2 + 1
+
+# NormalPrior blocks are: num_skips * Skip + Out
+num_skips = len([t for t in all_tags if t.startswith('NormalPrior_variance_')]) - 1
 
 num_rows, num_cols = args.rows, ceil(len(tag_list) / args.rows)
 
@@ -90,19 +98,37 @@ fig, axs = plt.subplots(num_rows, num_cols,
         gridspec_kw={'hspace': args.hspace, 'wspace': args.wspace})
 axs = np.atleast_1d(axs).flatten()
 
-def get_hyperparam_tex_from_tensor_board_tag(tag):
+def get_block_name(tag_base, idx, num_scales, num_skips):
+    block_name = None
+    if tag_base in ['GPprior_variance', 'GPprior_lengthscale']:
+        if idx == 0:
+            block_name = 'In'
+        elif idx < 1 + (num_scales - 1):
+            block_name = f'Down {idx - 1 + 1}'
+        else:
+            block_name = f'Up {idx - (1 + (num_scales - 1)) + 1}'
+    elif tag_base == 'NormalPrior_variance':
+        if idx < num_skips:
+            block_name = f'Skip {idx + 1}'
+        else:
+            block_name = 'Out'
+    return block_name
+
+def get_hyperparam_tex_from_tensor_board_tag(tag, include_block_name=True, **kwargs):
     title = None
     if tag == 'observation_noise_variance':
-        title = '\sigma_y^2'
+        title = '$\sigma_y^2$'
     elif tag.startswith('GPprior_') or tag.startswith('NormalPrior_'):
         tag_base, idx = tag.rsplit('_', 1)
-        idx = int(idx) + 1
+        idx = int(idx)
         if tag_base == 'GPprior_variance':
-            title = f'\sigma_{{{idx}}}^2'
+            title = f'$\sigma_{{{idx + 1}}}^2$'
         elif tag_base == 'GPprior_lengthscale':
-            title = f'\ell_{{{idx}}}'
+            title = f'$\ell_{{{idx + 1}}}$'
         elif tag_base == 'NormalPrior_variance':
-            title = f'\sigma_{{1\\times 1,{idx}}}^2'
+            title = f'$\sigma_{{1\\times 1,{idx + 1}}}^2$'
+        if include_block_name:
+            title += f' ({get_block_name(tag_base, idx, **kwargs)})'
     return title
 
 for ax, tag in zip(
@@ -123,7 +149,9 @@ for ax, tag in zip(
             linewidth=1 if i != args.image2highlight else 2,
             linestyle='solid' if i != args.image2highlight else 'dotted')
     ax.set_yscale('log')
-    ax.set_title(f'${get_hyperparam_tex_from_tensor_board_tag(tag)}$')
+    title = get_hyperparam_tex_from_tensor_board_tag(
+            tag, num_scales=num_scales, num_skips=num_skips)
+    ax.set_title(title)
     ax.tick_params(axis='both', which='major', labelsize='small')
     ax.tick_params(axis='both', which='minor', labelsize='xx-small')
     ax.yaxis.set_minor_locator(MaxNLocator(nbins=6, steps=[1, 2, 5, 10]))
