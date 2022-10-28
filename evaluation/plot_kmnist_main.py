@@ -178,6 +178,7 @@ plot_hist(
     remove_ticks=True,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['bayes_dip_predcp']],
     legend_kwargs={'loc': 'upper right', 'bbox_to_anchor': (1.015, 0.99), 'prop': {'size': 'x-small'}},
+    hist_kwargs_per_data={'zorder': [5, 4, 3]},
     xlim=(0., args.hist_xlim_max),
     ylim=(1e-2, 1000.),
     )
@@ -189,6 +190,7 @@ plot_hist(
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['mcdo']],
     legend_kwargs={'loc': 'upper right', 'bbox_to_anchor': (1.015,  0.99), 'prop':  {'size': 'x-small'}},
+    hist_kwargs_per_data={'zorder': [5, 4, 3]},
     xlim=(0., args.hist_xlim_max),
     ylim=(1e-2, 1000.),
     )
