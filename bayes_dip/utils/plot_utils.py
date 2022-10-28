@@ -240,6 +240,7 @@ def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, y
     ax.set_ylim((-abs_ylim, abs_ylim) if ylim is None else ylim)
     ax.set_title(title)
     ax.grid(alpha=0.3)
-    ax.legend(**(legend_kwargs or {}))
+    if legend_kwargs != 'off':
+        ax.legend(**(legend_kwargs or {}))
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)

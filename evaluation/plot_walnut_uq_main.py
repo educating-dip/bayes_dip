@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import scipy
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from omegaconf import OmegaConf
 from bayes_dip.data.walnut_utils import get_projection_data, get_single_slice_ray_trafo
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_part_defined_by_patch_size
@@ -213,7 +214,7 @@ if args.save_data_to:
 
 configure_matplotlib()
 
-fig, axs = plt.subplots(2, 2, figsize=(5, 5), gridspec_kw={
+fig, axs = plt.subplots(2, 2, figsize=(6, 6), gridspec_kw={
     'width_ratios': [1., 1.],  # includes spacer columns
     'wspace': 0.45, 'hspace': 0.4})
 
@@ -241,28 +242,30 @@ print('plotting histograms')
 
 plot_hist(
     [abs_diff[slice_0, slice_1], stddev[slice_0, slice_1], stddev_approx[slice_0, slice_1]],
-    ['$|\\hat x - x|$',  'std-dev -- LL: ${:.2f}$'.format(data['log_lik_no_predcp']), 'std-dev -- $\\tilde J \&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_no_predcp_approx'])],
+    ['$|\\hat x - x|$',  'std-dev -- LL: ${:.2f}$'.format(data['log_lik_no_predcp']), 'std-dev -- $\\tilde J$ $\&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_no_predcp_approx'])],
     title='marginal std-dev \n lin.-DIP -- MLL',
     ax=axs[0, 0],
     xlim=(0., 1),
-    yscale='linear',
-#     ylim=(1e-4, 1000.),
+    yscale='log',
+    ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['bayes_dip_approx']],
-    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
+    hist_kwargs_per_data={'zorder': [5, 4, 3]},
+    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'x-small'}},
     )
 
 plot_hist(
     [abs_diff[slice_0, slice_1], stddev_predcp[slice_0, slice_1], stddev_predcp_approx[slice_0, slice_1]],
-    ['$|\\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_predcp']), 'std-dev -- $\\tilde J \&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_predcp_approx'])],
+    ['$|\\hat x - x|$', 'std-dev -- LL: ${:.2f}$'.format(data['log_lik_predcp']), 'std-dev -- $\\tilde J$ $\&$ PCG -- LL: ${:.2f}$'.format(data['log_lik_predcp_approx'])],
     title='marginal std-dev \n lin.-DIP -- TV-MAP',
     ax=axs[1, 0],
     xlim=(0., 1),
-    yscale='linear',
-#     ylim=(1e-4, 1000.),
+    yscale='log',
+    ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['bayes_dip_predcp_approx']],
-    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
+    hist_kwargs_per_data={'zorder': [5, 4, 3]},
+    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'x-small'}},
     )
 
 plot_hist(
@@ -271,11 +274,12 @@ plot_hist(
     title='marginal std-dev \n DIP-MCDO',
     ax=axs[0, 1],
     xlim=(0., 1),
-    yscale='linear',
-#     ylim=(1e-4, 1000.),
+    yscale='log',
+    ylim=(1e-4, 1000.),
     remove_ticks=False,
     color_list=[DEFAULT_COLORS['abs_diff'], DEFAULT_COLORS['mcdo']],
-    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'xx-small'}},
+    hist_kwargs_per_data={'zorder': [5, 4, 3]},
+    legend_kwargs={'loc': 'upper right', 'prop': {'size': 'x-small'}},
     )
 
 print('plotting Q-Q plot')
@@ -289,23 +293,23 @@ osm_mcdo, osr_mcdo = scipy.stats.probplot(data['qq_err_mcdo'].flatten(), fit=Fal
 plot_qq(
         ax=axs[1, 1],
         data=[(osm_mll, osr_mll), (osm_mll_approx, osr_mll_approx), (osm_map, osr_map), (osm_map_approx, osr_map_approx), (osm_mcdo, osr_mcdo)],
-        label_list=['lin.-DIP -- MLL', 'lin.-DIP -- MLL -- $\\tilde J \&$ PCG', 'lin.-DIP -- TV-MAP', 'lin.-DIP -- TV-MAP -- $\\tilde J \&$ PCG', 'DIP-MCDO'],
+        label_list=['lin.-DIP -- MLL', 'lin.-DIP -- MLL -- $\\tilde J$ $\&$ PCG', 'lin.-DIP -- TV-MAP', 'lin.-DIP -- TV-MAP -- $\\tilde J$ $\&$ PCG', 'DIP-MCDO'],
         color_list=[DEFAULT_COLORS['bayes_dip'], DEFAULT_COLORS['bayes_dip_approx'], DEFAULT_COLORS['bayes_dip_predcp'], DEFAULT_COLORS['bayes_dip_predcp_approx'], DEFAULT_COLORS['mcdo']],
-        legend_kwargs={'loc': 'upper center', 'prop': {'size': 'small'}, 'bbox_to_anchor': (-0.35, -0.25), 'ncol': 2})
+        legend_kwargs='off')
 axs[1, 1].set_title('calibration: Q-Q')
 axs[1, 1].set_xlabel('prediction quantiles', labelpad=2)
 axs[1, 1].set_ylabel('error quantiles', labelpad=2)
-order = [0, 1, 4, 2, 3]
 handles, labels = axs[1, 1].get_legend_handles_labels()
-legend = axs[1, 1].legend([handles[idx] for idx in order], [labels[idx] for idx in order], **{'loc': 'upper center', 'prop': {'size': 'small'}, 'bbox_to_anchor': (-0.35, -0.25), 'ncol': 2, 'markerscale': 3})
-for i, (t, l) in enumerate(zip(legend.get_texts(), legend.get_lines())):
-    if i == 2:
-        t.set_ha('right') # ha is alias for horizontalalignment
-        t.set_position((800,0))
-        l._xorig[0] = 111
-        l._xorig[1] = 111
-        l._xorig[2] = 92
+handles_leg1, labels_leg1 = handles.copy(), labels.copy()
+del handles_leg1[4]
+del labels_leg1[4]
+handles_leg1.insert(2, Line2D([0],[0],color="w"))
+labels_leg1.insert(2, '')
+legend_kwargs = {'loc': 'lower center', 'bbox_to_anchor': (0.5, -0.085), 'ncol': 2, 'markerscale': 3}
+legend = fig.legend(handles_leg1, labels_leg1, **legend_kwargs)
+fig.add_artist(legend)
+fig.legend([handles[-1]], [labels[-1]], **legend_kwargs, frameon=False, facecolor='none')
 
 print('saving figures')
-fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}_uq_main.pdf',  bbox_extra_artists=(legend,), bbox_inches='tight', pad_inches=0.1)
+fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}_uq_main.pdf', bbox_extra_artists=(legend,), bbox_inches='tight', pad_inches=0.1)
 fig.savefig(f'walnut_{args.patch_size}x{args.patch_size}_uq_main.png', bbox_extra_artists=(legend,), bbox_inches='tight', pad_inches=0.1, dpi=600)
