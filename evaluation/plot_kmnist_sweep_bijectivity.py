@@ -140,11 +140,11 @@ fig, axs = plt.subplots(
         gridspec_kw={'wspace': args.wspace, 'hspace': args.hspace})
 
 labels = {
-    'inc': '$(\\ell_1, \sigma_1^2)$',
-    'down_0': '$(\\ell_2, \sigma_2^2)$',
-    'down_1': '$(\\ell_3, \sigma_3^2)$',
-    'up_0': '$(\\ell_4, \sigma_4^2)$',
-    'up_1': '$(\\ell_5, \sigma_5^2)$'
+    'inc': '$(\\ell_1, \sigma_1^2)$ (In)',
+    'down_0': '$(\\ell_2, \sigma_2^2)$ (Down 1)',
+    'down_1': '$(\\ell_3, \sigma_3^2)$ (Down 2)',
+    'up_0': '$(\\ell_4, \sigma_4^2)$ (Up 1)',
+    'up_1': '$(\\ell_5, \sigma_5^2)$ (Up 2)'
     }
 
 for i, (ax, key) in enumerate(zip(axs, args.prior_key_list)):
