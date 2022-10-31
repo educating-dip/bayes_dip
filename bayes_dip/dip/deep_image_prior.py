@@ -7,7 +7,6 @@ from typing import Optional, Union
 import datetime
 from warnings import warn
 from copy import deepcopy
-from contextlib import nullcontext
 import torch
 import numpy as np
 import tensorboardX
@@ -79,9 +78,10 @@ class DeepImagePriorReconstructor():
             If ``None``, no seed is set and the global random generator is advanced;
             otherwise, the manual seed is set on a forked generator used for the initialization.
         """
-
-        with (torch.random.fork_rng([self.device]) if torch_manual_seed is not None
-                else nullcontext()):
+        fork_rng_kwargs = {'enabled': torch_manual_seed is not None}
+        if self.device != 'cpu':
+            fork_rng_kwargs['devices'] = [self.device]
+        with torch.random.fork_rng(**fork_rng_kwargs):
             if torch_manual_seed is not None:
                 torch.random.manual_seed(torch_manual_seed)
 
