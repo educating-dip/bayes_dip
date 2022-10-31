@@ -33,6 +33,7 @@ sampling:
     use_log_re_variant: False
     ignore_numerical_warning: False
   cg_preconditioner:
+    rand_approx_method: low_rank_observation_cov_basis # uses Algo. 5.6 from Halko et al.
     low_rank_rank_dim: 400
     oversampling_param: 10
     batch_size: 1

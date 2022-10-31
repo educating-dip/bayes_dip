@@ -1,12 +1,13 @@
 """
 Provides utilities for the preconditioners in :mod:`.preconditioner`.
 """
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 from math import ceil
 import torch
 from torch import Tensor
 from tqdm import tqdm
 from .random_probes import generate_probes_bernoulli
+from ..probabilistic_models import LowRankObservationCov
 
 def approx_diag(
         closure: Callable, size: int, num_samples: int, batch_size: int = 1,
@@ -184,3 +185,20 @@ def pivoted_cholesky(
             pbar.update(1)
 
     return L[:m, :].mT.contiguous(), permutation
+
+def nystrom_preconditioner_matmul(
+        decomposition: Tuple[Tensor,Tensor,Tensor], 
+        v: Tensor
+    ):
+    '''
+    Return the matvec between the nystrom preconditioner and v.
+    Apply the nystrom preconditioner via eq. (5.3) in https://arxiv.org/pdf/2110.02820.pdf: 
+
+    P^-1 v = basis @ (eigs[-1] + noise) * (eigs + noise*I)^-1 * basis^T @ x + (I - basis @ basis^T) @ v
+         = v - basis * ( (eigs[-1] + noise) * ( eigs + noise*I )^-1 + I) @ basis^T @ v
+    '''
+    basis, eigs, noise_variance_obs_and_eps = decomposition
+    scale = eigs[-1]+ noise_variance_obs_and_eps
+    inner_diagonal_mat = scale * (eigs + noise_variance_obs_and_eps).pow(-1) + 1.
+
+    return v - (basis * inner_diagonal_mat[None, :]) @ basis.T @ v # (obs_shape, batch_size)
