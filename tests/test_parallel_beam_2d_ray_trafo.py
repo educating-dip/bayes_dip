@@ -9,8 +9,10 @@ import numpy as np
 try:
     import astra
 except ImportError:
+    ASTRA_AVAILABLE = False
     ASTRA_CUDA_AVAILABLE = False
 else:
+    ASTRA_AVAILABLE = True
     ASTRA_CUDA_AVAILABLE = astra.use_cuda()
 from bayes_dip.data import (
         get_odl_ray_trafo_parallel_beam_2d, ParallelBeam2DRayTrafo,
@@ -49,7 +51,9 @@ def assert_psnr_greater(x, reco, min_psnr, show_on_failure=True):
 def ray_trafo_kwargs():
     kwargs = dict(
             im_shape=(128, 128), num_angles=20,
-            impl='astra_cuda' if ASTRA_CUDA_AVAILABLE else 'skimage')
+            impl=(('astra_cuda' if ASTRA_CUDA_AVAILABLE else 'astra_cpu')
+                    if ASTRA_AVAILABLE else 'skimage')
+            )
     return kwargs
 
 
@@ -64,7 +68,7 @@ def test_parallel_beam_2d_fbp(ray_trafo_kwargs):
     for x in get_random_ellipses_images(3):
         y = ray_trafo(x)
         fbp = ray_trafo.fbp(y)
-        assert_psnr_greater(x, fbp, 20.)
+        assert_psnr_greater(x, fbp, 19.5)
 
 def test_parallel_beam_2d_angles(ray_trafo_kwargs):
     """

@@ -38,15 +38,18 @@ def get_ray_trafo(name : str, kwargs : dict) -> BaseRayTrafo:
     if name == 'mnist':
         ray_trafo = get_parallel_beam_2d_matmul_ray_trafo(
                 im_shape=kwargs['im_shape'], num_angles=kwargs['num_angles'],
-                angular_sub_sampling=kwargs['angular_sub_sampling'])
+                angular_sub_sampling=kwargs['angular_sub_sampling'],
+                impl=kwargs.get('impl', 'astra_cuda'))
     elif name == 'kmnist':
         ray_trafo = get_parallel_beam_2d_matmul_ray_trafo(
                 im_shape=kwargs['im_shape'], num_angles=kwargs['num_angles'],
-                angular_sub_sampling=kwargs['angular_sub_sampling'])
+                angular_sub_sampling=kwargs['angular_sub_sampling'],
+                impl=kwargs.get('impl', 'astra_cuda'))
     elif name == 'rectangles':
         ray_trafo = get_parallel_beam_2d_matmul_ray_trafo(
                 im_shape=kwargs['im_shape'], num_angles=kwargs['num_angles'],
-                angular_sub_sampling=kwargs['angular_sub_sampling'])
+                angular_sub_sampling=kwargs['angular_sub_sampling'],
+                impl=kwargs.get('impl', 'astra_cuda'))
     elif name == 'walnut':
         ray_trafo = get_walnut_2d_ray_trafo(
                 data_path=kwargs['data_path'],
