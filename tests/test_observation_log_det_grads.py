@@ -67,7 +67,30 @@ def observation_cov():
     )
     return observation_cov
 
-def test_approx_observation_log_det_grads(observation_cov):
+@pytest.fixture(scope='function')
+def exact_grads(observation_cov):
+    nn_model = observation_cov.image_cov.neural_basis_expansion.nn_model
+    nn_input = observation_cov.image_cov.neural_basis_expansion.nn_input
+    ordered_nn_params = observation_cov.image_cov.inner_cov.ordered_nn_params
+    func, _ = ftch.make_functional(nn_model)
+    inds_from_ordered_params = get_inds_from_ordered_params(nn_model, ordered_nn_params)
+    def _func_model(*func_params_under_prior):
+        func_params = [orig_param for orig_param in nn_model.parameters()]
+        for i, func_param in zip(inds_from_ordered_params, func_params_under_prior):
+            func_params[i] = func_param
+        return func(func_params, nn_input)
+    jac = torch.autograd.functional.jacobian(_func_model, tuple(ordered_nn_params))
+    jac = torch.cat([jac_i.view(nn_input.numel(), -1) for jac_i in jac], dim=1)
+    trafo_mat = observation_cov.trafo.matrix
+    observation_cov_mat = (
+            observation_cov.image_cov.inner_cov(trafo_mat @ jac) @ jac.T @ trafo_mat.T +
+            observation_cov.log_noise_variance.exp() * torch.eye(observation_cov.shape[0]))
+    sign, log_det = torch.linalg.slogdet(observation_cov_mat)
+    assert sign > 0.
+    exact_grads_tuple = torch.autograd.grad((0.5 * log_det,), observation_cov.parameters())
+    return exact_grads_tuple
+
+def test_approx_observation_log_det_grads(observation_cov, exact_grads):
     torch.manual_seed(1)
     grads, _ = approx_observation_cov_log_det_grads(
             observation_cov=observation_cov,
@@ -77,37 +100,18 @@ def test_approx_observation_log_det_grads(observation_cov):
             num_probes=1000,
             )
 
-    nn_model = observation_cov.image_cov.neural_basis_expansion.nn_model
-    nn_input = observation_cov.image_cov.neural_basis_expansion.nn_input
-    ordered_nn_params = observation_cov.image_cov.inner_cov.ordered_nn_params
-    func, _ = ftch.make_functional(nn_model)
-    inds_from_ordered_params = get_inds_from_ordered_params(nn_model, ordered_nn_params)
-    def _func_model(*func_params_under_prior):
-        func_params = [orig_param for orig_param in nn_model.parameters()]
-        for i, func_param in zip(inds_from_ordered_params, func_params_under_prior):
-            func_params[i] = func_param
-        return func(func_params, nn_input)
-    jac = torch.autograd.functional.jacobian(_func_model, tuple(ordered_nn_params))
-    jac = torch.cat([jac_i.view(nn_input.numel(), -1) for jac_i in jac], dim=1)
-    trafo_mat = observation_cov.trafo.matrix
-    observation_cov_mat = (
-            observation_cov.image_cov.inner_cov(trafo_mat @ jac) @ jac.T @ trafo_mat.T +
-            observation_cov.log_noise_variance.exp() * torch.eye(observation_cov.shape[0]))
-    sign, log_det = torch.linalg.slogdet(observation_cov_mat)
-    assert sign > 0.
-    exact_grads = torch.autograd.grad((0.5 * log_det,), observation_cov.parameters())
-    for p, exact_grad in zip(observation_cov.parameters(), exact_grads):
-        print(grads[p], exact_grad)
+    for (name, p), exact_grad in zip(observation_cov.named_parameters(), exact_grads):
+        print(name, grads[p], exact_grad)
         assert torch.allclose(grads[p], exact_grad, rtol=1.)
 
-def test_approx_observation_log_det_grads_with_preconditioner(observation_cov):
+def test_approx_observation_log_det_grads_with_preconditioner(observation_cov, exact_grads):
     torch.manual_seed(1)
     low_rank_observation_cov = LowRankObservationCov(
             trafo=observation_cov.trafo,
             image_cov=observation_cov.image_cov,
             low_rank_rank_dim=200,
-            oversampling_param=5,
-			requires_grad=False,
+            oversampling_param=10,
+            requires_grad=False,
             device=observation_cov.device
     )
     low_rank_preconditioner =  LowRankObservationCovPreconditioner(
@@ -116,30 +120,11 @@ def test_approx_observation_log_det_grads_with_preconditioner(observation_cov):
     grads, _ = approx_observation_cov_log_det_grads(
             observation_cov=observation_cov,
             precon=low_rank_preconditioner,
-            max_cg_iter=100,
+            max_cg_iter=20,
             cg_rtol=1e-6,
             num_probes=1000,
             )
 
-    nn_model = observation_cov.image_cov.neural_basis_expansion.nn_model
-    nn_input = observation_cov.image_cov.neural_basis_expansion.nn_input
-    ordered_nn_params = observation_cov.image_cov.inner_cov.ordered_nn_params
-    func, _ = ftch.make_functional(nn_model)
-    inds_from_ordered_params = get_inds_from_ordered_params(nn_model, ordered_nn_params)
-    def _func_model(*func_params_under_prior):
-        func_params = [orig_param for orig_param in nn_model.parameters()]
-        for i, func_param in zip(inds_from_ordered_params, func_params_under_prior):
-            func_params[i] = func_param
-        return func(func_params, nn_input)
-    jac = torch.autograd.functional.jacobian(_func_model, tuple(ordered_nn_params))
-    jac = torch.cat([jac_i.view(nn_input.numel(), -1) for jac_i in jac], dim=1)
-    trafo_mat = observation_cov.trafo.matrix
-    observation_cov_mat = (
-            observation_cov.image_cov.inner_cov(trafo_mat @ jac) @ jac.T @ trafo_mat.T +
-            observation_cov.log_noise_variance.exp() * torch.eye(observation_cov.shape[0]))
-    sign, log_det = torch.linalg.slogdet(observation_cov_mat)
-    assert sign > 0.
-    exact_grads = torch.autograd.grad((0.5 * log_det,), observation_cov.parameters())
-    for p, exact_grad in zip(observation_cov.parameters(), exact_grads):
-        print(grads[p], exact_grad)
+    for (name, p), exact_grad in zip(observation_cov.named_parameters(), exact_grads):
+        print(name, grads[p], exact_grad)
         assert torch.allclose(grads[p], exact_grad, rtol=1.)
