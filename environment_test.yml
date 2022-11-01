@@ -6,8 +6,7 @@ dependencies:
   - astra-toolbox
   - pip
   - pip:
-    - pytorch>=1.12
-    - pytorch-cuda
+    - torch>=1.12
     - torchvision
     - tensorboardx
     - scikit-image
