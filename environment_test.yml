@@ -1,0 +1,20 @@
+name: bayes_dip_test
+channels:
+  - defaults
+  - astra-toolbox
+dependencies:
+  - astra-toolbox
+  - pip
+  - pip:
+    - pytorch>=1.12
+    - pytorch-cuda
+    - torchvision
+    - tensorboardx
+    - scikit-image
+    - imageio
+    - opt_einsum
+    - tqdm
+    - gpytorch
+    - pytest
+    - functorch
+    - https://github.com/odlgroup/odl/archive/master.zip
