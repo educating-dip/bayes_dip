@@ -6,6 +6,14 @@ dependencies:
   - astra-toolbox
   - pip
   - pip:
+    - torch>=1.12
+    - torchvision
+    - tensorboardx
+    - scikit-image
+    - imageio
+    - opt_einsum
+    - tqdm
+    - gpytorch
     - pytest
+    - functorch
     - https://github.com/odlgroup/odl/archive/master.zip
-    # other dependencies are installed by "pip install -e ." based on install_requires in setup.cfg
