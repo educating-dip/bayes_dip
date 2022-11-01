@@ -1,6 +1,9 @@
-name: Test bayes_dip
+name: Test bayes_dip/dev
 
-on: [push]
+on: 
+  push:
+    branches:
+      - dev
 
 jobs:
   test:
