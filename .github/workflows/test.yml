@@ -1,6 +1,9 @@
 name: Test bayes_dip
 
-on: [push]
+on: 
+  push:
+    branches:
+      - main
 
 jobs:
   test:
