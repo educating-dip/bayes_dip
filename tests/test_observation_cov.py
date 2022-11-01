@@ -1,7 +1,5 @@
 import pytest
-from tests.test_observation_log_det_grads import observation_cov
 import torch
-import functorch as ftch
 from bayes_dip.data import get_ray_trafo, get_kmnist_testset, SimulatedDataset
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, ParameterCov, NeuralBasisExpansion, MatmulNeuralBasisExpansion, ImageCov, MatmulObservationCov, ObservationCov
