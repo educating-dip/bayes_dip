@@ -20,13 +20,6 @@ jobs:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: |
-          conda install -c astra-toolbox astra-toolbox
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
-
       - name: Get date
         id: get-date
         run: echo "::set-output name=today::$(/bin/date -u '+%Y%m%d')"
