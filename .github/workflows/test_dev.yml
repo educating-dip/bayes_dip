@@ -1,0 +1,53 @@
+name: Test bayes_dip/dev
+
+on: 
+  push:
+    branches:
+      - dev
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.10"]
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Get infos
+        id: get-infos
+        run: |
+          echo "conda=$CONDA" >> $GITHUB_OUTPUT
+          echo "today=$(/bin/date -u '+%Y%m%d')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Cache conda env
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.get-infos.outputs.conda }}/envs/test
+          key: conda-dev-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-infos.outputs.today }}-${{ hashFiles('environment_test.yml') }}-${{ env.CACHE_NUMBER }}
+        env:
+          # Increase this value to reset cache if environment_test.yml has not changed
+          CACHE_NUMBER: 0
+        id: cache
+
+      - name: Update environment
+        run: conda env update -n test -f environment_test.yml
+        if: steps.cache.outputs.cache-hit != 'true'
+
+      - name: Install bayes_dip
+        run: |
+          pip install -e .
+
+      - name: Test with pytest
+        run: |
+          pytest tests/
