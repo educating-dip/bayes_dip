@@ -4,7 +4,7 @@ from torch import nn, autograd
 import numpy as np
 from bayes_dip.utils import tv_loss, batch_tv_grad
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def params_and_jac_and_image_and_weight_samples():
     dp = 30
     im_shape = (8, 8)
@@ -21,7 +21,7 @@ def params_and_jac_and_image_and_weight_samples():
 
     return params, jac, x_samples, weight_samples
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def params_and_image_rsamples_and_jac_and_manual_weight_and_image_samples():
     dp = 30
     im_shape = (4, 4)

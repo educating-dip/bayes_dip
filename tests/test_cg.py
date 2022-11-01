@@ -10,7 +10,7 @@ from bayes_dip.marginal_likelihood_optim.preconditioner import (
 from bayes_dip.marginal_likelihood_optim.preconditioner_utils import (
         approx_diag, pivoted_cholesky)
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def linear_system():
     n = 5
     rng = np.random.default_rng(0)
@@ -28,7 +28,7 @@ def linear_system():
     # `(mat, noise)` should be interpreted as `mat + noise * torch.eye(mat.shape[0])`
     return (mat, noise), rhs
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def jacobi_precon_closure(linear_system):
     (mat, noise), rhs = linear_system
     diag = mat.diag() + noise
@@ -38,7 +38,7 @@ def jacobi_precon_closure(linear_system):
 
     return precon_closure
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def approx_jacobi_precon_closure(linear_system):
     (mat, noise), rhs = linear_system
 
@@ -52,7 +52,7 @@ def approx_jacobi_precon_closure(linear_system):
 
     return precon_closure
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def ichol_precon_closure(linear_system):
     (mat, noise), rhs = linear_system
 
@@ -73,7 +73,7 @@ def ichol_precon_closure(linear_system):
 
     return precon_closure
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def ichol_approx_diag_precon_closure(linear_system):
     (mat, noise), rhs = linear_system
 

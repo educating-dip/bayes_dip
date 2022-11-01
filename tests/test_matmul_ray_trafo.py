@@ -7,7 +7,7 @@ import torch
 import numpy as np
 from bayes_dip.data import MatmulRayTrafo
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def matmul_ray_trafo_and_im_obs_data():
     im_shape = (128, 128)
     obs_shape = (30, 183)
