@@ -16,6 +16,7 @@ dependencies:
   - tqdm
   - gpytorch
   - astra-toolbox
+  - tensorboard
   - pytest
   - pip
   - pip:
