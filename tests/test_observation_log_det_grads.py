@@ -37,7 +37,7 @@ def observation_cov():
             device=device, net_kwargs=net_kwargs)
     optim_kwargs = {
             'lr': 1e-3,
-            'iterations': 10000,
+            'iterations': 2000,
             'loss_function': 'mse',
             'gamma': 1e-4
         }
@@ -98,7 +98,7 @@ def test_approx_observation_log_det_grads(observation_cov, exact_grads):
             precon=None,
             max_cg_iter=100,
             cg_rtol=1e-6,
-            num_probes=1000,
+            num_probes=5000,
             )
 
     for (name, p), exact_grad in zip(observation_cov.named_parameters(), exact_grads):
@@ -110,7 +110,7 @@ def test_approx_observation_log_det_grads_with_preconditioner(observation_cov, e
     low_rank_observation_cov = LowRankObservationCov(
             trafo=observation_cov.trafo,
             image_cov=observation_cov.image_cov,
-            low_rank_rank_dim=200,
+            low_rank_rank_dim=100,
             oversampling_param=10,
             requires_grad=False,
             device=observation_cov.device
