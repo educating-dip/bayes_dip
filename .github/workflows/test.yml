@@ -1,4 +1,4 @@
-name: Test bayes_dip
+name: Test bayes_dip/main
 
 on: 
   push:
