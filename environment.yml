@@ -1,0 +1,24 @@
+name: bayes_dip
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+  - gpytorch
+  - astra-toolbox
+dependencies:
+  - pytorch>=1.12
+  - pytorch-cuda
+  - torchvision
+  - tensorboardx
+  - scikit-image
+  - imageio
+  - opt_einsum
+  - tqdm
+  - gpytorch
+  - astra-toolbox
+  - tensorboard
+  - pytest
+  - pip
+  - pip:
+    - functorch
+    - https://github.com/odlgroup/odl/archive/master.zip

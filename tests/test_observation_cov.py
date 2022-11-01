@@ -1,16 +1,15 @@
 import pytest
-from tests.test_observation_log_det_grads import observation_cov
 import torch
-import functorch as ftch
 from bayes_dip.data import get_ray_trafo, get_kmnist_testset, SimulatedDataset
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import get_default_unet_gaussian_prior_dicts, ParameterCov, NeuralBasisExpansion, MatmulNeuralBasisExpansion, ImageCov, MatmulObservationCov, ObservationCov
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def observation_cov_and_matmul_observation_cov():
     dtype = torch.float32
     device = 'cpu'
-    kwargs = {'angular_sub_sampling': 1, 'im_shape': (28, 28), 'num_angles': 20}
+    kwargs = {
+        'angular_sub_sampling': 1, 'im_shape': (28, 28), 'num_angles': 10, 'impl': 'astra_cpu'}
     ray_trafo = get_ray_trafo('kmnist', kwargs=kwargs)
     ray_trafo.to(dtype=dtype, device=device)
     image_dataset = get_kmnist_testset()

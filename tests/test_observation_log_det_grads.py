@@ -8,11 +8,12 @@ from bayes_dip.marginal_likelihood_optim.observation_cov_log_det_grad import app
 from bayes_dip.probabilistic_models.linearized_dip.utils import get_inds_from_ordered_params
 from bayes_dip.marginal_likelihood_optim import LowRankObservationCovPreconditioner
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def observation_cov():
     dtype = torch.float32
     device = 'cpu'
-    kwargs = {'angular_sub_sampling': 1, 'im_shape': (28, 28), 'num_angles': 20}
+    kwargs = {
+        'angular_sub_sampling': 1, 'im_shape': (28, 28), 'num_angles': 10, 'impl': 'astra_cpu'}
     ray_trafo = get_ray_trafo('kmnist', kwargs=kwargs)
     ray_trafo.to(dtype=dtype, device=device)
     image_dataset = get_kmnist_testset()
@@ -24,19 +25,21 @@ def observation_cov():
     observation, ground_truth, filtbackproj = dataset[0]
     filtbackproj = filtbackproj[None]  # add batch dim
     net_kwargs = {
-                'scales': 3,
-                'channels': [8, 8, 8],
-                'skip_channels': [0, 1, 1],
-                'use_norm': False,
-                'use_sigmoid': True,
-                'sigmoid_saturation_thresh': 15
+            'scales': 3,
+            'channels': [2, 2, 2],
+            'skip_channels': [0, 0, 1],  # skip_channels[-2] seems to make estimation more
+                                         # difficult (e.g. requiring more probes), so for shorter
+                                         # test run-times we exclude it here
+            'use_norm': False,
+            'use_sigmoid': True,
+            'sigmoid_saturation_thresh': 15
         }
     reconstructor = DeepImagePriorReconstructor(
             ray_trafo, torch_manual_seed=1,
             device=device, net_kwargs=net_kwargs)
     optim_kwargs = {
-            'lr': 1e-3,
-            'iterations': 10000,
+            'lr': 1e-2,
+            'iterations': 100,
             'loss_function': 'mse',
             'gamma': 1e-4
         }
@@ -67,7 +70,7 @@ def observation_cov():
     )
     return observation_cov
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def exact_grads(observation_cov):
     nn_model = observation_cov.image_cov.neural_basis_expansion.nn_model
     nn_input = observation_cov.image_cov.neural_basis_expansion.nn_input
@@ -97,19 +100,19 @@ def test_approx_observation_log_det_grads(observation_cov, exact_grads):
             precon=None,
             max_cg_iter=100,
             cg_rtol=1e-6,
-            num_probes=1000,
+            num_probes=200,
             )
 
     for (name, p), exact_grad in zip(observation_cov.named_parameters(), exact_grads):
         print(name, grads[p], exact_grad)
-        assert torch.allclose(grads[p], exact_grad, rtol=1.)
+        assert torch.allclose(grads[p], exact_grad, rtol=1., atol=1e-2)
 
 def test_approx_observation_log_det_grads_with_preconditioner(observation_cov, exact_grads):
     torch.manual_seed(1)
     low_rank_observation_cov = LowRankObservationCov(
             trafo=observation_cov.trafo,
             image_cov=observation_cov.image_cov,
-            low_rank_rank_dim=200,
+            low_rank_rank_dim=100,
             oversampling_param=10,
             requires_grad=False,
             device=observation_cov.device
@@ -122,9 +125,9 @@ def test_approx_observation_log_det_grads_with_preconditioner(observation_cov, e
             precon=low_rank_preconditioner,
             max_cg_iter=20,
             cg_rtol=1e-6,
-            num_probes=1000,
+            num_probes=100,
             )
 
     for (name, p), exact_grad in zip(observation_cov.named_parameters(), exact_grads):
         print(name, grads[p], exact_grad)
-        assert torch.allclose(grads[p], exact_grad, rtol=1.)
+        assert torch.allclose(grads[p], exact_grad, rtol=1., atol=1e-2)

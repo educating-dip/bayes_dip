@@ -9,8 +9,10 @@ import numpy as np
 try:
     import astra
 except ImportError:
+    ASTRA_AVAILABLE = False
     ASTRA_CUDA_AVAILABLE = False
 else:
+    ASTRA_AVAILABLE = True
     ASTRA_CUDA_AVAILABLE = astra.use_cuda()
 from bayes_dip.data import (
         get_odl_ray_trafo_parallel_beam_2d, ParallelBeam2DRayTrafo,
@@ -45,37 +47,43 @@ def assert_psnr_greater(x, reco, min_psnr, show_on_failure=True):
             plt.show()
         raise
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def ray_trafo_kwargs():
     kwargs = dict(
-            im_shape=(128, 128), num_angles=20,
-            impl='astra_cuda' if ASTRA_CUDA_AVAILABLE else 'skimage')
+            im_shape=(32, 32), num_angles=10,
+            impl=(('astra_cuda' if ASTRA_CUDA_AVAILABLE else 'astra_cpu')
+                    if ASTRA_AVAILABLE else 'skimage')
+            )
     return kwargs
 
+@pytest.fixture(scope='session')
+def ray_trafo_via_odl(ray_trafo_kwargs):
+    return ParallelBeam2DRayTrafo(**ray_trafo_kwargs)
+
+@pytest.fixture(scope='session')
+def ray_trafo_via_matmul(ray_trafo_kwargs):
+    return get_parallel_beam_2d_matmul_ray_trafo(**ray_trafo_kwargs)
 
 ## tests for ParallelBeam2DRayTrafo
 
-def test_parallel_beam_2d_fbp(ray_trafo_kwargs):
+def test_parallel_beam_2d_fbp(ray_trafo_kwargs, ray_trafo_via_odl):
     """
     Test if ``ray_trafo.fbp(ray_trafo(x))`` approx. matches ``x`` for
     :class:`ParallelBeam2DRayTrafo`.
     """
-    ray_trafo = ParallelBeam2DRayTrafo(**ray_trafo_kwargs)
-    for x in get_random_ellipses_images(3):
-        y = ray_trafo(x)
-        fbp = ray_trafo.fbp(y)
-        assert_psnr_greater(x, fbp, 20.)
+    for x in get_random_ellipses_images(3, im_shape=ray_trafo_kwargs['im_shape']):
+        y = ray_trafo_via_odl(x)
+        fbp = ray_trafo_via_odl.fbp(y)
+        assert_psnr_greater(x, fbp, 19.)
 
-def test_parallel_beam_2d_angles(ray_trafo_kwargs):
+def test_parallel_beam_2d_angles(ray_trafo_kwargs, ray_trafo_via_odl):
     """
     Test some properties of ``ray_trafo.angles`` for :class:`ParallelBeam2DRayTrafo`.
     """
-    ray_trafo = ParallelBeam2DRayTrafo(**ray_trafo_kwargs)
-
-    num_angles = len(ray_trafo.angles)
+    num_angles = len(ray_trafo_via_odl.angles)
 
     assert np.allclose(
-            ray_trafo.angles,
+            ray_trafo_via_odl.angles,
             np.linspace(0., np.pi, num_angles, endpoint=False))
 
     ray_trafo_default_odl_angles = ParallelBeam2DRayTrafo(
@@ -90,38 +98,32 @@ def test_parallel_beam_2d_angles(ray_trafo_kwargs):
 
 ## tests for get_parallel_beam_2d_matmul_ray_trafo
 
-def test_trafo_same_as_via_odl(ray_trafo_kwargs):
+def test_trafo_same_as_via_odl(ray_trafo_kwargs, ray_trafo_via_odl, ray_trafo_via_matmul):
     """
     Test if forward projection via matmul matches the ODL version.
     """
-    ray_trafo_via_odl = ParallelBeam2DRayTrafo(**ray_trafo_kwargs)
-    ray_trafo_via_matmul = get_parallel_beam_2d_matmul_ray_trafo(**ray_trafo_kwargs)
-    for x in get_random_ellipses_images(3):
+    for x in get_random_ellipses_images(3, im_shape=ray_trafo_kwargs['im_shape']):
         y_via_odl = ray_trafo_via_odl.trafo(x)
         y_via_matmul = ray_trafo_via_matmul.trafo(x)
         assert np.allclose(y_via_odl, y_via_matmul)
 
-def test_trafo_adjoint_same_as_via_odl(ray_trafo_kwargs):
+def test_trafo_adjoint_same_as_via_odl(ray_trafo_kwargs, ray_trafo_via_odl, ray_trafo_via_matmul):
     """
     Test if forward projection via matmul matches the ODL version (bound is not very
     tight because ``matrix.T`` is used instead of back-projection).
     """
-    ray_trafo_via_odl = ParallelBeam2DRayTrafo(**ray_trafo_kwargs)
-    ray_trafo_via_matmul = get_parallel_beam_2d_matmul_ray_trafo(**ray_trafo_kwargs)
-    for x in get_random_ellipses_images(3):
+    for x in get_random_ellipses_images(3, im_shape=ray_trafo_kwargs['im_shape']):
         y = ray_trafo_via_matmul(x)
         x_via_odl = ray_trafo_via_odl.trafo_adjoint(y)
         x_via_matmul = ray_trafo_via_matmul.trafo_adjoint(y)
         assert (x_via_odl - x_via_matmul).abs().mean() < 0.02 * x_via_odl.mean()
 
-def test_fbp_same_as_via_odl(ray_trafo_kwargs):
+def test_fbp_same_as_via_odl(ray_trafo_kwargs, ray_trafo_via_odl, ray_trafo_via_matmul):
     """
     Test if filtered back-projection matches the ODL version
     (bound is tight because ODL is used for the FBP).
     """
-    ray_trafo_via_odl = ParallelBeam2DRayTrafo(**ray_trafo_kwargs)
-    ray_trafo_via_matmul = get_parallel_beam_2d_matmul_ray_trafo(**ray_trafo_kwargs)
-    for x in get_random_ellipses_images(3):
+    for x in get_random_ellipses_images(3, im_shape=ray_trafo_kwargs['im_shape']):
         y = ray_trafo_via_matmul(x)
         x_via_odl = ray_trafo_via_odl.fbp(y)
         x_via_matmul = ray_trafo_via_matmul.fbp(y)
