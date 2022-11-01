@@ -31,7 +31,7 @@ jobs:
       - name: Cache conda env
         uses: actions/cache@v3
         with:
-          path: ${{ env.CONDA }}/envs/test
+          path: $CONDA/envs/test
           key: conda-${{ runner.os }}--${{ runner.arch }}--${{ steps.get-date.outputs.today }}-${{ hashFiles('environment_test.yml') }}-${{ env.CACHE_NUMBER }}
         env:
           # Increase this value to reset cache if environment_test.yml has not changed
