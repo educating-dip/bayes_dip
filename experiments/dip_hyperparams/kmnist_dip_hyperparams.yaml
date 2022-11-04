@@ -1,0 +1,26 @@
+0.05:
+  5:
+    gamma: 1e-5
+    iterations: 14000
+  10:
+    gamma: 3e-5
+    iterations: 29000
+  20:
+    gamma: 1e-4
+    iterations: 41000
+  30:
+    gamma: 1e-4
+    iterations: 50000
+0.1:
+  5:
+    gamma: 3e-5
+    iterations: 7400
+  10:
+    gamma: 1e-4
+    iterations: 13000
+  20:
+    gamma: 3e-4
+    iterations: 17000
+  30:
+    gamma: 3e-4
+    iterations: 22000
