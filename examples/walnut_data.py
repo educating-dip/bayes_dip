@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from bayes_dip.data import get_walnut_2d_ground_truth, get_walnut_2d_ray_trafo
 from bayes_dip.data.datasets.walnut import get_walnut_2d_observation
 
-data_path = '/localdata/jleuschn/data/Walnuts/'
+DATA_PATH = '../experiments/walnuts/'
 
 angular_sub_sampling = 20  # 1200 -> 60
 proj_col_sub_sampling = 6  # 768 -> 128
@@ -16,12 +16,12 @@ walnut_kwargs = dict(
         proj_col_sub_sampling=proj_col_sub_sampling)
 
 ray_trafo = get_walnut_2d_ray_trafo(
-        data_path=data_path, **walnut_kwargs)
+        data_path=DATA_PATH, **walnut_kwargs)
 
 observation = get_walnut_2d_observation(
-        data_path=data_path, **walnut_kwargs)
+        data_path=DATA_PATH, **walnut_kwargs)
 
-x = get_walnut_2d_ground_truth(data_path=data_path)
+x = get_walnut_2d_ground_truth(data_path=DATA_PATH)
 
 filtbackproj = ray_trafo.fbp(observation[None])[0]
 
