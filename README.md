@@ -1,4 +1,4 @@
-[![Test bayes_dip](https://github.com/educating-dip/bayes_dip/actions/workflows/test.yml/badge.svg)](https://github.com/educating-dip/bayes_dip/actions/workflows/test.yml)
+[![Test bayes_dip](https://github.com/educating-dip/bayes_dip/actions/workflows/test.yml/badge.svg)](https://github.com/educating-dip/bayes_dip/actions/workflows/test.yml) [![Docs](https://img.shields.io/badge/Docs-Online-<COLOR>.svg)](https://educating-dip.github.io/docs.bayes_dip/)
 
 ## bayes_dip
 
