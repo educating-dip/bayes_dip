@@ -3,7 +3,9 @@ Provides data utilities.
 """
 
 from .trafo import (
-        get_walnut_2d_ray_trafo, get_parallel_beam_2d_matmul_ray_trafo, BaseRayTrafo)
+        get_walnut_2d_ray_trafo, get_parallel_beam_2d_matmul_ray_trafo,
+        get_walnut_3d_ray_trafo,
+        BaseRayTrafo)
 
 def get_ray_trafo(name : str, kwargs : dict) -> BaseRayTrafo:
     """
@@ -58,6 +60,15 @@ def get_ray_trafo(name : str, kwargs : dict) -> BaseRayTrafo:
                 orbit_id=kwargs['orbit_id'],
                 angular_sub_sampling=kwargs['angular_sub_sampling'],
                 proj_col_sub_sampling=kwargs['proj_col_sub_sampling'])
+    elif name == 'walnut3d':
+        ray_trafo = get_walnut_3d_ray_trafo(
+                data_path=kwargs['data_path'],
+                walnut_id=kwargs['walnut_id'],
+                orbit_id=kwargs['orbit_id'],
+                angular_sub_sampling=kwargs['angular_sub_sampling'],
+                proj_row_sub_sampling=kwargs['proj_row_sub_sampling'],
+                proj_col_sub_sampling=kwargs['proj_col_sub_sampling'],
+                vol_down_sampling=kwargs['vol_down_sampling'])
     else:
         raise ValueError
 

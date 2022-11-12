@@ -6,8 +6,8 @@ from math import ceil
 import torch
 from torch import Tensor
 from bayes_dip.data.walnut_utils import (
-        get_projection_data, get_single_slice_ray_trafo,
-        get_single_slice_ind, get_ground_truth, VOL_SZ)
+        get_projection_data, get_single_slice_ray_trafo, get_single_slice_ind,
+        get_ground_truth, get_ground_truth_3d, down_sample_vol, VOL_SZ)
 
 
 DEFAULT_WALNUT_SCALING_FACTOR = 14.
@@ -20,7 +20,7 @@ def get_walnut_2d_observation(
         proj_col_sub_sampling: int = 1,
         scaling_factor: float = DEFAULT_WALNUT_SCALING_FACTOR) -> Tensor:
     """
-    Return walnut projection data.
+    Return walnut 2d projection data.
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def get_walnut_2d_ground_truth(
         walnut_id: int = 1, orbit_id: int = 2,
         scaling_factor: float = DEFAULT_WALNUT_SCALING_FACTOR) -> Tensor:
     """
-    Return walnut ground truth slice.
+    Return walnut 2d ground truth slice.
 
     Parameters
     ----------
@@ -106,6 +106,107 @@ def get_walnut_2d_ground_truth(
             data_path=data_path,
             walnut_id=walnut_id,
             slice_ind=slice_ind)
+
+    if scaling_factor != 1.:
+        ground_truth *= scaling_factor
+
+    return torch.from_numpy(ground_truth)[None]  # add channel dim
+
+
+def get_walnut_3d_observation(
+        data_path: str,
+        walnut_id: int = 1, orbit_id: int = 2,
+        angular_sub_sampling: int = 1,
+        proj_row_sub_sampling: int = 1,
+        proj_col_sub_sampling: int = 1,
+        scaling_factor: float = DEFAULT_WALNUT_SCALING_FACTOR) -> Tensor:
+    """
+    Return walnut 3d projection data.
+
+    Parameters
+    ----------
+    data_path : str
+        Walnut dataset path (containing ``'Walnut1'`` as a subfolder).
+    walnut_id : int, optional
+        Walnut ID, an integer from 1 to 42.
+        The default is ``1``.
+    orbit_id : int, optional
+        Orbit (source position) ID, options are ``1``, ``2`` or ``3``.
+        The default is ``2``.
+    angular_sub_sampling : int, optional
+        Sub-sampling factor for the angles.
+        The default is ``1`` (no sub-sampling).
+    proj_row_sub_sampling : int, optional
+        Sub-sampling factor for the projection rows.
+        The default is ``1`` (no sub-sampling).
+    proj_col_sub_sampling : int, optional
+        Sub-sampling factor for the projection columns.
+        The default is ``1`` (no sub-sampling).
+    scaling_factor : float, optional
+        Scaling factor to multiply with.
+        The default is ``DEFAULT_WALNUT_SCALING_FACTOR``, scaling image values to
+        approximately ``[0., 1.]``.
+
+    Returns
+    -------
+    observation : Tensor
+        Projection data. Shape: ``(num_rows, num_angles, num_cols)``, where
+        ``num_rows == len(range((972 - ((ceil(972 / proj_row_sub_sampling) - 1) * proj_row_sub_sampling + 1)) // 2, 972, proj_row_sub_sampling))``,
+        ``num_angles = ceil(1200 / angular_sub_sampling)`` and
+        ``num_cols == ceil(768 / proj_col_sub_sampling)``.
+    """
+
+    walnut_kwargs = dict(
+            walnut_id=walnut_id, orbit_id=orbit_id,
+            angular_sub_sampling=angular_sub_sampling,
+            proj_row_sub_sampling=proj_row_sub_sampling,
+            proj_col_sub_sampling=proj_col_sub_sampling)
+
+    observation = get_projection_data(
+            data_path=data_path, **walnut_kwargs)
+
+    if scaling_factor != 1.:
+        observation *= scaling_factor
+
+    return torch.from_numpy(observation)[None]  # add channel dim
+
+
+def get_walnut_3d_ground_truth(
+        data_path: str,
+        walnut_id: int = 1,
+        vol_down_sampling: int = 1,
+        scaling_factor: float = DEFAULT_WALNUT_SCALING_FACTOR) -> Tensor:
+    """
+    Return walnut 3d ground truth.
+
+    Parameters
+    ----------
+    data_path : str
+        Walnut dataset path (containing ``'Walnut1'`` as a subfolder).
+    walnut_id : int, optional
+        Walnut ID, an integer from 1 to 42.
+        The default is ``1``.
+    vol_down_sampling : int, optional
+        Down-sampling factor. The same factor is applied to each image dimension.
+        The default is ``1``.
+    scaling_factor : float, optional
+        Scaling factor to multiply with.
+        The default is ``DEFAULT_WALNUT_SCALING_FACTOR``, scaling image values to
+        approximately ``[0., 1.]``.
+
+    Returns
+    -------
+    ground_truth : Tensor
+        Ground truth. Shape: ``(1, im_size, im_size, im_size)``, where
+        ``im_size = floor(501 / vol_down_sampling) - (floor(501 / vol_down_sampling) + 1) % 2``.
+    """
+
+    ground_truth_orig_res = get_ground_truth_3d(
+            data_path=data_path,
+            walnut_id=walnut_id)
+    ground_truth = down_sample_vol(
+            ground_truth_orig_res,
+            down_sampling=vol_down_sampling)
 
     if scaling_factor != 1.:
         ground_truth *= scaling_factor
