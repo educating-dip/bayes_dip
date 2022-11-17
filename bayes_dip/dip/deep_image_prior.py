@@ -15,8 +15,8 @@ from torch.nn import MSELoss
 from tqdm import tqdm
 from bayes_dip.utils import get_original_cwd
 from bayes_dip.utils import tv_loss, PSNR, normalize
-from bayes_dip.data import BaseRayTrafo
-from .network import UNet
+from bayes_dip.data import BaseRayTrafo, LambdaRayTrafo
+from .network import UNet, UNet3D
 
 class DeepImagePriorReconstructor():
     """
@@ -84,16 +84,36 @@ class DeepImagePriorReconstructor():
         with torch.random.fork_rng(**fork_rng_kwargs):
             if torch_manual_seed is not None:
                 torch.random.manual_seed(torch_manual_seed)
+            
+            if isinstance(self.ray_trafo, LambdaRayTrafo):
 
-            self.nn_model = UNet(
-                in_ch=1,
-                out_ch=1,
-                channels=self.net_kwargs['channels'][:self.net_kwargs['scales']],
-                skip_channels=self.net_kwargs['skip_channels'][:self.net_kwargs['scales']],
-                use_sigmoid=self.net_kwargs['use_sigmoid'],
-                use_norm=self.net_kwargs['use_norm'],
-                sigmoid_saturation_thresh=self.net_kwargs['sigmoid_saturation_thresh']
-                ).to(self.device)
+                self.nn_model = UNet3D(
+                    in_ch=1, 
+                    out_ch=1, 
+                    channels=self.net_kwargs['channels'][:self.net_kwargs['scales']],
+                    down_channel_overrides=self.net_kwargs['down_channel_overrides'], 
+                    down_single_conv=self.net_kwargs['down_single_conv'],
+                    skip_channels=self.net_kwargs['skip_channels'], 
+                    use_sigmoid=self.net_kwargs['use_sigmoid'],
+                    use_norm=self.net_kwargs['use_norm'], 
+                    out_kernel_size=self.net_kwargs['out_kernel_size'],
+                    pre_out_channels=self.net_kwargs['pre_out_channels'], 
+                    pre_out_kernel_size=self.net_kwargs['pre_out_kernel_size'],
+                    insert_res_blocks_before=self.net_kwargs['insert_res_blocks_before'], 
+                    use_relu_out=self.net_kwargs['use_relu_out'], 
+                    approx_conv3d_at_scales=self.net_kwargs['approx_conv3d_at_scales'], 
+                    approx_conv3d_low_rank_dim=self.net_kwargs['approx_conv3d_low_rank_dim']
+                    ).to(self.device)
+            else:
+                self.nn_model = UNet(
+                    in_ch=1,
+                    out_ch=1,
+                    channels=self.net_kwargs['channels'][:self.net_kwargs['scales']],
+                    skip_channels=self.net_kwargs['skip_channels'][:self.net_kwargs['scales']],
+                    use_sigmoid=self.net_kwargs['use_sigmoid'],
+                    use_norm=self.net_kwargs['use_norm'],
+                    sigmoid_saturation_thresh=self.net_kwargs['sigmoid_saturation_thresh']
+                    ).to(self.device)
 
     def load_params(self,
             params_path: str):

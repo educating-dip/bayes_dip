@@ -1,0 +1,25 @@
+defaults:
+  - base_unet
+
+net:
+  scales: 3
+  channels: [64, 128, 128]
+  skip_channels: [0, 0, 0]
+  down_channel_overrides: [8, 8, 8]
+  down_single_conv: False
+  use_norm: True
+  use_sigmoid: False
+  use_relu_out: post  # options: 'post' (applied on returned image), 'model' (last layer in network)
+  out_kernel_size: 1
+  pre_out_channels: [64, 48, 32, 16]
+  pre_out_kernel_size: 3
+  insert_res_blocks_before: []
+  approx_conv3d_at_scales: []
+  approx_conv3d_low_rank_dim: 1
+optim:
+  lr: 1e-4
+  iterations: 30000
+  loss_function: mse
+  gamma: 1e-1
+show_pbar: True
+torch_manual_seed: 10

@@ -1,0 +1,8 @@
+defaults:
+  - base_trafo
+
+orbit_id: 2
+angular_sub_sampling: 60  # 1200 -> 60
+proj_row_sub_sampling:  3  # 972 -> 324
+proj_col_sub_sampling:  3  # 768 -> 256
+vol_down_sampling: 3  # 501 -> 167

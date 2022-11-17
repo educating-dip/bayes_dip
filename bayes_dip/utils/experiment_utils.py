@@ -13,7 +13,8 @@ from bayes_dip.data import get_ray_trafo, SimulatedDataset, BaseRayTrafo
 from bayes_dip.data import (
         get_mnist_testset, get_kmnist_testset, get_mnist_trainset, get_kmnist_trainset,
         RectanglesDataset,
-        get_walnut_2d_observation, get_walnut_2d_ground_truth)
+        get_walnut_2d_observation, get_walnut_2d_ground_truth, 
+        get_walnut_3d_observation, get_walnut_3d_ground_truth)
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
 
@@ -30,6 +31,15 @@ def get_standard_ray_trafo(cfg: DictConfig) -> BaseRayTrafo:
         kwargs['walnut_id'] = cfg.dataset.walnut_id
         kwargs['orbit_id'] = cfg.trafo.orbit_id
         kwargs['proj_col_sub_sampling'] = cfg.trafo.proj_col_sub_sampling
+    elif cfg.dataset.name in ('walnut_3d'):
+        kwargs['data_path'] = os.path.join(get_original_cwd(), cfg.dataset.data_path)
+        kwargs['matrix_path'] = os.path.join(get_original_cwd(), cfg.dataset.data_path)
+        kwargs['walnut_id'] = cfg.dataset.walnut_id
+        kwargs['orbit_id'] = cfg.trafo.orbit_id
+        kwargs['angular_sub_sampling'] = cfg.trafo.angular_sub_sampling
+        kwargs['proj_row_sub_sampling'] = cfg.trafo.proj_row_sub_sampling
+        kwargs['proj_col_sub_sampling'] = cfg.trafo.proj_col_sub_sampling
+        kwargs['vol_down_sampling'] = cfg.trafo.vol_down_sampling
     else:
         raise ValueError
     return get_ray_trafo(cfg.dataset.name, kwargs=kwargs)
@@ -117,7 +127,22 @@ def get_standard_dataset(
                 noisy_observation[None].to(device=device))[0].to(device=device)
         dataset = TensorDataset(  # include batch dims
                 noisy_observation[None], ground_truth[None], filtbackproj[None])
+    elif cfg.dataset.name == 'walnut_3d':
+        
+        if fold == 'validation':
+            raise ValueError('Walnut dataset has no validation fold implemented.')
 
+        noisy_observation = get_walnut_3d_observation(
+            data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path), 
+            angular_sub_sampling=cfg.trafo.angular_sub_sampling,
+            proj_row_sub_sampling=cfg.trafo.proj_row_sub_sampling,
+            proj_col_sub_sampling=cfg.trafo.proj_col_sub_sampling).to(device=device)
+        ground_truth = get_walnut_3d_ground_truth(
+                data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path), 
+                vol_down_sampling=cfg.trafo.vol_down_sampling).to(device=device)
+        filtbackproj = ray_trafo.fbp(noisy_observation[None])[0].to(device=device)
+        dataset = TensorDataset(  # include batch dims
+                noisy_observation[None], ground_truth[None], filtbackproj[None])
     else:
         raise ValueError
 

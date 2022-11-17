@@ -9,7 +9,7 @@ from .datasets import (
         get_walnut_2d_observation, get_walnut_2d_ground_truth,
         get_walnut_3d_observation, get_walnut_3d_ground_truth)
 from .trafo import (
-        BaseRayTrafo, MatmulRayTrafo,
+        BaseRayTrafo, MatmulRayTrafo, LambdaRayTrafo,
         get_odl_ray_trafo_parallel_beam_2d, ParallelBeam2DRayTrafo,
         get_odl_ray_trafo_parallel_beam_2d_matrix,
         get_parallel_beam_2d_matmul_ray_trafo,
