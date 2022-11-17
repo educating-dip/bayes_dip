@@ -68,13 +68,8 @@ def coordinator(cfg : DictConfig) -> None:
             assert cfg.dip.net.use_sigmoid is False
         except AssertionError:
             raise(AssertionError('active sigmoid activation function'))
-        net_kwargs = {
-            'scales': cfg.dip.net.scales,
-            'channels': cfg.dip.net.channels,
-            'skip_channels': cfg.dip.net.skip_channels,
-            'use_norm': cfg.dip.net.use_norm,
-            'use_sigmoid': cfg.dip.net.use_sigmoid,
-            'sigmoid_saturation_thresh': cfg.dip.net.sigmoid_saturation_thresh}
+
+        net_kwargs = OmegaConf.to_object(cfg.dip.net)
         reconstructor = DeepImagePriorReconstructor(
             ray_trafo, torch_manual_seed=cfg.dip.torch_manual_seed,
             device=device, net_kwargs=net_kwargs,
