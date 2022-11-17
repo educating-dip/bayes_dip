@@ -1,0 +1,38 @@
+iterations: 5
+num_samples: 64
+noise_variance_init_value: 1
+sampling:
+  batch_size: 8
+  use_conj_grad_inv: True
+  cg_kwargs:
+    rtol: 1e-3
+    max_niter: 150
+    ignore_numerical_warning: False
+    use_log_re_variant: False
+use_preconditioner: True
+preconditioner:
+  name: low_rank_eig
+  # shared:
+  low_rank_rank_dim: 800
+  batch_size: 8
+  # used by low_rank_eig:
+  oversampling_param: 10
+  rand_approx_method: low_rank_observation_cov_basis # uses Algo. 5.6 from Halko et al.
+  # used by incomplete_chol:
+  approx_diag_num_samples: 200
+activate_debugging_mode: False
+debugging_mode_kwargs:
+  verbose: True
+  loglikelihood_kwargs:
+    num_samples: 64
+    noise_x_correction_term: False
+    verbose: False
+    return_patch_diags: False
+    unscaled: False
+    patch_kwargs:
+      batch_size: 8
+      patch_size: 1
+      patch_idx_list: null
+      reweight_off_diagonal_entries: True
+log_path: ./
+init_load_path: null
