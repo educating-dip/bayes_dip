@@ -43,7 +43,7 @@ class UNet3D(nn.Module):
         self.approx_conv3d_at_scales = approx_conv3d_at_scales
         self.down = nn.ModuleList()
         self.up = nn.ModuleList()
-        down_channel_overrides = down_channel_overrides + (None,) * (len(channels) - len(down_channel_overrides))
+        down_channel_overrides = down_channel_overrides + [None,] * (len(channels) - len(down_channel_overrides))
         down_channels = [c if c_override is None else c_override for c, c_override in zip(channels, down_channel_overrides)]
         self.inc = InBlock(in_ch, down_channels[0], use_norm=use_norm)
         for i in range(1, self.scales):

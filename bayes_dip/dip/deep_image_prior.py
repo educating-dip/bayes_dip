@@ -254,8 +254,13 @@ class DeepImagePriorReconstructor():
 
                 writer.add_scalar('loss', loss.item(),  i)
                 if i % 1000 == 0:
-                    writer.add_image('reco', normalize(
-                            min_loss_state['output'][0, ...]).cpu().numpy(), i)
+                    if min_loss_state['output'].dim() == 5:
+                        mid_slice = min_loss_state['output'].shape[1] // 2
+                        writer.add_image('reco', normalize(
+                            min_loss_state['output'][0, :, mid_slice, ...]).cpu().numpy(), i)
+                    else:
+                        writer.add_image('reco', normalize(
+                                min_loss_state['output'][0, ...]).cpu().numpy(), i)
 
         self.nn_model.load_state_dict(min_loss_state['params_state_dict'])
         writer.close()

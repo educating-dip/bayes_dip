@@ -60,7 +60,7 @@ def get_ray_trafo(name : str, kwargs : dict) -> BaseRayTrafo:
                 orbit_id=kwargs['orbit_id'],
                 angular_sub_sampling=kwargs['angular_sub_sampling'],
                 proj_col_sub_sampling=kwargs['proj_col_sub_sampling'])
-    elif name == 'walnut3d':
+    elif name == 'walnut_3d':
         ray_trafo = get_walnut_3d_ray_trafo(
                 data_path=kwargs['data_path'],
                 walnut_id=kwargs['walnut_id'],
