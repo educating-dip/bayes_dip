@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - override /dataset: walnut_3d
+  - override /trafo: walnut_trafo_3d
+  - override /dip: unet_3d
+
+load_pretrained_dip_params: null
+load_dip_params_from_path: null
