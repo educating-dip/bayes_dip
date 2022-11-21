@@ -3,7 +3,7 @@ Provides getters for default prior assignment and hyperparameter initialization 
 """
 
 from typing import Optional, Dict, Tuple, Callable, List
-from torch.nn import Conv2d
+from torch.nn import Conv2d, Conv3d
 from bayes_dip.dip.network.unet import UNet
 from bayes_dip.probabilistic_models.linearized_dip.parameter_priors import (
         get_GPprior_RadialBasisFuncCov, NormalPrior, IsotropicPrior)
@@ -161,7 +161,7 @@ def get_default_unet_gprior_dicts(
 
     prior_assignment_dict['gprior'] = (IsotropicPrior, [
         f'{name}' for name, module in nn_model.named_modules()
-        if isinstance(module, Conv2d)])
+        if (isinstance(module, Conv2d) or isinstance(module, Conv3d))])
 
     hyperparams_init_dict['gprior'] = gprior_hyperparams_init.copy()
     return prior_assignment_dict, hyperparams_init_dict

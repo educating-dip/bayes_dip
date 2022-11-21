@@ -189,7 +189,7 @@ class LowRankObservationCov(BaseObservationCov):
                             ]
                         )
                 # apply observation cov without noise variance term
-                v = self.trafo.trafo_adjoint(rnd_vect)
+                v = self.trafo.trafo_adjoint(rnd_vect.reshape(*rnd_vect.shape[:-2], *self.trafo.obs_shape))
                 v = self.image_cov(v)
                 v = self.trafo(v)
                 if eff_batch_size < batch_size:

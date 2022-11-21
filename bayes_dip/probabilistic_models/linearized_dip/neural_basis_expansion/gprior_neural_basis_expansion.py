@@ -85,7 +85,13 @@ def compute_scale(
 
             v = torch.empty((batch_size, 1, *trafo.obs_shape), device=device)
             rows = torch.zeros((neural_basis_expansion.num_params), device=device)
-            for i in tqdm(np.array(range(0, obs_numel, batch_size)),
+            # TODO: Add variables to config
+            use_stochastic_assembly, assembly_subsample_fact = True, 100
+            loop_iterable = np.array(range(0, obs_numel, batch_size))
+            if use_stochastic_assembly:
+                loop_iterable = np.random.choice(
+                    loop_iterable, size=obs_numel // assembly_subsample_fact, replace=False)
+            for i in tqdm(loop_iterable,
                         desc='compute_scale', miniters=obs_numel//batch_size//100
                     ):
                 v[:] = 0.
