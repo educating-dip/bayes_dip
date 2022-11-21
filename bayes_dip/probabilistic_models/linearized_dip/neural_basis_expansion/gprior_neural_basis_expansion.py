@@ -89,8 +89,9 @@ def compute_scale(
             use_stochastic_assembly, assembly_subsample_fact = True, 100
             loop_iterable = np.array(range(0, obs_numel, batch_size))
             if use_stochastic_assembly:
-                loop_iterable = np.random.choice(
-                    loop_iterable, size=obs_numel // assembly_subsample_fact, replace=False)
+                # permute [0, 1 * batch_sze, ..., obs_numel // batch_size]
+                randinds = torch.randperm(obs_numel // batch_size) * batch_size
+                loop_iterable = randinds[:randinds.shape[0] // assembly_subsample_fact].numpy()
             for i in tqdm(loop_iterable,
                         desc='compute_scale', miniters=obs_numel//batch_size//100
                     ):
@@ -108,6 +109,7 @@ def compute_scale(
 
         if reduction == 'mean':
             rows /= obs_numel
+            if use_stochastic_assembly: rows *= assembly_subsample_fact
         elif reduction == 'sum':
             pass
         else:

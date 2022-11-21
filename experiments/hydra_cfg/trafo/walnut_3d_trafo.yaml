@@ -1,6 +1,7 @@
 defaults:
   - base_trafo
 
+# TODO: Switch back to high-res version after debugging
 orbit_id: 2
 angular_sub_sampling: 100 # 20  # 1200 / angular_sub_sampling -> 60
 proj_row_sub_sampling:  100 # 3  # 972 -> 324

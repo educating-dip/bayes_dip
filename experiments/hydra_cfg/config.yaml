@@ -2,7 +2,7 @@ defaults:
   - dataset: ???
   - trafo: ???
   - dip: ???
-  - mll_optim: mll_optim
+  - mll_optim: ???
   - inference: ???
   - priors: priors
   - _self_

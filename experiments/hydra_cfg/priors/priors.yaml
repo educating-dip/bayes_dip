@@ -1,6 +1,6 @@
 use_gprior: False
 gprior:
-  init_prior_variance_value: 1e-2
+  init_prior_variance_value: 1e-4
   scale:
     reduction: mean
     batch_size: 10

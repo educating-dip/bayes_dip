@@ -16,6 +16,7 @@ from .sample_based_mll_optim_utils import (PCG_based_weights_linearization,
     debugging_loglikelihood_estimation, debugging_histogram_tensorboard, 
     debugging_uqviz_tensorboard
     )
+from bayes_dip.utils import get_mid_slice_for_3d
 from bayes_dip.utils import PSNR, SSIM, normalize
 from bayes_dip.inference import SampleBasedPredictivePosterior
 
@@ -42,7 +43,8 @@ def sample_based_marginal_likelihood_optim(
             'marginal_likelihood_sample_based_hyperparams_optim')))
         )
 
-    writer.add_image('nn_recon.', normalize(nn_recon[0]), 0)
+    writer.add_image('nn_recon.', normalize(
+        get_mid_slice_for_3d(nn_recon)[0]), 0)
     observation_cov = predictive_posterior.observation_cov
     with torch.no_grad():
 
@@ -90,7 +92,7 @@ def sample_based_marginal_likelihood_optim(
 
                 writer.add_scalar('variance_coeff', variance_coeff.item(), i)
                 writer.add_scalar('noise_variance', observation_cov.log_noise_variance.data.exp().item(), i)
-                writer.add_image('linearized_model_recon', normalize(linearized_recon[0]), i)
+                writer.add_image('linearized_model_recon', normalize(get_mid_slice_for_3d(linearized_recon)[0]), i)
                 writer.add_scalar('effective_dimension', eff_dim.item(), i)
                 writer.add_scalar('se_loss', se_loss.item(), i)
 

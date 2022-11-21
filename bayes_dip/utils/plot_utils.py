@@ -244,3 +244,14 @@ def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, y
         ax.legend(**(legend_kwargs or {}))
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+
+
+def get_mid_slice_for_3d(image):
+    """
+    If image is 3D, return the middle slice.
+    """
+    if image.dim() == 5:
+        mid_slice = image.shape[1] // 2   
+        return image[:, :, mid_slice, ...]
+    else:
+        return image

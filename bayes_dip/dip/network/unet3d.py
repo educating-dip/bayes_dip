@@ -88,31 +88,31 @@ class DownBlock(nn.Module):
                     nn.Conv3d(in_ch, out_ch, kernel_size,
                             stride=2, padding=to_pad),
                     get_norm_layer(out_ch, kind=norm_kind, num_groups=num_groups),
-                    nn.LeakyReLU(0.2, inplace=True))
+                    nn.LeakyReLU(0.2))
             else:
                 self.conv = nn.Sequential(
                     nn.Conv3d(in_ch, out_ch, kernel_size,
                             stride=2, padding=to_pad),
-                    nn.LeakyReLU(0.2, inplace=True))
+                    nn.LeakyReLU(0.2))
         else:
             if use_norm:
                 self.conv = nn.Sequential(
                     nn.Conv3d(in_ch, out_ch, kernel_size,
                             stride=2, padding=to_pad),
                     get_norm_layer(out_ch, kind=norm_kind, num_groups=num_groups),
-                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.LeakyReLU(0.2),
                     nn.Conv3d(out_ch, out_ch, kernel_size,
                             stride=1, padding=to_pad),
                     get_norm_layer(out_ch, kind=norm_kind, num_groups=num_groups),
-                    nn.LeakyReLU(0.2, inplace=True))
+                    nn.LeakyReLU(0.2))
             else:
                 self.conv = nn.Sequential(
                     nn.Conv3d(in_ch, out_ch, kernel_size,
                             stride=2, padding=to_pad),
-                    nn.LeakyReLU(0.2, inplace=True),
+                    nn.LeakyReLU(0.2),
                     nn.Conv3d(out_ch, out_ch, kernel_size,
                             stride=1, padding=to_pad),
-                    nn.LeakyReLU(0.2, inplace=True))
+                    nn.LeakyReLU(0.2))
 
     def forward(self, x):
         x = self.conv(x)
@@ -129,12 +129,12 @@ class InBlock(nn.Module):
                 nn.Conv3d(in_ch, out_ch, kernel_size,
                           stride=1, padding=to_pad),
                 get_norm_layer(out_ch, kind=norm_kind, num_groups=num_groups),
-                nn.LeakyReLU(0.2, inplace=True))
+                nn.LeakyReLU(0.2))
         else:
             self.conv = nn.Sequential(
                 nn.Conv3d(in_ch, out_ch, kernel_size,
                           stride=1, padding=to_pad),
-                nn.LeakyReLU(0.2, inplace=True))
+                nn.LeakyReLU(0.2))
 
     def forward(self, x):
         x = self.conv(x)
@@ -156,29 +156,29 @@ class UpBlock(nn.Module):
                 nn.Conv3d(in_ch + skip_ch, out_ch, kernel_size,
                     stride=1, padding=to_pad),
                 get_norm_layer(out_ch, kind=norm_kind, num_groups=num_groups),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2),
                 nn.Conv3d(out_ch, out_ch, kernel_size,
                     stride=1, padding=to_pad),
                 get_norm_layer(out_ch, kind=norm_kind, num_groups=num_groups),
-                nn.LeakyReLU(0.2, inplace=True))
+                nn.LeakyReLU(0.2))
         else:
             self.conv = nn.Sequential(
                 nn.Conv3d(in_ch + skip_ch, out_ch, kernel_size,
                     stride=1, padding=to_pad),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2),
                 nn.Conv3d(out_ch, out_ch, kernel_size,
                     stride=1, padding=to_pad),
-                nn.LeakyReLU(0.2, inplace=True))
+                nn.LeakyReLU(0.2))
 
         if use_norm:
             self.skip_conv = nn.Sequential(
                 nn.Conv3d(skip_in_ch, skip_ch, kernel_size=1, stride=1),
                 get_norm_layer(skip_ch, kind=norm_kind, num_groups=1),  # LayerNorm if kind='group'
-                nn.LeakyReLU(0.2, inplace=True))
+                nn.LeakyReLU(0.2))
         else:
             self.skip_conv = nn.Sequential(
                 nn.Conv3d(skip_in_ch, skip_ch, kernel_size=1, stride=1),
-                nn.LeakyReLU(0.2, inplace=True))
+                nn.LeakyReLU(0.2))
 
         self.up = nn.Upsample(scale_factor=2, mode='trilinear',
                               align_corners=True)
@@ -234,7 +234,7 @@ class ResBlock(nn.Module):
                 nn.Conv3d(ch, ch, kernel_size,
                         stride=1, padding=to_pad),
                 get_norm_layer(ch, kind=norm_kind, num_groups=num_groups),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2),
                 nn.Conv3d(ch, ch, kernel_size,
                         stride=1, padding=to_pad),
                 get_norm_layer(ch, kind=norm_kind, num_groups=num_groups))
@@ -242,14 +242,14 @@ class ResBlock(nn.Module):
             self.conv = nn.Sequential(
                 nn.Conv3d(ch, ch, kernel_size,
                         stride=1, padding=to_pad),
-                nn.LeakyReLU(0.2, inplace=True),
+                nn.LeakyReLU(0.2),
                 nn.Conv3d(ch, ch, kernel_size,
                         stride=1, padding=to_pad))
 
     def forward(self, x):
         out = self.conv(x)
         out += x  # identity
-        out = torch.nn.functional.leaky_relu(out, 0.2, inplace=True)
+        out = torch.nn.functional.leaky_relu(out, 0.2)
         return out
 
 
@@ -268,12 +268,12 @@ class OutBlock(nn.Module):
                     nn.Conv3d(c_in, c_out, pre_out_kernel_size,
                             stride=1, padding=pre_out_to_pad),
                     get_norm_layer(c_out, kind=norm_kind, num_groups=num_groups),
-                    nn.LeakyReLU(0.2, inplace=True)))
+                    nn.LeakyReLU(0.2)))
             else:
                 self.pre_out.append(nn.Sequential(
                     nn.Conv3d(c_in, c_out, pre_out_kernel_size,
                             stride=1, padding=pre_out_to_pad),
-                    nn.LeakyReLU(0.2, inplace=True)))
+                    nn.LeakyReLU(0.2)))
         if -1 in insert_res_blocks_before or len(pre_out_channels) in insert_res_blocks_before:
             self.pre_out.append(ResBlock(_pre_out_channels[-1], kernel_size=3, use_norm=use_norm))
         out_to_pad = int((out_kernel_size - 1) / 2)
