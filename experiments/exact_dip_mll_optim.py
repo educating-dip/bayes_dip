@@ -77,7 +77,8 @@ def coordinator(cfg : DictConfig) -> None:
                     'lr': cfg.dip.optim.lr,
                     'iterations': cfg.dip.optim.iterations,
                     'loss_function': cfg.dip.optim.loss_function,
-                    'gamma': cfg.dip.optim.gamma}
+                    'gamma': cfg.dip.optim.gamma,
+                    'use_mixed': cfg.dip.optim.use_mixed}
             recon = reconstructor.reconstruct(
                     observation,
                     filtbackproj=filtbackproj,

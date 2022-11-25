@@ -5,6 +5,7 @@ import os
 import socket
 from typing import Optional, Union
 import datetime
+import contextlib
 from warnings import warn
 from copy import deepcopy
 import torch
@@ -12,6 +13,7 @@ import numpy as np
 import tensorboardX
 from torch import Tensor
 from torch.nn import MSELoss
+from torch.cuda.amp import autocast, GradScaler
 from tqdm import tqdm
 from bayes_dip.utils import get_original_cwd
 from bayes_dip.utils import tv_loss, PSNR, normalize
@@ -179,6 +181,7 @@ class DeepImagePriorReconstructor():
         optim_kwargs.setdefault('lr', 1e-4)
         optim_kwargs.setdefault('iterations', 10000)
         optim_kwargs.setdefault('loss_function', 'mse')
+        optim_kwargs.setdefault('use_mixed', False)
 
         self.nn_model.train()
 
@@ -195,6 +198,9 @@ class DeepImagePriorReconstructor():
             warn('Unknown loss function, falling back to MSE')
             criterion = MSELoss()
 
+        if optim_kwargs['use_mixed']:
+            scaler = GradScaler()
+
         min_loss_state = {
             'loss': np.inf,
             'output': self.nn_model(self.net_input).detach(),  # pylint: disable=not-callable
@@ -206,11 +212,19 @@ class DeepImagePriorReconstructor():
 
             for i in pbar:
                 self.optimizer.zero_grad()
-                output = self.nn_model(self.net_input)  # pylint: disable=not-callable
-                loss = criterion(self.ray_trafo(output), noisy_observation)
-                if use_tv_loss:
-                    loss = loss + optim_kwargs['gamma'] * tv_loss(output)
-                loss.backward()
+
+                with autocast() if optim_kwargs['use_mixed'] else contextlib.nullcontext():
+                    output = self.nn_model(self.net_input)  # pylint: disable=not-callable
+                    loss = criterion(self.ray_trafo(output), noisy_observation)
+                    if use_tv_loss:
+                        loss = loss + optim_kwargs['gamma'] * tv_loss(output)
+
+                if optim_kwargs['use_mixed']:
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(self.optimizer)
+                else:
+                    loss.backward()
+
                 torch.nn.utils.clip_grad_norm_(self.nn_model.parameters(), max_norm=1)
 
                 if loss.item() < min_loss_state['loss']:
@@ -218,7 +232,11 @@ class DeepImagePriorReconstructor():
                     min_loss_state['output'] = output.detach()
                     min_loss_state['params_state_dict'] = deepcopy(self.nn_model.state_dict())
 
-                self.optimizer.step()
+                if optim_kwargs['use_mixed']:
+                    scaler.step(self.optimizer)
+                    scaler.update()
+                else:
+                    self.optimizer.step()
 
                 for p in self.nn_model.parameters():
                     p.data.clamp_(-1000, 1000) # MIN,MAX

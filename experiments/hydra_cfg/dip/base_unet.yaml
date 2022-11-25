@@ -10,6 +10,7 @@ optim:
   iterations: ???
   loss_function: ???
   gamma: ???
+  use_mixed: False
 show_pbar: True
 torch_manual_seed: 10
 log_path: ./
