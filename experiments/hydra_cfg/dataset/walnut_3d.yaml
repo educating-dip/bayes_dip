@@ -4,4 +4,4 @@ defaults:
 name: walnut_3d
 walnut_id: 1
 im_shape: 167
-data_path: null  # insert "/path/to/Walnuts/", which should contain a sub-folder "Walnut1/" extracted from Walnut1.zip, download from: https://zenodo.org/record/2686726/files/Walnut1.zip?download=1
+data_path: 'walnuts'  # insert "/path/to/Walnuts/", which should contain a sub-folder "Walnut1/" extracted from Walnut1.zip, download from: https://zenodo.org/record/2686726/files/Walnut1.zip?download=1
