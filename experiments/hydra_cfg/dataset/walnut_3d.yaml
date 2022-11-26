@@ -2,6 +2,16 @@ defaults:
   - base_dataset
 
 name: walnut_3d
-walnut_id: 1
-im_shape: 167
+im_size: 167
 data_path: 'walnuts'  # insert "/path/to/Walnuts/", which should contain a sub-folder "Walnut1/" extracted from Walnut1.zip, download from: https://zenodo.org/record/2686726/files/Walnut1.zip?download=1
+walnut_id: 1
+
+scaling_factor: 14.  # scale values to approximately [0., 1.]
+pretraining:
+  torch_manual_seed_init_model: 20
+  train_len: 32000
+  validation_len: 3200
+  test_len: 3200
+  in_ball_axis: 0.7
+  seed: 1
+  noise_stddev: 0.05
