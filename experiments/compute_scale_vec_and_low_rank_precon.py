@@ -7,11 +7,11 @@ from torch.utils.data import DataLoader
 
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
-        ParameterCov, ImageCov, ObservationCov, 
+        ParameterCov, ImageCov, ObservationCov,
         get_neural_basis_expansion, get_default_unet_gprior_dicts)
 from bayes_dip.marginal_likelihood_optim import (
         get_preconditioner)
-from bayes_dip.utils.experiment_utils import ( 
+from bayes_dip.utils.experiment_utils import (
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM
 
@@ -115,11 +115,11 @@ def coordinator(cfg : DictConfig) -> None:
             nn_out_shape=filtbackproj.shape,
             use_gprior=True,
             trafo=ray_trafo,
-            load_scale_from_path=cfg.cfg.priors.gprior.load_scale_from_path,
+            load_scale_from_path=cfg.priors.gprior.load_scale_from_path,
             scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
         )
         # save precomputed scale vector
-        neural_basis_expansion.save_scale(filepath='gprior_scale_vector')
+        neural_basis_expansion.save_scale(filepath=f'gprior_scale_vector_{i}')
 
         image_cov = ImageCov(
             parameter_cov=parameter_cov,
@@ -141,8 +141,8 @@ def coordinator(cfg : DictConfig) -> None:
             observation_cov=observation_cov,
             kwargs=OmegaConf.to_object(cfg.mll_optim.preconditioner)
             )
-        
-        cg_preconditioner.low_rank_observation_cov.save()
+
+        cg_preconditioner.low_rank_observation_cov.save_approx_basis(f'gprior_preconditioner_{i}.pt')
 
 if __name__ == '__main__':
     coordinator()

@@ -3,7 +3,7 @@ defaults:
 
 # TODO: Switch back to high-res version after debugging
 orbit_id: 2
-angular_sub_sampling: 100 # 20  # 1200 / angular_sub_sampling -> 60
-proj_row_sub_sampling:  100 # 3  # 972 -> 324
-proj_col_sub_sampling:  100 # 3  # 768 -> 256
+angular_sub_sampling: 60  # 1200 / angular_sub_sampling -> 20
+proj_row_sub_sampling: 3  # 972 -> 324
+proj_col_sub_sampling: 3  # 768 -> 256
 vol_down_sampling: 3  # 501 -> 167

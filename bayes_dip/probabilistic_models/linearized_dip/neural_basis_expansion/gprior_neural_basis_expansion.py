@@ -58,7 +58,7 @@ def compute_scale(
         If ``True``, a single matmul is used iff ``isinstance(trafo, MatmulRayTrafo)``.
         If ``False``, batched closure evaluations are used.
     obs_subsample_fct : int, optional
-        Subsample factor of the measured data. If not ``None``, the scaling vector is assembled 
+        Subsample factor of the measured data. If not ``None``, the scaling vector is assembled
         using an uniformly undersampled subset of the measured data. Default: ``None``.
     device : str or torch.device, optional
         Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
@@ -203,9 +203,9 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.neural_basis_expansion = neural_basis_expansion
         self.trafo = trafo
-        if load_scale_from_path is None: 
-            self.update_scale(**scale_kwargs) 
-        else: 
+        if load_scale_from_path is None:
+            self.update_scale(**scale_kwargs)
+        else:
             self.load_scale(filepath=load_scale_from_path)
 
     @property
@@ -238,11 +238,9 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
             Path to the scale vector, either absolute or relative to the original
             current working directory.
         """
-    
-        filepath = os.path.join(
-            get_original_cwd(),
-                filepath if filepath.endswith('.pt') \
-                    else filepath + '.pt')
+
+        if not filepath.endswith('.pt'):
+            filepath = filepath + '.pt'
         torch.save(self._scale.cpu(), filepath)
 
     def update_scale(self, **scale_kwargs) -> None:

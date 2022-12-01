@@ -181,7 +181,8 @@ def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) ->
     data_sample : 3-tuple of Tensor
         Sample data ``(observation, ground_truth, filtbackproj)``. Only ``filtbackproj`` is used.
     path : str
-        Hydra output directory of a previous run.
+        Hydra output directory of a previous run, either absolute or relative to the original
+        current working directory.
     i : int
         Sample index.
     raise_if_file_not_found : bool, optional
@@ -189,7 +190,8 @@ def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) ->
     """
     _, _, filtbackproj = data_sample
     try:
-        sample_dict = torch.load(os.path.join(path, f'sample_{i}.pt'), map_location='cpu')
+        sample_dict = torch.load(
+                os.path.join(get_original_cwd(), path, f'sample_{i}.pt'), map_location='cpu')
         assert torch.allclose(
                 sample_dict['filtbackproj'].float(), filtbackproj.cpu().float(), atol=1e-6)
     except FileNotFoundError as e:
