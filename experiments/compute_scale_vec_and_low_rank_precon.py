@@ -1,19 +1,16 @@
 import os
 import torch
 import hydra
-from warnings import warn
 from itertools import islice
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
-        ParameterCov, ImageCov, ObservationCov, LowRankObservationCov, 
+        ParameterCov, ImageCov, ObservationCov, 
         get_neural_basis_expansion, get_default_unet_gprior_dicts)
 from bayes_dip.marginal_likelihood_optim import (
-        get_preconditioner, get_ordered_nn_params_vec, 
-        sample_based_marginal_likelihood_optim)
-from bayes_dip.inference import SampleBasedPredictivePosterior
+        get_preconditioner)
 from bayes_dip.utils.experiment_utils import ( 
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM
@@ -103,7 +100,6 @@ def coordinator(cfg : DictConfig) -> None:
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        assert cfg.priors.use_gprior # sample_based_marginal_likelihood_optim needs a gprior
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gprior_dicts(
             nn_model=reconstructor.nn_model)
         parameter_cov = ParameterCov(
@@ -122,6 +118,9 @@ def coordinator(cfg : DictConfig) -> None:
             load_scale_from_path=cfg.cfg.priors.gprior.load_scale_from_path,
             scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
         )
+        # save precomputed scale vector
+        neural_basis_expansion.save_scale(filepath='gprior_scale_vector')
+
         image_cov = ImageCov(
             parameter_cov=parameter_cov,
             neural_basis_expansion=neural_basis_expansion
@@ -138,45 +137,12 @@ def coordinator(cfg : DictConfig) -> None:
                 cfg.mll_optim.noise_variance_init_value
             ).log() # init noise variance
 
-        optim_kwargs = {
-            'iterations': cfg.mll_optim.iterations,
-            'activate_debugging_mode': cfg.mll_optim.activate_debugging_mode,
-            'num_samples': cfg.mll_optim.num_samples, 
-            'activate_debugging_mode': cfg.mll_optim.activate_debugging_mode
-        }
-        optim_kwargs['sample_kwargs'] = OmegaConf.to_object(cfg.mll_optim.sampling)
-
-        cg_preconditioner = None
-        if cfg.mll_optim.use_preconditioner:
-            cg_preconditioner = get_preconditioner(
-                observation_cov=observation_cov,
-                kwargs=OmegaConf.to_object(cfg.mll_optim.preconditioner))
-            optim_kwargs['sample_kwargs']['cg_kwargs']['precon_closure'] = cg_preconditioner.get_closure()
-        optim_kwargs['cg_preconditioner'] = cg_preconditioner
-
-        if cfg.mll_optim.activate_debugging_mode: optim_kwargs['debugging_mode_kwargs'] = OmegaConf.to_object(
-                cfg.mll_optim.debugging_mode_kwargs
+        cg_preconditioner = get_preconditioner(
+            observation_cov=observation_cov,
+            kwargs=OmegaConf.to_object(cfg.mll_optim.preconditioner)
             )
-
-        predictive_posterior = SampleBasedPredictivePosterior(observation_cov)
-
-        linearized_weights, linearized_recon = sample_based_marginal_likelihood_optim(
-            predictive_posterior=predictive_posterior,
-            map_weights=torch.clone(
-                get_ordered_nn_params_vec(parameter_cov)
-            ),
-            observation=observation,
-            nn_recon=recon,
-            ground_truth=ground_truth,
-            optim_kwargs=optim_kwargs,
-            log_path=os.path.join(
-                    cfg.mll_optim.log_path, f'mrglik_optim_{i}'
-                ),
-        )
-
-        torch.save(observation_cov.state_dict(), f'observation_cov_{i}.pt')
-        torch.save(linearized_weights, f'linearized_weights_{i}.pt')
-        torch.save(linearized_recon, f'linearized_recon_{i}.pt')
+        
+        cg_preconditioner.low_rank_observation_cov.save()
 
 if __name__ == '__main__':
     coordinator()

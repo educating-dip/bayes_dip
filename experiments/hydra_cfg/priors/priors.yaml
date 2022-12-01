@@ -1,9 +1,11 @@
 use_gprior: False
 gprior:
   init_prior_variance_value: 1e-4
+  load_scale_from_path: null
   scale:
     reduction: mean
     batch_size: 10
     eps: 1e-6
     max_scale_thresh: 1e5
+    obs_subsample_fct: null
     verbose: True
