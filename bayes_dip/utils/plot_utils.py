@@ -246,7 +246,7 @@ def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, y
     ax.spines['right'].set_visible(False)
 
 
-def get_mid_slice_for_3d(image):
+def get_mid_slice_if_3d(image):
     """
     If image is 3D, return the middle slice.
     """

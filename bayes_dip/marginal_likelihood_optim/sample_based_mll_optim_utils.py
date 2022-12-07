@@ -10,6 +10,7 @@ from torchvision.transforms import ToTensor
 from bayes_dip.utils import cg
 from bayes_dip.probabilistic_models import ObservationCov
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
+from bayes_dip.utils import get_mid_slice_if_3d
 from bayes_dip.utils.experiment_utils import get_predefined_patch_idx_list
 from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
 
@@ -78,10 +79,11 @@ def debugging_loglikelihood_estimation(
             num_samples=loglikelihood_kwargs['num_samples'],
             **sample_kwargs
         )
-
+    
+    image_samples = get_mid_slice_if_3d(image_samples)
     all_patch_mask_inds = get_image_patch_mask_inds(
-        predictive_posterior.observation_cov.trafo.im_shape,
-            patch_size=loglikelihood_kwargs['patch_kwargs']['patch_size'])
+        image_samples.shape[2:], 
+        patch_size=loglikelihood_kwargs['patch_kwargs']['patch_size'])
     patch_idx_list = loglikelihood_kwargs['patch_kwargs']['patch_idx_list']
     if patch_idx_list is None:
         patch_idx_list = list(range(len(all_patch_mask_inds)))

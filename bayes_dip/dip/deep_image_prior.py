@@ -13,7 +13,7 @@ import tensorboardX
 from torch import Tensor
 from torch.nn import MSELoss
 from tqdm import tqdm
-from bayes_dip.utils import get_mid_slice_for_3d
+from bayes_dip.utils import get_mid_slice_if_3d
 from bayes_dip.utils import get_original_cwd
 from bayes_dip.utils import tv_loss, PSNR, normalize
 from bayes_dip.data import BaseRayTrafo, LambdaRayTrafo
@@ -256,7 +256,7 @@ class DeepImagePriorReconstructor():
                 writer.add_scalar('loss', loss.item(),  i)
                 if i % 1000 == 0:
                     writer.add_image('reco', normalize(
-                        get_mid_slice_for_3d(
+                        get_mid_slice_if_3d(
                             min_loss_state['output'])[0, ...]).cpu().numpy(), i)
 
         self.nn_model.load_state_dict(min_loss_state['params_state_dict'])
