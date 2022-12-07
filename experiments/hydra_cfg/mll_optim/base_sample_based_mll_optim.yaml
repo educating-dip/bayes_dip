@@ -20,6 +20,8 @@ preconditioner:
   rand_approx_method: low_rank_observation_cov_basis # uses Algo. 5.6 from Halko et al.
   # used by incomplete_chol:
   approx_diag_num_samples: 200
+  load_state_dict: null
+  load_approx_basis: null
 activate_debugging_mode: False
 debugging_mode_kwargs:
   verbose: True

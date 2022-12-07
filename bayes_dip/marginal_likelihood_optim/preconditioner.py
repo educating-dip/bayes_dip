@@ -317,6 +317,8 @@ def get_preconditioner(observation_cov: BaseObservationCov, kwargs: Dict) -> Bas
                 image_cov=observation_cov.image_cov,
                 low_rank_rank_dim=kwargs['low_rank_rank_dim'],
                 oversampling_param=kwargs['oversampling_param'],
+                load_state_dict=kwargs['load_state_dict'],
+                load_approx_basis=kwargs['load_approx_basis'],
                 requires_grad=False,
                 device=observation_cov.device,
                 **update_kwargs,

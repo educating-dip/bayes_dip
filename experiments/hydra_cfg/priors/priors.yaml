@@ -1,7 +1,6 @@
 use_gprior: False
 gprior:
   init_prior_variance_value: 1e-4
-  load_scale_from_path: null
   scale:
     reduction: mean
     batch_size: 10

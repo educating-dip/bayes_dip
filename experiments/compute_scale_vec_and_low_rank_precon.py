@@ -115,7 +115,6 @@ def coordinator(cfg : DictConfig) -> None:
             nn_out_shape=filtbackproj.shape,
             use_gprior=True,
             trafo=ray_trafo,
-            load_scale_from_path=cfg.priors.gprior.load_scale_from_path,
             scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
         )
         # save precomputed scale vector
@@ -137,12 +136,16 @@ def coordinator(cfg : DictConfig) -> None:
                 cfg.mll_optim.noise_variance_init_value
             ).log() # init noise variance
 
+        torch.save(
+                observation_cov.state_dict(),
+                f'observation_cov_{i}.pt')
+
         cg_preconditioner = get_preconditioner(
             observation_cov=observation_cov,
             kwargs=OmegaConf.to_object(cfg.mll_optim.preconditioner)
             )
 
-        cg_preconditioner.low_rank_observation_cov.save_approx_basis(f'gprior_preconditioner_{i}.pt')
+        cg_preconditioner.low_rank_observation_cov.save_approx_basis(f'preconditioner_{i}.pt')
 
 if __name__ == '__main__':
     coordinator()

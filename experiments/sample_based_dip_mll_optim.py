@@ -112,6 +112,11 @@ def coordinator(cfg : DictConfig) -> None:
             hyperparams_init_dict,
             device=device
         )
+        
+        if cfg.load_gprior_scale_from_path is not None:
+            load_scale_from_path = os.path.join(
+                cfg.load_gprior_scale_from_path, f'gprior_scale_vector_{i}.pt')
+
         neural_basis_expansion = get_neural_basis_expansion(
             nn_model=reconstructor.nn_model,
             nn_input=filtbackproj,
@@ -119,7 +124,7 @@ def coordinator(cfg : DictConfig) -> None:
             nn_out_shape=filtbackproj.shape,
             use_gprior=True,
             trafo=ray_trafo,
-            load_scale_from_path=cfg.cfg.priors.gprior.load_scale_from_path,
+            load_scale_from_path=load_scale_from_path,
             scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
         )
         image_cov = ImageCov(
@@ -146,11 +151,19 @@ def coordinator(cfg : DictConfig) -> None:
         }
         optim_kwargs['sample_kwargs'] = OmegaConf.to_object(cfg.mll_optim.sampling)
 
+        precon_kwargs = OmegaConf.to_object(cfg.mll_optim.preconditioner)
+        
+        if cfg.load_sample_based_precon_state_from_path is not None:
+            precon_kwargs['load_approx_basis'] = os.path.join(
+                cfg.load_sample_based_precon_state_from_path, f'preconditioner_{i}.pt')
+            precon_kwargs['load_state_dict'] = os.path.join(
+                cfg.load_sample_based_precon_state_from_path, f'observation_cov_{i}.pt')
+
         cg_preconditioner = None
         if cfg.mll_optim.use_preconditioner:
             cg_preconditioner = get_preconditioner(
                 observation_cov=observation_cov,
-                kwargs=OmegaConf.to_object(cfg.mll_optim.preconditioner))
+                kwargs=precon_kwargs)
             optim_kwargs['sample_kwargs']['cg_kwargs']['precon_closure'] = cg_preconditioner.get_closure()
         optim_kwargs['cg_preconditioner'] = cg_preconditioner
 
