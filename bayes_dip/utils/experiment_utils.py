@@ -13,7 +13,7 @@ from bayes_dip.data import get_ray_trafo, SimulatedDataset, BaseRayTrafo
 from bayes_dip.data import (
         get_mnist_testset, get_kmnist_testset, get_mnist_trainset, get_kmnist_trainset,
         RectanglesDataset,
-        get_walnut_2d_observation, get_walnut_2d_ground_truth, 
+        get_walnut_2d_observation, get_walnut_2d_ground_truth,
         get_walnut_3d_observation, get_walnut_3d_ground_truth)
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
@@ -128,18 +128,20 @@ def get_standard_dataset(
         dataset = TensorDataset(  # include batch dims
                 noisy_observation[None], ground_truth[None], filtbackproj[None])
     elif cfg.dataset.name == 'walnut_3d':
-        
+
         if fold == 'validation':
             raise ValueError('Walnut dataset has no validation fold implemented.')
 
         noisy_observation = get_walnut_3d_observation(
-            data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path), 
+            data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path),
             angular_sub_sampling=cfg.trafo.angular_sub_sampling,
             proj_row_sub_sampling=cfg.trafo.proj_row_sub_sampling,
-            proj_col_sub_sampling=cfg.trafo.proj_col_sub_sampling).to(device=device)
+            proj_col_sub_sampling=cfg.trafo.proj_col_sub_sampling,
+            scaling_factor=cfg.dataset.scaling_factor).to(device=device)
         ground_truth = get_walnut_3d_ground_truth(
-                data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path), 
-                vol_down_sampling=cfg.trafo.vol_down_sampling).to(device=device)
+                data_path=os.path.join(get_original_cwd(), cfg.dataset.data_path),
+                vol_down_sampling=cfg.trafo.vol_down_sampling,
+                scaling_factor=cfg.dataset.scaling_factor).to(device=device)
         filtbackproj = ray_trafo.fbp(noisy_observation[None])[0].to(device=device)
         dataset = TensorDataset(  # include batch dims
                 noisy_observation[None], ground_truth[None], filtbackproj[None])
@@ -179,7 +181,8 @@ def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) ->
     data_sample : 3-tuple of Tensor
         Sample data ``(observation, ground_truth, filtbackproj)``. Only ``filtbackproj`` is used.
     path : str
-        Hydra output directory of a previous run.
+        Hydra output directory of a previous run, either absolute or relative to the original
+        current working directory.
     i : int
         Sample index.
     raise_if_file_not_found : bool, optional
@@ -187,7 +190,8 @@ def assert_sample_matches(data_sample, path, i, raise_if_file_not_found=True) ->
     """
     _, _, filtbackproj = data_sample
     try:
-        sample_dict = torch.load(os.path.join(path, f'sample_{i}.pt'), map_location='cpu')
+        sample_dict = torch.load(
+                os.path.join(get_original_cwd(), path, f'sample_{i}.pt'), map_location='cpu')
         assert torch.allclose(
                 sample_dict['filtbackproj'].float(), filtbackproj.cpu().float(), atol=1e-6)
     except FileNotFoundError as e:

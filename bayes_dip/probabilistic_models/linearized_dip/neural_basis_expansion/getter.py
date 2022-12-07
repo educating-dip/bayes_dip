@@ -17,6 +17,7 @@ def get_neural_basis_expansion(
         nn_out_shape: Optional[Tuple[int, int, int, int]] = None,
         use_gprior: bool = False,
         trafo: Optional[BaseRayTrafo] = None,
+        load_scale_from_path: Optional[str] = None,
         scale_kwargs: Optional[dict] = None,
         ) -> BaseNeuralBasisExpansion:
     """
@@ -38,6 +39,8 @@ def get_neural_basis_expansion(
         The default is ``False``.
     trafo : :class:`.BaseRayTrafo`, optional
         Ray transform; required iff ``use_gprior``.
+    load_scale_from_path : str, optional
+        Path to the scaling vector.
     scale_kwargs : dict, optional
         ``scale_kwargs`` passed to :meth:`.GpriorNeuralBasisExpansion.__init__`; required iff
         ``use_gprior``.
@@ -59,6 +62,7 @@ def get_neural_basis_expansion(
                 neural_basis_expansion=neural_basis_expansion,
                 trafo=trafo,
                 scale_kwargs=scale_kwargs,
+                load_scale_from_path=load_scale_from_path,
                 device=nn_input.device,
         )
     return neural_basis_expansion

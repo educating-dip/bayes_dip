@@ -29,6 +29,29 @@ def tv_loss(x: Tensor) -> Tensor:
     # torch.sum(dh[..., :-1, :] + dw[..., :, :-1]) instead
     return torch.sum(dh) + torch.sum(dw)
 
+def tv_loss_3d_mean(x):
+    """
+    Anisotropic TV loss for 3D images, i.e. the sum of absolute differences between pixels in
+    horizontal, vertical and depth direction.
+
+    In contrast to the 2D TV loss :func:`tv_loss`, mean is used instead of sum, because mean is more
+    natural to combine with an MSE loss (:func:`tv_loss` is kept as is for backward compatibility).
+
+    Parameters
+    ----------
+    x : Tensor
+        Image(s). Shape: ``(*, H, W)``.
+
+    Returns
+    -------
+    loss : Tensor
+        Anisotropic TV loss value, averaged over any leading batch dimension(s).
+    """
+    dx = torch.abs(x[..., :, :, 1:] - x[..., :, :, :-1])
+    dy = torch.abs(x[..., :, 1:, :] - x[..., :, :-1, :])
+    dz = torch.abs(x[..., 1:, :, :] - x[..., :-1, :, :])
+    return torch.mean(dx) + torch.mean(dy) + torch.mean(dz)
+
 def batch_tv_grad(x: Tensor) -> Tensor:
     """
     Gradient of :func:`tv_loss` for 4D tensors.
