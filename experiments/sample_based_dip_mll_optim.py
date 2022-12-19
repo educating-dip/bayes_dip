@@ -116,6 +116,8 @@ def coordinator(cfg : DictConfig) -> None:
         if cfg.load_gprior_scale_from_path is not None:
             load_scale_from_path = os.path.join(
                 cfg.load_gprior_scale_from_path, f'gprior_scale_vector_{i}.pt')
+        else:
+            load_scale_from_path = None
 
         neural_basis_expansion = get_neural_basis_expansion(
             nn_model=reconstructor.nn_model,

@@ -84,11 +84,13 @@ def weights_linearization(
             nn.Parameter(torch.zeros_like(map_weights)) if optim_kwargs['simplified_eqn']
             else map_weights.clone())
     optimizer = torch.optim.Adam([lin_weights_fd], lr=optim_kwargs['lr'], weight_decay=0)
+    
+    # optimizer = torch.optim.SGD([lin_weights_fd], lr=optim_kwargs['lr'], nesterov=True, momentum=0.9, weight_decay=0.)
 
     precision = optim_kwargs['noise_precision']
 
     with tqdm(range(optim_kwargs['iterations']),
-                miniters=optim_kwargs['iterations']//100) as pbar, \
+                miniters=optim_kwargs['iterations']//1) as pbar, \
             eval_mode(nn_model):
         for _ in pbar:
 
@@ -97,6 +99,7 @@ def weights_linearization(
             else:
                 fd_vector = lin_weights_fd - map_weights
 
+            # J_tilde w
             lin_recon = neural_basis_expansion.jvp(fd_vector[None, :]).detach().squeeze(dim=1)
 
             if not optim_kwargs['simplified_eqn']:
@@ -105,28 +108,41 @@ def weights_linearization(
             if use_sigmoid:
                 lin_recon = lin_recon.sigmoid()
 
+            # A J_tilde w
             proj_lin_recon = trafo(lin_recon)
-
+            
             observation = observation.view(*proj_lin_recon.shape)
-            norm_grad = trafo.trafo_adjoint( observation - proj_lin_recon )
+            norm_grad = trafo.trafo_adjoint( observation - proj_lin_recon ) # A^T (y_tilde - A J_tilde w)
             tv_grad = batch_tv_grad(lin_recon)
 
             # loss = (torch.nn.functional.mse_loss(
             #                 proj_lin_recon, observation.view(*proj_lin_recon.shape))
             #         + optim_kwargs['gamma'] * tv_loss(lin_recon))
-            v = - 2 / observation.numel() * precision * norm_grad + optim_kwargs['gamma'] * tv_grad
+            # v = - 2 / observation.numel() * precision * norm_grad + optim_kwargs['gamma'] * tv_grad
+            
+            # - 2 * B^-1 * A^T (y_tilde - A J_tilde w)
+            v = - 2 * precision * norm_grad
 
             if use_sigmoid:
                 v = v * lin_recon * (1 - lin_recon)
 
             optimizer.zero_grad()
-
+            
+            # L(w) = (1/2) * ||y - A J_tilde w||^2_{B^-1} + 1/2 * ||w||^2_{Sigma_theta^-1}
+            
+            # - (2 * B^-1) * J_tilde^T A^T (y_tilde - A J_tilde w) + (2 * Sigma_theta^-1) * w
+            
+            # w_exact = (B^-1 * J_tilde^T A^T A J_tilde + Sigma_theta^-1)^-1 * (B^-1 * J_tilde^T A^T y_tilde)
+            
             grads_vec = neural_basis_expansion.vjp(v.view(1, 1, 1, *trafo.im_shape)).squeeze(dim=0)
             lin_weights_fd.grad = grads_vec + optim_kwargs['wd'] * lin_weights_fd.detach()
+            
+            # print(lin_weights_fd.grad)
+            # lin_weights_fd.grad = torch.clip(lin_weights_fd.grad, min=-1.0, max=1.0)
             optimizer.step()
 
             pbar.set_description(
-                    f'psnr={PSNR(lin_recon.detach().cpu().numpy(),ground_truth.cpu().numpy()):.1f}',
+                    f'l2_norm={lin_weights_fd.pow(2).sum():.3f}',
                     refresh=False)
 
     return lin_weights_fd.detach(), lin_recon.detach()
