@@ -148,8 +148,8 @@ def coordinator(cfg : DictConfig) -> None:
         optim_kwargs = {
             'iterations': cfg.mll_optim.iterations,
             'activate_debugging_mode': cfg.mll_optim.activate_debugging_mode,
-            'num_samples': cfg.mll_optim.num_samples, 
-            'activate_debugging_mode': cfg.mll_optim.activate_debugging_mode
+            'num_samples': cfg.mll_optim.num_samples,
+            'use_sample_then_optimise': cfg.mll_optim.use_sample_then_optimise
         }
         optim_kwargs['sample_kwargs'] = OmegaConf.to_object(cfg.mll_optim.sampling)
 

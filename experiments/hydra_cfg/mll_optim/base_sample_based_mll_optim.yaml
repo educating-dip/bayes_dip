@@ -9,6 +9,7 @@ sampling:
     max_niter: 150
     ignore_numerical_warning: False
     use_log_re_variant: False
+use_sample_then_optimise: False
 use_preconditioner: True
 preconditioner:
   name: low_rank_eig

@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import io
 import PIL.Image
 import torch
@@ -10,9 +10,9 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.utils import cg
-from bayes_dip.probabilistic_models import ObservationCov
+from bayes_dip.probabilistic_models import ObservationCov, BaseNeuralBasisExpansion
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
-from bayes_dip.utils import get_mid_slice_if_3d, PSNR
+from bayes_dip.utils import eval_mode, get_mid_slice_if_3d
 from bayes_dip.utils.experiment_utils import get_predefined_patch_idx_list
 from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
 
@@ -21,120 +21,220 @@ def PCG_based_weights_linearization(
     observation_cov: ObservationCov,
     observation: Tensor,
     cg_kwargs: Dict
-    ):
-    # w_bar = \Sigma_theta_theta J^T A^T \Sigma_yy^{-1} (y - A x^* + J w_map )
-    # w_bar = M z -> L(w) = 1/2 (M z - w_bar)^T ( M z - w_bar) -> w_bar = Mz
-    # L(w_bar) = (y - A x^* + J w_map )^T 
-    
-    # w_bar = (variance_coeff I) (s.J)^T A^T \Sigma_yy^{-1} (y - A x^* + J w_map )
-    # w_bar = M z -> L(w) = 1/2 (M z - w_bar)^T ( M z - w_bar) -> w_bar = Mz
-    # L(w_bar) = (y - A x^* + J w_map )^T 
-    # M = variance_coeff I (s.J)^T A^T * \Sigma_yy^{-1}
-    
-    # y = A x^* + noise
-    # y = A f(x^*) + noise
-    # f(x*) = A^-1 y
-    # obs_closure = \Sigma_yy = (A (s.J) (variance_coeff I) (s.J)^T A^T + noise_variance) * v
-    
-    # transposed_samples = obs_closure^-1 y
-    # samples = (sJ)^T A^T obs_closure^-1 y
-    # linearized_weights = prior_variance (sJ)^T A^T obs_closure^-1 y
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+
+    '''
+    It solves for the exact solution of linearised weights $\bar{\theta}$.
+    .. math::
+        \begin{align}
+            \bar{\theta} &= \Sigma_\theta \tilde{J}^\top A^\top \left( A \tilde{J} \Sigma_\theta \tilde{J}^\top A^\top + \sigma^2 I \right)^{-1} \tilde{y} \\
+            \bar{f} &= \tilde{J} \bar{\theta} \\,
+            \bar{y} &= A \tilde{J} \bar{\theta}
+        \end{align}
+    where, 
+    .. math::
+        \begin{itemize}
+            \item $\tilde{J} = sJ$ is the re-scaled Jacobian matrix. 
+            \item $\Sigma_{\theta}^{-1} = g^{-1} I_{d \times d}$ is the weight prior precision matrix. 
+            \item $B = \sigma^{-2} I$. 
+            \item $\tilde{y} = y + A ( -f^* + \tilde{J} ( s^{-1} \theta^*) )$, where $f^*$ and $\theta^*$ are the NN reconstruction and weights. 
+        \end{itemize}
+
+    Refer to https://arxiv.org/abs/2210.04994 for an in-dept analysis.
+    '''
+
     def observation_cov_closure(
         v: Tensor
         ):
         return observation_cov(v.T.reshape(
                 batch_size, 1, *observation_cov.trafo.obs_shape)).view(
                         batch_size, observation_cov.shape[0]).T
-    # K_yy = A J_tilde
     with torch.no_grad():
         batch_size = 1 # batch_size fixed to 1
         transposed_samples, _ = cg(observation_cov_closure, 
                 observation.flatten()[:, None], **cg_kwargs
             )
-        samples = transposed_samples.transpose(1, 0)
+        samples = transposed_samples.transpose(1, 0) # Sigma_{yy}^{-1} \tilde{y}
         samples = observation_cov.trafo.trafo_adjoint(
                 samples.view(
                         batch_size, 1, *observation_cov.trafo.obs_shape)
-                    )
-        samples = observation_cov.image_cov.lin_op_transposed(samples)
-        linearized_weights = observation_cov.image_cov.inner_cov(samples)
+                    ) # A^\top Sigma_{yy}^{-1} \tilde{y}
+        samples = observation_cov.image_cov.lin_op_transposed(samples) # J^\top A^\top Sigma_{yy}^{-1} \tilde{y}
+        # \bar{\theta} = \Sigma_{\theta\theta} J^\top A^\top Sigma_{yy}^{-1} \tilde{y}
+        linearized_weights = observation_cov.image_cov.inner_cov(samples) 
+        # \bar{f} =  \tilde{J} \bar{\theta}
         lin_recon = observation_cov.image_cov.lin_op(linearized_weights)
+        # \bar{y} = A \bar{f}
         lin_observation = observation_cov.trafo(lin_recon)
 
     return linearized_weights.flatten(), lin_observation, lin_recon
 
+def sample_then_optim_weights_linearization(
+        trafo: BaseRayTrafo,
+        neural_basis_expansion: BaseNeuralBasisExpansion,
+        map_weights: Tensor,
+        observation: Tensor,
+        optim_kwargs: dict,
+        ) -> Tuple[Tensor, Tensor]:
+    # pylint: disable=too-many-locals
 
-def sample_then_optimise(
-    observation_cov,
-    trafo: BaseRayTrafo,
-    neural_basis_expansion: SampleBasedPredictivePosterior,
-    noise_variance: float,
-    variance_coeff: float,
-    map_weights: Tensor,
-    ground_truth,
-    num_samples: int,
-    linearized_weights,
-    recon_offset,
-    optim_kwargs):
+    ''' 
+    It solves for the linearised weights using the convex objective for solving the linear model. 
     
-    D = map_weights.shape[0]
-    M = trafo.obs_shape
-    sample = nn.Parameter(torch.zeros(num_samples, D, device=map_weights.device))
-    optimizer = torch.optim.Adam([sample], lr=optim_kwargs['lr'], weight_decay=0)
-
-    # theta_0 = prior_perturbations,
-    theta_0 = torch.randn(num_samples, D, device=map_weights.device) * torch.sqrt(variance_coeff)
-    eps = torch.randn(num_samples, 1, *M, device=map_weights.device) * torch.sqrt(noise_variance)
-    # (A J z - eps)^2_B + 
-    # (A J z)^2 ->  theta_n = theta_0 + variance_coeff J^T A^T eps
-    theta_n = theta_0 + (1. / variance_coeff) * noise_variance * neural_basis_expansion.vjp(trafo.trafo_adjoint(eps)[:, None, ...])
+    .. math::
+        \begin{align*}
+            \mathcal{L}(\theta) &= \frac{1}{2} \left\| A \left(f^* + \tilde{J} (\theta - s^{-1} \theta^*) \right) - y \right\|^2_{B} + \frac{1}{2} \| \theta \|^2_{\Sigma_\theta^{-1}} \\
+            &= \frac{1}{2} \left\| A \tilde{J} \theta - \tilde{y}  \right\|^2_{B} +  \frac{1}{2} \| \theta \|^2_{\Sigma_w^{-1}} 
+        \end{align*}
     
-    with tqdm(range(optim_kwargs['iterations']),
-                miniters=optim_kwargs['iterations']//100) as pbar:
+    Taking the derivative to zero, and solving for the exact solution,
+    
+    .. math::
+        \begin{align*}
+            \frac{\partial{\mathcal{L}}}{\partial \theta} &= 2 B \tilde{J}^\top A^\top (A \tilde{J} \theta - \tilde{y}) + 2 \Sigma_\theta^{-1} \theta \\
+            \bar{\theta} &= (B \tilde{J}^\top A^\top A \tilde{J} + \Sigma_\theta^{-1} )^{-1} B \tilde{J}^\top A^\top \tilde{y}
+        \end{align*}
+    '''
+    def closure(
+        lin_weights: Tensor,
+        proj_lin_recon: Tensor,
+        observation: Tensor,
+        ):
         
+        loss = .5 * torch.nn.functional.mse_loss(
+                proj_lin_recon, observation.view(*proj_lin_recon.shape), 
+                reduction='sum'
+            ) + .5 * optim_kwargs['wd'] * lin_weights.pow(2).sum()
+        loss.backward()
+
+        return loss
+
+    nn_model = neural_basis_expansion.nn_model
+    lin_weights = nn.Parameter(torch.zeros_like(map_weights))
+    optimizer = torch.optim.SGD(
+            [lin_weights], lr=optim_kwargs['lr'], weight_decay=0, momentum=optim_kwargs['momentum'], nesterov=True)
+    scheduler = torch.optim.lr_scheduler.LinearLR(
+        optimizer=optimizer,
+        start_factor = optim_kwargs['scheduler_kwargs']['start_factor'], 
+        end_factor = optim_kwargs['scheduler_kwargs']['end_factor'],
+        total_iters = int(optim_kwargs['iterations'] * optim_kwargs['scheduler_kwargs']['total_iters_red_pct']),
+        )
+
+    with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar, \
+            eval_mode(nn_model):
         for _ in pbar:
-            # J = d_out x d_theta, A = d_obs x d_out => M = d_obs x d_theta
-            # d(Mz)/dz = M^T)/2
-            # M = A J
-            # || M z ||^2_B => z^T (M^T B M) z z^T Q z
-            # (Q + Q^T) z => 2 (M^T B M) z => 2 (J^T A^T A J) z
-            # ||A J z ||^2 => 2 * A J z * (J^T A^T)
-            # ||A J z ||^2_B => z^T J^T A^T B A J z ==grad==> 2 (J^T A^T B A J) z
-        
-            sample_linear_recon = trafo.trafo(neural_basis_expansion.jvp(sample))  # A J z
-            
-            grad_1 = noise_variance * neural_basis_expansion.vjp(trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])  # B J^T A^T A J z
-            # ||theta_n - z||^2_A => (theta_n - z)^T A (theta_n - z)
-            # 2 A (theta_n - z)
-            grad_2 = (variance_coeff) * (sample - theta_n)
+
+            lin_recon = neural_basis_expansion.jvp(
+                    lin_weights[None, :]).squeeze(dim=1)
+            proj_lin_recon = trafo(lin_recon)
+            observation = observation.view(*proj_lin_recon.shape)
             
             optimizer.zero_grad()
-            sample.grad = grad_1 + grad_2
-            # linear_recon = f(w_map) + J (w_bar - w_map)
-            # sample_recon = f(w_map) + J (w_bar + sample - w_map)
-            # recon_offset = - f(w_map) + J w_map
-            
-            # sample_recon = J (w_bar + sample) - recon_offset
-            #              = f(w_map) + J (w_bar + sample - w_map)
+            closure(lin_weights=lin_weights, proj_lin_recon=proj_lin_recon, 
+                    observation=observation
+                    )
+
             optimizer.step()
-            # mean_corrected_sample = sample + linearized_weights[None, ...]
-            
-            # sample_linear_recon = neural_basis_expansion.jvp(mean_corrected_sample).squeeze(dim=0) - recon_offset
+            scheduler.step()
 
-            image_sample_sto = neural_basis_expansion.jvp(sample).squeeze(dim=1)
-            obs_samples_sto = observation_cov.trafo(image_sample_sto)
-            eff_dim_sto = estimate_effective_dimension(
-                posterior_obs_samples=obs_samples_sto, 
-                noise_variance=noise_variance)
+            pbar.set_description(f'l2_norm lin_weights: {lin_weights.pow(2).sum():.4f}', 
+                    refresh=False
+                )
+    
+    return lin_weights.detach(), lin_recon.detach()
 
-            pbar.set_description(
-                    f'eff_dim={eff_dim_sto.detach().cpu().numpy():.1f}',
-                    refresh=False)
-            # pbar.set_description(
-            #         f'psnr={PSNR(sample_linear_recon[0, ...].detach().cpu().numpy(), ground_truth.cpu().numpy()):.1f}',
-            #         refresh=False)
-            
-    return sample
+def sample_then_optimise(
+    observation_cov: ObservationCov,
+    neural_basis_expansion: BaseNeuralBasisExpansion, 
+    noise_variance: float,
+    variance_coeff: float,
+    num_samples: int,
+    optim_kwargs: Dict
+    ):
+    
+    '''
+    It samples from from the linear model's posterior using SGD. It samples following Eq. 7 in https://arxiv.org/abs/2210.04994. 
+    '''
+    
+    def closure(
+        trafo, 
+        neural_basis_expansion, 
+        weights_posterior_samples: Tensor,
+        weights_sample_from_prior: Tensor,
+        eps: Tensor,
+        noise_variance: Tensor,
+        variance_coeff: Tensor 
+        ):
+
+        proj_weights_posterior_samples = trafo(
+                neural_basis_expansion.jvp(weights_posterior_samples)
+            )
+        loss = .5 * (1 / noise_variance) * torch.nn.functional.mse_loss(
+                proj_weights_posterior_samples, eps, 
+                reduction='sum'
+            ) + .5 * variance_coeff * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
+        loss.backward()
+
+        return loss
+
+    weights_posterior_samples = nn.Parameter(
+        torch.zeros(
+            num_samples, neural_basis_expansion.num_params, 
+            device=observation_cov.device
+            )
+        )
+    optimizer = torch.optim.SGD(
+        [weights_posterior_samples], lr=optim_kwargs['lr'], weight_decay=0, momentum=optim_kwargs['momentum'], nesterov=True)
+    scheduler = torch.optim.lr_scheduler.LinearLR(
+        optimizer=optimizer,
+        start_factor = optim_kwargs['scheduler_kwargs']['start_factor'], 
+        end_factor = optim_kwargs['scheduler_kwargs']['end_factor'],
+        total_iters = int(optim_kwargs['iterations'] * optim_kwargs['scheduler_kwargs']['total_iters_red_pct']),
+        )
+    
+    weights_sample_from_prior = torch.randn(num_samples, neural_basis_expansion.num_params, 
+            device=observation_cov.device) * torch.sqrt(variance_coeff) # prior sample
+    eps = torch.randn(num_samples, 1, *observation_cov.trafo.obs_shape, 
+            device=observation_cov.device) * torch.sqrt(noise_variance)
+
+    # theta_n = weights_sample_from_prior + (1. / variance_coeff) * noise_variance * neural_basis_expansion.vjp(
+    #         observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])
+    
+    with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar:
+        for _ in pbar:
+
+            # sample_linear_recon = observation_cov.trafo.trafo(
+            #     neural_basis_expansion.jvp(weights_posterior_samples))
+            # grad_1 = noise_variance * neural_basis_expansion.vjp(
+            #     observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
+            # grad_2 = (variance_coeff) * (weights_posterior_samples - theta_n)
+
+            optimizer.zero_grad()
+            # weights_posterior_samples.grad = grad_1 + grad_2
+
+            closure(
+                trafo=observation_cov.trafo, 
+                neural_basis_expansion=neural_basis_expansion,
+                weights_posterior_samples=weights_posterior_samples, 
+                weights_sample_from_prior=weights_sample_from_prior, 
+                eps=eps,
+                noise_variance=noise_variance,
+                variance_coeff=variance_coeff
+                )
+
+            optimizer.step()
+            scheduler.step()
+
+            if optim_kwargs['verbose']:
+                image_sample = neural_basis_expansion.jvp(weights_posterior_samples).squeeze(dim=1)
+                obs_samples = observation_cov.trafo(image_sample)
+                eff_dim = estimate_effective_dimension(
+                    posterior_obs_samples=obs_samples,
+                    noise_variance=noise_variance
+                    )
+                pbar.set_description(f'approx_eff_dim: {eff_dim.detach().cpu().numpy():.4f}', refresh=False)
+
+    return weights_posterior_samples.detach()
             
 
 def estimate_effective_dimension(

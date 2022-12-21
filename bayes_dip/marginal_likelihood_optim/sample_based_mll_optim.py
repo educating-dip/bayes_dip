@@ -11,16 +11,15 @@ import numpy as np
 import tensorboardX
 from tqdm import tqdm
 from torch import Tensor
-from .sample_based_mll_optim_utils import (PCG_based_weights_linearization, 
-                                           sample_then_optimise,
-    estimate_effective_dimension, gprior_variance_mackay_update,
-    debugging_loglikelihood_estimation, debugging_histogram_tensorboard, 
-    debugging_uqviz_tensorboard
+from .sample_based_mll_optim_utils import (
+        PCG_based_weights_linearization, sample_then_optim_weights_linearization,
+        sample_then_optimise, estimate_effective_dimension, gprior_variance_mackay_update,
+        debugging_loglikelihood_estimation, debugging_histogram_tensorboard,
+        debugging_uqviz_tensorboard
     )
 from bayes_dip.utils import get_mid_slice_if_3d
 from bayes_dip.utils import PSNR, SSIM, normalize
 from bayes_dip.inference import SampleBasedPredictivePosterior
-from bayes_dip.marginal_likelihood_optim import weights_linearization
 
 def sample_based_marginal_likelihood_optim(
     predictive_posterior: SampleBasedPredictivePosterior,
@@ -45,101 +44,74 @@ def sample_based_marginal_likelihood_optim(
             'marginal_likelihood_sample_based_hyperparams_optim')))
         )
 
-    writer.add_image('nn_recon.', normalize(
-        get_mid_slice_if_3d(nn_recon)[0]), 0)
+    writer.add_image('nn_recon.', normalize(get_mid_slice_if_3d(nn_recon)[0]), 0)
+
     observation_cov = predictive_posterior.observation_cov
+
     with torch.no_grad():
-        # s J (s^-1 map_weights)
+
         scale = observation_cov.image_cov.neural_basis_expansion.scale.pow(-1)
         scale_corrected_map_weights = scale*map_weights
         recon_offset = - nn_recon + observation_cov.image_cov.neural_basis_expansion.jvp(
-            scale_corrected_map_weights[None, :]
-        )
+            scale_corrected_map_weights[None, :])
         observation_offset = observation_cov.trafo(recon_offset)
         observation_for_lin_optim = observation + observation_offset
 
         with tqdm(range(optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
             for i in pbar:
-                # if False:
-                # if optim_kwargs['use_cg_for_linearization']:
-                
-                # 
-                # linearized_weights, linearized_observation, linearized_recon = PCG_based_weights_linearization(
-                #     observation_cov=observation_cov, 
-                #     observation=observation_for_lin_optim, 
-                #     cg_kwargs=optim_kwargs['sample_kwargs']['cg_kwargs'],
-                # )
-                # print('cg : ', linearized_weights.pow(2).sum())
-                # else:
-                wd = 2. / observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach()
-                # wd *= 2. / observation.numel()
-                optim_kwargs['sgd_kwargs'] = {
-                    'simplified_eqn': True,
-                    'iterations': int(1e4),
-                    'lr': 5e-4,
-                    'noise_precision': 1.,
-                    'gamma': 0.,
-                    'wd': wd}
-                # exp(-w^T Sigma^-1 w) => -w^T Sigma^-1 w => 2 * Sigma^-1 w
-                # gradiant of log -> (1 / variance_coeff) * w
-                linearized_weights, linearized_recon = weights_linearization(
-                    trafo=observation_cov.trafo, 
-                    neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
-                    use_sigmoid=False, 
-                    map_weights=scale_corrected_map_weights, 
-                    observation=observation_for_lin_optim, 
-                    ground_truth=ground_truth, 
-                    optim_kwargs=optim_kwargs['sgd_kwargs'])
-                print('sgd : ', linearized_weights.pow(2).sum())
-                linearized_observation = observation_cov.trafo.trafo(linearized_recon)
-                
-                
-                
-                # print('lin weights norm : ', (linearized_weights-linearized_weights_sgd).norm().item() / linearized_weights.norm().item())
+                if not optim_kwargs['use_sample_then_optimise']:
+                    linearized_weights, linearized_observation, linearized_recon = PCG_based_weights_linearization(
+                        observation_cov=observation_cov, 
+                        observation=observation_for_lin_optim, 
+                        cg_kwargs=optim_kwargs['sample_kwargs']['cg_kwargs'],
+                    )
+                else:
+                    wd = observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().pow(-1)
+                    optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'].update({'wd': wd})
+                    with torch.enable_grad():
+                        linearized_weights, linearized_recon = sample_then_optim_weights_linearization(
+                            trafo=observation_cov.trafo, 
+                            neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
+                            map_weights=scale_corrected_map_weights, 
+                            observation=observation_for_lin_optim, 
+                            optim_kwargs=optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs']
+                            )
 
+                linearized_observation = observation_cov.trafo.trafo(linearized_recon)
                 linearized_recon = linearized_recon - recon_offset.squeeze(dim=0)
                 linearized_observation = linearized_observation - observation_offset
-                # image_sample = f* + J z - J w_map
-                # obs_sample = A * image_sample
                 
-                optim_kwargs['sample_then_optim_kwargs'] = {
-                    'iterations': 1000,
-                    'lr': 1e-3,
-                    }
-                weight_sample = sample_then_optimise(
-                    observation_cov=observation_cov,
-                    trafo=observation_cov.trafo,
-                    neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
-                    noise_variance=observation_cov.log_noise_variance.exp().detach(), 
-                    variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
-                    map_weights=map_weights,
-                    ground_truth=ground_truth,
-                    # num_samples=optim_kwargs['num_samples'], 
-                    num_samples=8, 
-                    linearized_weights=linearized_weights,
-                    recon_offset=recon_offset,
-                    optim_kwargs=optim_kwargs['sample_then_optim_kwargs'])
+                if not optim_kwargs['use_sample_then_optimise']:
+                    image_samples = predictive_posterior.sample_zero_mean(
+                        num_samples=optim_kwargs['num_samples'],
+                        **optim_kwargs['sample_kwargs']
+                        )
+                else:
+                    with torch.enable_grad():
+                        weight_sample = sample_then_optimise(
+                            observation_cov=observation_cov,
+                            neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
+                            noise_variance=observation_cov.log_noise_variance.exp().detach(), 
+                            variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
+                            num_samples=optim_kwargs['num_samples'],
+                            optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']
+                            )
 
-                image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
+                    image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
 
-                # image_samples = predictive_posterior.sample_zero_mean(
-                #     num_samples=optim_kwargs['num_samples'],
-                #     **optim_kwargs['sample_kwargs']
-                # )
-                
-                # print('image samples norm : ', (image_samples-image_samples_sto).norm().item() / image_samples.norm().item())
                 obs_samples = observation_cov.trafo(image_samples)
-                eff_dim = estimate_effective_dimension(posterior_obs_samples=obs_samples, noise_variance=observation_cov.log_noise_variance.exp().detach()).clamp(min=1, max=np.prod(observation_cov.trafo.obs_shape)-1)
+                eff_dim = estimate_effective_dimension(posterior_obs_samples=obs_samples, 
+                        noise_variance=observation_cov.log_noise_variance.exp().detach()
+                        ).clamp(min=1, max=np.prod(observation_cov.trafo.obs_shape)-1)
                 
-                # obs_samples_sto = observation_cov.trafo(image_samples_sto)
-                # eff_dim_sto = estimate_effective_dimension(posterior_obs_samples=obs_samples_sto, noise_variance=observation_cov.log_noise_variance.exp().detach()).clamp(min=1, max=np.prod(observation_cov.trafo.obs_shape)-1)
-
                 variance_coeff = gprior_variance_mackay_update(
-                    eff_dim=eff_dim, map_linerized_weights=linearized_weights
-                )
+                    eff_dim=eff_dim, map_linearized_weights=linearized_weights
+                    )
                 observation_cov.image_cov.inner_cov.priors.gprior.log_variance = variance_coeff.log()
                 se_loss = (linearized_observation-observation).pow(2).sum()
-                if optim_kwargs['cg_preconditioner'] is not None: optim_kwargs['cg_preconditioner'].update()
+
+                if not optim_kwargs['use_sample_then_optimise'] and optim_kwargs['cg_preconditioner'] is not None:
+                    optim_kwargs['cg_preconditioner'].update()
                 
                 torch.save(
                     observation_cov.state_dict(), 
