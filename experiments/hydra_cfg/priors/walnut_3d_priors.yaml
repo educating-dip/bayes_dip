@@ -1,0 +1,5 @@
+defaults:
+  - priors
+use_gprior: True
+gprior:
+  init_prior_variance_value: 1e-8
