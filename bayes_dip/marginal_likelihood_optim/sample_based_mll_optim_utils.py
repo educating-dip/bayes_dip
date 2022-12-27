@@ -140,7 +140,7 @@ def sample_then_optim_weights_linearization(
             optimizer.step()
             scheduler.step()
 
-            psnr = PSNR(get_mid_slice_if_3d(lin_recon.detach()).cpu().numpy() - get_mid_slice_if_3d(aux['recon_offset']).cpu().numpy(), get_mid_slice_if_3d(aux['ground_truth']).cpu().numpy())
+            psnr = PSNR(lin_recon.detach().cpu().numpy() - aux['recon_offset'].cpu().numpy(), aux['ground_truth'].cpu().numpy())
             pbar.set_description(f'l2_norm lin_weights and PSNR: {lin_weights.pow(2).sum():.6f}, {psnr:.6f}', 
                     refresh=False
                 )
