@@ -3,19 +3,21 @@ defaults:
 sampling:
   weights_linearisation: 
     optim_kwargs: #TODO: fine-tune
-      iterations: 1000
-      lr: 5e-8
+      iterations: 2000
+      lr: 1e-3
       momentum: 0.99
+      clip_grad_norm_value: 1.
       scheduler_kwargs:
         start_factor: 1. 
         end_factor: 0.030
         total_iters_red_pct: 0.95
   hyperparams_update:
     optim_kwargs: #TODO: fine-tune
-      iterations: 100
-      lr: 5e-8
+      iterations: 500
+      lr: 5e-4
       momentum: 0.99
       verbose: True
+      clip_grad_norm_value: 1.
       scheduler_kwargs:
         start_factor: 1.
         end_factor: 0.030

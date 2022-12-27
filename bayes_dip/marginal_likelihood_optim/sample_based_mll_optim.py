@@ -74,7 +74,8 @@ def sample_based_marginal_likelihood_optim(
                             neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
                             map_weights=scale_corrected_map_weights, 
                             observation=observation_for_lin_optim, 
-                            optim_kwargs=optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs']
+                            optim_kwargs=optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'],
+                            aux={'ground_truth': ground_truth, 'recon_offset': recon_offset}
                             )
 
                 linearized_observation = observation_cov.trafo.trafo(linearized_recon)

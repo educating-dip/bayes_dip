@@ -12,7 +12,7 @@ from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.utils import cg
 from bayes_dip.probabilistic_models import ObservationCov, BaseNeuralBasisExpansion
 from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_mask_inds
-from bayes_dip.utils import eval_mode, get_mid_slice_if_3d
+from bayes_dip.utils import eval_mode, get_mid_slice_if_3d, PSNR
 from bayes_dip.utils.experiment_utils import get_predefined_patch_idx_list
 from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
 
@@ -75,6 +75,7 @@ def sample_then_optim_weights_linearization(
         map_weights: Tensor,
         observation: Tensor,
         optim_kwargs: dict,
+        aux,
         ) -> Tuple[Tensor, Tensor]:
     # pylint: disable=too-many-locals
 
@@ -133,11 +134,14 @@ def sample_then_optim_weights_linearization(
             closure(lin_weights=lin_weights, proj_lin_recon=proj_lin_recon, 
                     observation=observation
                     )
-
+            if optim_kwargs['clip_grad_norm_value'] is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    lin_weights, optim_kwargs['clip_grad_norm_value'])
             optimizer.step()
             scheduler.step()
 
-            pbar.set_description(f'l2_norm lin_weights: {lin_weights.pow(2).sum():.4f}', 
+            psnr = PSNR(get_mid_slice_if_3d(lin_recon.detach()).cpu().numpy() - get_mid_slice_if_3d(aux['recon_offset']).cpu().numpy(), get_mid_slice_if_3d(aux['ground_truth']).cpu().numpy())
+            pbar.set_description(f'l2_norm lin_weights and PSNR: {lin_weights.pow(2).sum():.6f}, {psnr:.6f}', 
                     refresh=False
                 )
     
@@ -221,6 +225,10 @@ def sample_then_optimise(
                 noise_variance=noise_variance,
                 variance_coeff=variance_coeff
                 )
+
+            if optim_kwargs['clip_grad_norm_value'] is not None:
+                torch.nn.utils.clip_grad_norm_(
+                    weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
 
             optimizer.step()
             scheduler.step()
