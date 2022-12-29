@@ -280,7 +280,7 @@ def debugging_loglikelihood_estimation(
             num_samples=loglikelihood_kwargs['num_samples'],
             **sample_kwargs
         )
-    
+
     image_samples = get_mid_slice_if_3d(image_samples)
     all_patch_mask_inds = get_image_patch_mask_inds(
         image_samples.shape[2:], 
@@ -291,7 +291,8 @@ def debugging_loglikelihood_estimation(
     elif isinstance(patch_idx_list, str):
         patch_idx_list = get_predefined_patch_idx_list(
             name=patch_idx_list, patch_size=loglikelihood_kwargs['patch_kwargs']['patch_size'])
-
+    loglikelihood_kwargs['patch_kwargs']['patch_idx_list'] = patch_idx_list
+    
     loglik = predictive_posterior.log_prob(
                 mean=mean,
                 ground_truth=ground_truth,

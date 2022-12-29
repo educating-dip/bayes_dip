@@ -45,7 +45,7 @@ def sample_based_marginal_likelihood_optim(
         )
 
     writer.add_image('nn_recon.', normalize(get_mid_slice_if_3d(nn_recon)[0]), 0)
-
+    writer.add_image('ground_truth', normalize(get_mid_slice_if_3d(ground_truth)[0]), 0)
     observation_cov = predictive_posterior.observation_cov
 
     with torch.no_grad():
