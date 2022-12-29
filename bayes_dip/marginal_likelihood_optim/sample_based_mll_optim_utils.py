@@ -169,9 +169,8 @@ def sample_then_optimise(
         noise_variance: Tensor,
         variance_coeff: Tensor 
         ):
-
         proj_weights_posterior_samples = trafo(
-                neural_basis_expansion.jvp(weights_posterior_samples)
+                neural_basis_expansion.jvp(weights_posterior_samples).squeeze(dim=1)
             )
         loss = .5 * (1 / noise_variance) * torch.nn.functional.mse_loss(
                 proj_weights_posterior_samples, eps, 

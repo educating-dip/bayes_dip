@@ -251,7 +251,7 @@ def get_mid_slice_if_3d(image):
     If image is 3D, return the middle slice.
     """
     if image.dim() == 5:
-        mid_slice = image.shape[1] // 2   
+        mid_slice = image.shape[2] // 2   
         return image[:, :, mid_slice, ...]
     else:
         return image
