@@ -97,7 +97,7 @@ def sample_based_marginal_likelihood_optim(
                             num_samples=optim_kwargs['num_samples'],
                             optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']
                             )
-
+                    # Zero mean samples.
                     image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
 
                 obs_samples = observation_cov.trafo(image_samples)
@@ -126,11 +126,14 @@ def sample_based_marginal_likelihood_optim(
                 writer.add_scalar('se_loss', se_loss.item(), i)
 
                 if optim_kwargs['activate_debugging_mode']:
+                    if optim_kwargs['use_sample_then_optimise']:
+                        raise Warning(
+                            'Log-likelihood is calculated using previous samples, and only mll_optim.num_samples are used.')
                     loglik_nn_model, image_samples_diagnostic = debugging_loglikelihood_estimation(
                         predictive_posterior=predictive_posterior,
                         mean=get_mid_slice_if_3d(nn_recon),
                         ground_truth=get_mid_slice_if_3d(ground_truth),
-                        image_samples=image_samples,
+                        image_samples=None if not optim_kwargs['use_sample_then_optimise'] else image_samples,
                         sample_kwargs=optim_kwargs['sample_kwargs'],
                         loglikelihood_kwargs=optim_kwargs['debugging_mode_kwargs']['loglikelihood_kwargs']
                     )
