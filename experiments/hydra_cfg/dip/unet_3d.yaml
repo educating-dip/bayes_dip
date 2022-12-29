@@ -9,7 +9,6 @@ net:
   down_single_conv: False
   use_norm: True
   use_sigmoid: False
-  use_relu_out: post  # options: 'post' (applied on returned image), 'model' (last layer in network)
   out_kernel_size: 1
   pre_out_channels: [64, 48, 32, 16]
   pre_out_kernel_size: 3
