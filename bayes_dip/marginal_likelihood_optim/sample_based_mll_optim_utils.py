@@ -76,6 +76,7 @@ def sample_then_optim_weights_linearization(
         observation: Tensor,
         optim_kwargs: dict,
         aux,
+        init_at_previous_weights: Optional[Tensor] = None,
         ) -> Tuple[Tensor, Tensor]:
     # pylint: disable=too-many-locals
 
@@ -111,7 +112,10 @@ def sample_then_optim_weights_linearization(
         return loss
 
     nn_model = neural_basis_expansion.nn_model
-    lin_weights = nn.Parameter(torch.zeros_like(map_weights))
+    if init_at_previous_weights is not None:
+        lin_weights = nn.Parameter(init_at_previous_weights)
+    else:
+        lin_weights = nn.Parameter(torch.zeros_like(map_weights))
     optimizer = torch.optim.SGD(
             [lin_weights], lr=optim_kwargs['lr'], weight_decay=0, momentum=optim_kwargs['momentum'], nesterov=True)
     scheduler = torch.optim.lr_scheduler.LinearLR(
@@ -153,7 +157,8 @@ def sample_then_optimise(
     noise_variance: float,
     variance_coeff: float,
     num_samples: int,
-    optim_kwargs: Dict
+    optim_kwargs: Dict,
+    init_at_previous_samples: Optional[Tensor] = None,
     ):
     
     '''
@@ -180,12 +185,20 @@ def sample_then_optimise(
 
         return loss
 
-    weights_posterior_samples = nn.Parameter(
-        torch.zeros(
-            num_samples, neural_basis_expansion.num_params, 
-            device=observation_cov.device
+    if init_at_previous_samples is not None:
+        weights_posterior_samples = nn.Parameter(init_at_previous_samples)
+    else:
+        weights_posterior_samples = nn.Parameter(
+            torch.zeros(
+                num_samples, neural_basis_expansion.num_params, 
+                device=observation_cov.device
+                )
             )
-        )
+
+    factor = optim_kwargs['polyak_averaging_factor']
+    if factor is not None:
+        polyak_weights_posterior_samples = weights_posterior_samples.clone()
+
     optimizer = torch.optim.SGD(
         [weights_posterior_samples], lr=optim_kwargs['lr'], weight_decay=0, momentum=optim_kwargs['momentum'], nesterov=True)
     scheduler = torch.optim.lr_scheduler.LinearLR(
@@ -228,8 +241,10 @@ def sample_then_optimise(
             if optim_kwargs['clip_grad_norm_value'] is not None:
                 torch.nn.utils.clip_grad_norm_(
                     weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
-
+            
             optimizer.step()
+            if factor is not None:
+                polyak_weights_posterior_samples = (1. - factor) * polyak_weights_posterior_samples + factor * weights_posterior_samples
             scheduler.step()
 
             if optim_kwargs['verbose']:
@@ -241,7 +256,10 @@ def sample_then_optimise(
                     )
                 pbar.set_description(f'approx_eff_dim: {eff_dim.detach().cpu().numpy():.4f}', refresh=False)
 
-    return weights_posterior_samples.detach()
+    if factor is not None:
+        return polyak_weights_posterior_samples.detach()
+    else:
+        return weights_posterior_samples.detach()
             
 
 def estimate_effective_dimension(

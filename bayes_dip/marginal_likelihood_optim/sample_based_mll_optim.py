@@ -56,6 +56,9 @@ def sample_based_marginal_likelihood_optim(
             scale_corrected_map_weights[None, :])
         observation_offset = observation_cov.trafo(recon_offset)
         observation_for_lin_optim = observation + observation_offset
+        
+        linearized_weights = None
+        weight_sample = None
 
         with tqdm(range(optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
             for i in pbar:
@@ -68,6 +71,7 @@ def sample_based_marginal_likelihood_optim(
                 else:
                     wd = observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().pow(-1)
                     optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'].update({'wd': wd})
+                    use_warm_start = optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs']['use_warm_start']
                     with torch.enable_grad():
                         linearized_weights, linearized_recon = sample_then_optim_weights_linearization(
                             trafo=observation_cov.trafo, 
@@ -75,7 +79,8 @@ def sample_based_marginal_likelihood_optim(
                             map_weights=scale_corrected_map_weights, 
                             observation=observation_for_lin_optim, 
                             optim_kwargs=optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'],
-                            aux={'ground_truth': ground_truth, 'recon_offset': recon_offset}
+                            aux={'ground_truth': ground_truth, 'recon_offset': recon_offset},
+                            init_at_previous_weights=linearized_weights if use_warm_start else None,
                             )
 
                 linearized_observation = observation_cov.trafo.trafo(linearized_recon)
@@ -88,6 +93,7 @@ def sample_based_marginal_likelihood_optim(
                         **optim_kwargs['sample_kwargs']
                         )
                 else:
+                    use_warm_start = optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']['use_warm_start']
                     with torch.enable_grad():
                         weight_sample = sample_then_optimise(
                             observation_cov=observation_cov,
@@ -95,7 +101,8 @@ def sample_based_marginal_likelihood_optim(
                             noise_variance=observation_cov.log_noise_variance.exp().detach(), 
                             variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
                             num_samples=optim_kwargs['num_samples'],
-                            optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']
+                            optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
+                            init_at_previous_samples=weight_sample if use_warm_start else None,
                             )
                     # Zero mean samples.
                     image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
@@ -127,8 +134,7 @@ def sample_based_marginal_likelihood_optim(
 
                 if optim_kwargs['activate_debugging_mode']:
                     if optim_kwargs['use_sample_then_optimise']:
-                        raise Warning(
-                            'Log-likelihood is calculated using previous samples, and only mll_optim.num_samples are used.')
+                        print('Log-likelihood is calculated using previous samples, and only mll_optim.num_samples are used.')
                     loglik_nn_model, image_samples_diagnostic = debugging_loglikelihood_estimation(
                         predictive_posterior=predictive_posterior,
                         mean=get_mid_slice_if_3d(nn_recon),
@@ -145,11 +151,14 @@ def sample_based_marginal_likelihood_optim(
                         loglikelihood_kwargs=optim_kwargs['debugging_mode_kwargs']['loglikelihood_kwargs']
                     )
                     writer.add_image('debugging_histogram_nn_model', debugging_histogram_tensorboard(
-                        ground_truth, nn_recon, image_samples_diagnostic)[0], i)
+                        get_mid_slice_if_3d(ground_truth), get_mid_slice_if_3d(nn_recon), 
+                        get_mid_slice_if_3d(image_samples_diagnostic))[0], i)
                     writer.add_image('debugging_histogram_lin_model', debugging_histogram_tensorboard(
-                        ground_truth, linearized_recon, image_samples_diagnostic)[0], i)
+                        get_mid_slice_if_3d(ground_truth), get_mid_slice_if_3d(linearized_recon), 
+                        get_mid_slice_if_3d(image_samples_diagnostic))[0], i)
                     writer.add_image('debugging_histogram_uqviz_nn_model', debugging_uqviz_tensorboard(
-                        ground_truth, nn_recon, image_samples_diagnostic)[0], i)
+                        get_mid_slice_if_3d(ground_truth), get_mid_slice_if_3d(nn_recon), 
+                        get_mid_slice_if_3d(image_samples_diagnostic))[0], i)
                     writer.add_scalar('loglik_nn_model',  loglik_nn_model.item(), i)
                     writer.add_scalar('loglik_lin_model', loglik_lin_model.item(), i)
 

@@ -1,5 +1,5 @@
 defaults:
-  - base_sample_based_mll_optim
+  - base_sample_based_mll_optim_sto
 num_samples: 2
 sampling:
   weights_linearisation: 

@@ -499,7 +499,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             out = sum_log_prob_unscaled
         else:
             all_patch_mask_inds = get_image_patch_mask_inds(
-                    self.observation_cov.trafo.im_shape, patch_size=patch_kwargs['patch_size'])
+                    self.observation_cov.trafo.im_shape[-2:], patch_size=patch_kwargs['patch_size'])
             if patch_kwargs['patch_idx_list'] is None:
                 patch_kwargs['patch_idx_list'] = list(range(len(all_patch_mask_inds)))
             total_num_pixels_in_patches = sum(len(all_patch_mask_inds[patch_idx])
