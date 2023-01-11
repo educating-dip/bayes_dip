@@ -1,7 +1,11 @@
 from typing import Dict, Optional, Tuple
 import io
+import os
+import socket
+import datetime
 import PIL.Image
 import torch
+import tensorboardX
 from torch import nn, Tensor
 import matplotlib.pyplot as plt
 from torch import Tensor
@@ -103,13 +107,24 @@ def sample_then_optim_weights_linearization(
         observation: Tensor,
         ):
         
-        loss = .5 * torch.nn.functional.mse_loss(
+
+        loss_fit = .5 * torch.nn.functional.mse_loss(
                 proj_lin_recon, observation.view(*proj_lin_recon.shape), 
                 reduction='sum'
-            ) + .5 * optim_kwargs['wd'] * lin_weights.pow(2).sum()
+            )
+        loss_prior =  + .5 * optim_kwargs['wd'] * lin_weights.pow(2).sum()
+        loss = loss_fit + loss_prior
         loss.backward()
 
-        return loss
+        return loss, (loss_fit, loss_prior)
+
+
+    writer = tensorboardX.SummaryWriter(
+            logdir=os.path.join('./', '_'.join((
+                datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                socket.gethostname(),
+                'sample_then_optim_weights_linearization')))
+            )
 
     nn_model = neural_basis_expansion.nn_model
     if init_at_previous_weights is not None:
@@ -127,7 +142,7 @@ def sample_then_optim_weights_linearization(
 
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar, \
             eval_mode(nn_model):
-        for _ in pbar:
+        for i in pbar:
 
             lin_recon = neural_basis_expansion.jvp(
                     lin_weights[None, :]).squeeze(dim=1)
@@ -135,9 +150,13 @@ def sample_then_optim_weights_linearization(
             observation = observation.view(*proj_lin_recon.shape)
             
             optimizer.zero_grad()
-            closure(lin_weights=lin_weights, proj_lin_recon=proj_lin_recon, 
+            _, (loss_fit, loss_prior) = closure(lin_weights=lin_weights, proj_lin_recon=proj_lin_recon, 
                     observation=observation
                     )
+            
+            writer.add_scalar('loss_fit', loss_fit.item(), i)
+            writer.add_scalar('loss_prior', loss_prior.item(), i)
+
             if optim_kwargs['clip_grad_norm_value'] is not None:
                 torch.nn.utils.clip_grad_norm_(
                     lin_weights, optim_kwargs['clip_grad_norm_value'])
@@ -177,13 +196,23 @@ def sample_then_optimise(
         proj_weights_posterior_samples = trafo(
                 neural_basis_expansion.jvp(weights_posterior_samples).squeeze(dim=1)
             )
-        loss = .5 * (1 / noise_variance) * torch.nn.functional.mse_loss(
+        loss_fit = .5 * (1 / noise_variance) * torch.nn.functional.mse_loss(
                 proj_weights_posterior_samples, eps, 
                 reduction='sum'
-            ) + .5 * variance_coeff * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
+            ) 
+        loss_prior =  .5 * variance_coeff * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
+        loss = loss_fit + loss_prior
         loss.backward()
 
-        return loss
+        return loss, (loss_fit, loss_prior)
+
+    
+    writer = tensorboardX.SummaryWriter(
+            logdir=os.path.join('./', '_'.join((
+                datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                socket.gethostname(),
+                'sample_then_optimise')))
+            )
 
     if init_at_previous_samples is not None:
         weights_posterior_samples = nn.Parameter(init_at_previous_samples)
@@ -217,7 +246,7 @@ def sample_then_optimise(
     #         observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])
     
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar:
-        for _ in pbar:
+        for i in pbar:
 
             # sample_linear_recon = observation_cov.trafo.trafo(
             #     neural_basis_expansion.jvp(weights_posterior_samples))
@@ -228,7 +257,7 @@ def sample_then_optimise(
             optimizer.zero_grad()
             # weights_posterior_samples.grad = grad_1 + grad_2
 
-            closure(
+            _, (loss_fit, loss_prior) = closure(
                 trafo=observation_cov.trafo, 
                 neural_basis_expansion=neural_basis_expansion,
                 weights_posterior_samples=weights_posterior_samples, 
@@ -237,6 +266,9 @@ def sample_then_optimise(
                 noise_variance=noise_variance,
                 variance_coeff=variance_coeff
                 )
+            
+            writer.add_scalar('loss_fit', loss_fit.item(), i)
+            writer.add_scalar('loss_prior', loss_prior.item(), i)
 
             if optim_kwargs['clip_grad_norm_value'] is not None:
                 torch.nn.utils.clip_grad_norm_(
