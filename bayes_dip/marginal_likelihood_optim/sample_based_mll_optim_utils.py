@@ -19,7 +19,7 @@ from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_
 from bayes_dip.utils import eval_mode, get_mid_slice_if_3d, PSNR
 from bayes_dip.utils.experiment_utils import get_predefined_patch_idx_list
 from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
-
+import functorch
 
 def PCG_based_weights_linearization(
     observation_cov: ObservationCov,
@@ -194,7 +194,7 @@ def sample_then_optimise(
         variance_coeff: Tensor 
         ):
         proj_weights_posterior_samples = trafo(
-                neural_basis_expansion.jvp(weights_posterior_samples).squeeze(dim=1)
+            neural_basis_expansion.jvp(weights_posterior_samples).squeeze(dim=1)
             )
         loss_fit = .5 * (1 / noise_variance) * torch.nn.functional.mse_loss(
                 proj_weights_posterior_samples, eps, 
@@ -202,8 +202,7 @@ def sample_then_optimise(
             ) 
         loss_prior =  .5 * variance_coeff * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
         loss = loss_fit + loss_prior
-        loss.backward()
-
+    
         return loss, (loss_fit, loss_prior)
 
     
@@ -242,21 +241,23 @@ def sample_then_optimise(
     eps = torch.randn(num_samples, 1, *observation_cov.trafo.obs_shape, 
             device=observation_cov.device) * torch.sqrt(noise_variance)
 
-    # theta_n = weights_sample_from_prior + (1. / variance_coeff) * noise_variance * neural_basis_expansion.vjp(
-    #         observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])
+    theta_n = weights_sample_from_prior + (1. / variance_coeff) * noise_variance * neural_basis_expansion.vjp(
+            observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])
     
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar:
         for i in pbar:
-
-            # sample_linear_recon = observation_cov.trafo.trafo(
-            #     neural_basis_expansion.jvp(weights_posterior_samples))
-            # grad_1 = noise_variance * neural_basis_expansion.vjp(
-            #     observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
-            # grad_2 = (variance_coeff) * (weights_posterior_samples - theta_n)
+            
+            # We compute gradients exactly, since functorch.vmap and autograd have issues with sparse trafo.
+            sample_linear_recon = observation_cov.trafo.trafo(
+                neural_basis_expansion.jvp(weights_posterior_samples))
+            grad_1 = noise_variance * neural_basis_expansion.vjp(
+                observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
+            grad_2 = (variance_coeff) * (weights_posterior_samples - theta_n)
 
             optimizer.zero_grad()
-            # weights_posterior_samples.grad = grad_1 + grad_2
+            weights_posterior_samples.grad = grad_1 + grad_2
 
+            # We only use closure to calculate loss for logging purposes and not to compute the gradients.
             _, (loss_fit, loss_prior) = closure(
                 trafo=observation_cov.trafo, 
                 neural_basis_expansion=neural_basis_expansion,

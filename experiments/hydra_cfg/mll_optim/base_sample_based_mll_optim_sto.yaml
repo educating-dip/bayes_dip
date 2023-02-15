@@ -14,8 +14,8 @@ sampling:
       use_warm_start: False
   hyperparams_update:
     optim_kwargs: #TODO: fine-tune
-      iterations: 500
-      lr: 5e-4
+      iterations: 5000
+      lr: 1e-3
       momentum: 0.99
       verbose: True
       clip_grad_norm_value: 1.

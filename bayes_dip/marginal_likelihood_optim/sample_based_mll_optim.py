@@ -94,16 +94,15 @@ def sample_based_marginal_likelihood_optim(
                         )
                 else:
                     use_warm_start = optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']['use_warm_start']
-                    with torch.enable_grad():
-                        weight_sample = sample_then_optimise(
-                            observation_cov=observation_cov,
-                            neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
-                            noise_variance=observation_cov.log_noise_variance.exp().detach(), 
-                            variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
-                            num_samples=optim_kwargs['num_samples'],
-                            optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
-                            init_at_previous_samples=weight_sample if use_warm_start else None,
-                            )
+                    weight_sample = sample_then_optimise(
+                        observation_cov=observation_cov,
+                        neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
+                        noise_variance=observation_cov.log_noise_variance.exp().detach(), 
+                        variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
+                        num_samples=optim_kwargs['num_samples'],
+                        optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
+                        init_at_previous_samples=weight_sample if use_warm_start else None,
+                        )
                     # Zero mean samples.
                     image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
 
