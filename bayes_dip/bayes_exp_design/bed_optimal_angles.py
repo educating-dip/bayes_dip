@@ -212,7 +212,7 @@ def bed_optimal_angles_search(
                 ray_trafo_obj=ray_trafo_obj, 
                 ray_trafo_top_k_obj=ray_trafo_top_k_obj,
                 cov_obs_mat_no_noise=cov_obs_mat_no_noise, 
-                batch_size=bed_kwargs['bayes_exp_design_inference']['mc_samples']
+                batch_size=bed_kwargs['bayes_exp_design_inference']['batch_size']
                 )
 
         # update transforms

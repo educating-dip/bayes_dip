@@ -15,14 +15,14 @@ init_dip_from_mll: True
 acquisition:
   total_num_acq_projs: 25
   acq_projs_batch_size: 1
-  reconstruct_every_k_step: 1
-  update_network_params: True
-  update_prior_hyperparams: mrglik
+  reconstruct_every_k_step: 5
+  update_network_params: False
+  update_prior_hyperparams: False
 criterion:
   use_EIG: False
   use_diagonal_EIG: False
 bayes_exp_design_inference:
-  mc_samples: 10
+  mc_samples: 3000
   batch_size: 10
   cov_obs_mat: 
     eps_mode: auto_rel_mean_diag
