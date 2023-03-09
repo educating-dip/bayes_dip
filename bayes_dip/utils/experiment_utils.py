@@ -18,10 +18,10 @@ from bayes_dip.data import (
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
 
-def get_standard_ray_trafo(cfg: DictConfig) -> BaseRayTrafo:
+def get_standard_ray_trafo(cfg: DictConfig, override_angular_sub_sampling: Optional[int] = None) -> BaseRayTrafo:
     """Return the ray transform by hydra config."""
     kwargs = {}
-    kwargs['angular_sub_sampling'] = cfg.trafo.angular_sub_sampling
+    kwargs['angular_sub_sampling'] = cfg.trafo.angular_sub_sampling if override_angular_sub_sampling is None else override_angular_sub_sampling
     if cfg.dataset.name in ('mnist', 'kmnist', 'rectangles'):
         kwargs['im_shape'] = (cfg.dataset.im_size, cfg.dataset.im_size)
         kwargs['num_angles'] = cfg.trafo.num_angles

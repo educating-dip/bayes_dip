@@ -1,0 +1,44 @@
+# @package _global_
+defaults:
+  - override /dataset: rectangles
+  - override /trafo: simple_trafo
+  - override /dip: simple_unet
+  - override /mll_optim: base_mll_optim
+  - override /inference: base_inference
+
+mll_optim: # overrides
+  iterations: 100
+  include_predcp: False
+
+log_path: ./
+init_dip_from_mll: True
+acquisition:
+  total_num_acq_projs: 25
+  acq_projs_batch_size: 1
+  reconstruct_every_k_step: 1
+  update_network_params: True
+  update_prior_hyperparams: mrglik
+criterion:
+  use_EIG: False
+  use_diagonal_EIG: False
+bayes_exp_design_inference:
+  mc_samples: 10
+  batch_size: 10
+  cov_obs_mat: 
+    eps_mode: auto_rel_mean_diag
+    eps: 0.001
+    eps_min_for_auto: 1e-6
+    include_zero_for_auto: True
+compute_equidistant_baseline: False
+hyperparam_path_baseline: null
+use_best_inds_from_path: null
+use_alternative_recon: null  # 'tvadam'
+tvadam_hyperparam_path_baseline: null
+tvadam:
+  lr: 0.001
+  gamma: 3e-3
+  show_pbar: True
+  iterations: 10000
+  loss_function: mse
+  use_relu_out: True
+  log_path: ./
