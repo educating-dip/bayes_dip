@@ -1,5 +1,9 @@
 from .sample_observations import sample_observations_shifted_bayes_exp_design
 from .update_cov_obs_mat import update_cov_obs_mat_no_noise
-from .bed_optimal_angles import bed_optimal_angles_search, bed_eqdist_angles_baseline
-from .utils import get_ray_trafo_modules_exp_design, plot_angles_callback, plot_obj_callback, get_hyperparam_fun_from_yaml, get_save_obj_callback
+from .bed_optimal_angles import bed_optimal_angles_search
+from .utils import plot_angles_callback, plot_obj_callback, get_hyperparam_fun_from_yaml, get_save_obj_callback
 from .base_angles_tracker import BaseAnglesTracker
+from .acq_criterions import sampled_diagonal_EIG, sampled_EIG, find_optimal_proj
+from .acq_baselines import bed_eqdist_angles_baseline
+from .acq_state_tracker import AcqStateTracker
+from .acq_baselines import bed_eqdist_angles_baseline

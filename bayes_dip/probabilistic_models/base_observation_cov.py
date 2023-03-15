@@ -35,6 +35,7 @@ class BaseObservationCov(nn.Module, ABC):
         super().__init__()
 
         self.trafo = trafo
+        self._shape = (np.prod(self.trafo.obs_shape),) * 2
         self.image_cov = image_cov
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
 
@@ -45,7 +46,11 @@ class BaseObservationCov(nn.Module, ABC):
     @property
     def shape(self) -> Tuple[int, int]:
         """Shape of the (theoretical) matrix representation."""
-        return (np.prod(self.trafo.obs_shape),) * 2
+        return self._shape
+
+    @shape.setter
+    def shape(self, value) -> None:
+        self._shape = value
 
     @abstractmethod
     def forward(self,

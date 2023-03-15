@@ -1,42 +1,48 @@
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 import yaml
 import scipy
 import numpy as np 
 import matplotlib.pyplot as plt
 
+from torch import Tensor
 from .base_angles_tracker import BaseAnglesTracker
+from .acq_state_tracker import AcqStateTracker
+
 from bayes_dip.data import MatmulRayTrafo
+from bayes_dip.dip import DeepImagePriorReconstructor
 
+def eval_dip_on_newly_acquired_observation_data(
+    acq_state_tracker: AcqStateTracker,
+    noisy_observation: Tensor,
+    filtbackproj: Tensor, 
+    ground_truth: Tensor,
+    net_kwargs: Dict,
+    optim_kwargs: Dict,
+    init_state_dict: Optional[Any] = None,
+    dtype: Optional[Any] = None,
+    device: Optional[Any] = None
+    ): 
 
-def get_ray_trafo_modules_exp_design(
-            ray_trafo_full: MatmulRayTrafo,
-            angles_tracker: BaseAnglesTracker, 
-            dtype: Optional[Any] = None, 
-            device: Optional[Any] = None
-        ):
+    refine_reconstructor = DeepImagePriorReconstructor(
+        acq_state_tracker.ray_trafo_obj,
+        net_kwargs=net_kwargs,
+        device=device
+        )
 
-    ray_trafo_module = MatmulRayTrafo(
-            # reshaping of matrix rows to (len(cur_proj_inds_list), num_projs_per_angle) is row-major
-            im_shape=ray_trafo_full.im_shape, 
-            obs_shape=(len(angles_tracker.cur_proj_inds_list), angles_tracker.num_projs_per_angle),
-            matrix=
-                scipy.sparse.csr_matrix(
-                ray_trafo_full.matrix[np.concatenate(angles_tracker.cur_proj_inds_list)].cpu().numpy()
-            )
-        ).to(dtype=dtype, device=device)
-    if len(angles_tracker.acq_proj_inds_list) > 0:
-        ray_trafo_comp_module = MatmulRayTrafo(
-                # reshaping of matrix rows to (len(acq_proj_inds_list), num_projs_per_angle) is row-major
-                im_shape=ray_trafo_full.im_shape,
-                obs_shape=(len(angles_tracker.acq_proj_inds_list), angles_tracker.num_projs_per_angle),
-                matrix=
-                scipy.sparse.csr_matrix(
-                    ray_trafo_full.matrix[np.concatenate(angles_tracker.acq_proj_inds_list)].cpu().numpy()
-                )
-            ).to(dtype=dtype, device=device)
-    else:
-        ray_trafo_comp_module = None
-    return ray_trafo_module, ray_trafo_comp_module
+    if init_state_dict is not None: 
+        refine_reconstructor.nn_model.load_state_dict(init_state_dict)
+    refine_reconstructor.nn_model.to(
+        device=device, dtype=dtype
+        )
+
+    recon = refine_reconstructor.reconstruct(
+        noisy_observation=noisy_observation,
+        filtbackproj=filtbackproj,
+        ground_truth=ground_truth,
+        optim_kwargs=optim_kwargs
+        )
+
+    return recon, refine_reconstructor.nn_model
 
 def get_hyperparam_fun_from_yaml(path, data, noise_stddev):
     
@@ -81,7 +87,8 @@ def plot_obj_callback(all_acq_angle_inds, init_angle_inds, cur_angle_inds, acq_a
     return fig
 
 def plot_angles_callback(all_acq_angle_inds, init_angle_inds, cur_angle_inds, acq_angle_inds, top_projs_idx, local_vars):
-    full_angles = local_vars['ray_trafo_full'].angles
+    
+    full_angles = local_vars['acq_state_tracker'].ray_trafo_full.angles
     top_k_acq_angle_inds = [acq_angle_inds[idx] for idx in top_projs_idx]
     if (len(full_angles) % (len(cur_angle_inds) + len(top_k_acq_angle_inds)) == 0
             and (len(cur_angle_inds) + len(top_k_acq_angle_inds)) % len(init_angle_inds) == 0):
