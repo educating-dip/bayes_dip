@@ -2,7 +2,7 @@
 Provides the kernelised sampling-based linearised NN inference routine for 
 gprior hyperparameter, :func:``sample_based_marginal_likelihood_optim``.
 """
-from typing import Dict
+from typing import Dict, Optional
 import os
 import socket
 import datetime
@@ -28,7 +28,9 @@ def sample_based_marginal_likelihood_optim(
     nn_recon: Tensor,
     ground_truth: Tensor,
     optim_kwargs: Dict,
-    log_path: str = './'
+    log_path: str = './',
+    em_start_step: int = 0,
+    posterior_obs_samples_sq_sum: Optional[Dict] = None,
     ):
 
     '''
@@ -60,7 +62,10 @@ def sample_based_marginal_likelihood_optim(
         linearized_weights = None
         weight_sample = None
 
-        with tqdm(range(optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
+        if posterior_obs_samples_sq_sum is not None:
+            assert optim_kwargs['iterations'] == 1, 'Only one iteration is allowed when resuming from a checkpoint.'
+
+        with tqdm(range(em_start_step, em_start_step + optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
             for i in pbar:
                 if not optim_kwargs['use_sample_then_optimise']:
                     linearized_weights, linearized_observation, linearized_recon = PCG_based_weights_linearization(
@@ -87,27 +92,34 @@ def sample_based_marginal_likelihood_optim(
                 linearized_recon = linearized_recon - recon_offset.squeeze(dim=0)
                 linearized_observation = linearized_observation - observation_offset
                 
-                if not optim_kwargs['use_sample_then_optimise']:
-                    image_samples = predictive_posterior.sample_zero_mean(
-                        num_samples=optim_kwargs['num_samples'],
-                        **optim_kwargs['sample_kwargs']
-                        )
-                else:
-                    use_warm_start = optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']['use_warm_start']
-                    weight_sample = sample_then_optimise(
-                        observation_cov=observation_cov,
-                        neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
-                        noise_variance=observation_cov.log_noise_variance.exp().detach(), 
-                        variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
-                        num_samples=optim_kwargs['num_samples'],
-                        optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
-                        init_at_previous_samples=weight_sample if use_warm_start else None,
-                        )
-                    # Zero mean samples.
-                    image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
+                if posterior_obs_samples_sq_sum is None:
+                    if not optim_kwargs['use_sample_then_optimise']:
+                        image_samples = predictive_posterior.sample_zero_mean(
+                            num_samples=optim_kwargs['num_samples'],
+                            **optim_kwargs['sample_kwargs']
+                            )
+                    else:
+                        use_warm_start = optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs']['use_warm_start']
+                        weight_sample = sample_then_optimise(
+                            observation_cov=observation_cov,
+                            neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
+                            noise_variance=observation_cov.log_noise_variance.exp().detach(), 
+                            variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
+                            num_samples=optim_kwargs['num_samples'],
+                            optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
+                            init_at_previous_samples=weight_sample if use_warm_start else None,
+                            )
+                        
+                        torch.save(weight_sample, f'weight_sample_iter_{i}.pt')
+                        # Zero mean samples.
+                        image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
 
-                obs_samples = observation_cov.trafo(image_samples)
-                eff_dim = estimate_effective_dimension(posterior_obs_samples=obs_samples, 
+                    obs_samples = observation_cov.trafo(image_samples)
+                    posterior_obs_samples_sq_mean = obs_samples.pow(2).sum(dim=0) / obs_samples.shape[0]
+                else:
+                    posterior_obs_samples_sq_mean = posterior_obs_samples_sq_sum['value'] / posterior_obs_samples_sq_sum['num_samples']
+
+                eff_dim = estimate_effective_dimension(posterior_obs_samples_sq_mean=posterior_obs_samples_sq_mean, 
                         noise_variance=observation_cov.log_noise_variance.exp().detach()
                         ).clamp(min=1, max=np.prod(observation_cov.trafo.obs_shape)-1)
                 
@@ -124,6 +136,10 @@ def sample_based_marginal_likelihood_optim(
                     observation_cov.state_dict(), 
                     f'observation_cov_iter_{i}.pt'
                 )
+                torch.save(
+                    variance_coeff, 
+                    f'gprior_variance_iter_{i}.pt'
+                )
 
                 writer.add_scalar('variance_coeff', variance_coeff.item(), i)
                 writer.add_scalar('noise_variance', observation_cov.log_noise_variance.data.exp().item(), i)
@@ -131,7 +147,7 @@ def sample_based_marginal_likelihood_optim(
                 writer.add_scalar('effective_dimension', eff_dim.item(), i)
                 writer.add_scalar('se_loss', se_loss.item(), i)
 
-                if optim_kwargs['activate_debugging_mode']:
+                if optim_kwargs['activate_debugging_mode'] and posterior_obs_samples_sq_sum is None:
                     if optim_kwargs['use_sample_then_optimise']:
                         print('Log-likelihood is calculated using previous samples, and only mll_optim.num_samples are used.')
                     loglik_nn_model, image_samples_diagnostic = debugging_loglikelihood_estimation(
