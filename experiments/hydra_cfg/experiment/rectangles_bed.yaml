@@ -10,14 +10,17 @@ mll_optim: # overrides
   iterations: 100
   include_predcp: False
 
+dip: 
+  net: 
+    use_sigmoid: True  # overrides
+
 log_path: ./
 init_dip_from_mll: True
 acquisition:
-  total_num_acq_projs: 25
+  total_num_acq_projs: 35
   acq_projs_batch_size: 1
   reconstruct_every_k_step: 5
   update_network_params: False
-  update_prior_hyperparams: False
 criterion:
   use_EIG: False
   use_diagonal_EIG: False
@@ -27,7 +30,7 @@ bayes_exp_design_inference:
   cov_obs_mat: 
     eps_mode: auto_rel_mean_diag
     eps: 0.1
-    eps_min_for_auto: 1e-2
+    eps_min_for_auto: 5e-2
     include_zero_for_auto: False
 compute_equidistant_baseline: False
 hyperparam_path_baseline: null

@@ -2,7 +2,7 @@
 Utilities for experiments.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Callable, Sequence
 import os
 from warnings import warn
 import torch
@@ -18,7 +18,11 @@ from bayes_dip.data import (
 from bayes_dip.data.datasets.walnut import get_walnut_2d_inner_patch_indices
 from .utils import get_original_cwd
 
-def get_standard_ray_trafo(cfg: DictConfig, override_angular_sub_sampling: Optional[int] = None) -> BaseRayTrafo:
+def get_standard_ray_trafo(
+    cfg: DictConfig, 
+    override_angular_sub_sampling: Optional[int] = None, 
+    return_full: bool = False
+    ) -> BaseRayTrafo:
     """Return the ray transform by hydra config."""
     kwargs = {}
     kwargs['angular_sub_sampling'] = cfg.trafo.angular_sub_sampling if override_angular_sub_sampling is None else override_angular_sub_sampling
@@ -42,11 +46,15 @@ def get_standard_ray_trafo(cfg: DictConfig, override_angular_sub_sampling: Optio
         kwargs['vol_down_sampling'] = cfg.trafo.vol_down_sampling
     else:
         raise ValueError
-    return get_ray_trafo(cfg.dataset.name, kwargs=kwargs)
+    return get_ray_trafo(cfg.dataset.name, kwargs=kwargs, return_full=return_full)
+
 
 def get_standard_dataset(
         cfg: DictConfig, ray_trafo: BaseRayTrafo, fold: str = 'test',
-        use_fixed_seeds_starting_from: Optional[int] = 1, device=None) -> Dataset:
+        use_fixed_seeds_starting_from: Optional[int] = 1, 
+        ray_trafo_full: Optional[BaseRayTrafo] = None, 
+        subsampling_indices: Optional[Sequence] = None, 
+        device=None) -> Dataset:
     """
     Return a dataset of tuples ``noisy_observation, x, filtbackproj``, where
         * ``noisy_observation`` has shape ``(1,) + obs_shape``
@@ -105,8 +113,11 @@ def get_standard_dataset(
         dataset = SimulatedDataset(
                 image_dataset, ray_trafo,
                 white_noise_rel_stddev=cfg.dataset.noise_stddev,
-                use_fixed_seeds_starting_from=use_fixed_seeds_starting_from,
-                device=device)
+                use_fixed_seeds_starting_from=use_fixed_seeds_starting_from, 
+                ray_trafo_full=ray_trafo_full,
+                subsampling_indices=subsampling_indices,
+                device=device
+                )
 
     elif cfg.dataset.name == 'walnut':
 

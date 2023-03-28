@@ -68,7 +68,6 @@ def bed_eqdist_angles_baseline(
     ray_trafo_obj, _ = _get_ray_trafo_modules(
         ray_trafo_full=ray_trafo_full,
         angles_tracker=angles_tracker,
-        dtype=dtype,
         device=device
     )
 
@@ -123,13 +122,12 @@ def bed_eqdist_angles_baseline(
             ray_trafo_obj, _ = _get_ray_trafo_modules(
                 ray_trafo_full=ray_trafo_full,
                 angles_tracker=angles_tracker, 
-                dtype=dtype,
                 device=device
             )
         else:
             new_cur_angle_inds = None
 
-        if bed_kwargs['acquisition']['reconstruct_every_k_step'] is not None and (i+1) % bed_kwargs['acquisition']['reconstruct_every_k_step'] == 0:
+        if bed_kwargs['reconstruct_every_k_step'] is not None and (i+1) % bed_kwargs['reconstruct_every_k_step'] == 0:
             if new_cur_angle_inds is not None:
                 if not bed_kwargs['use_alternative_recon']:
                     if hyperparam_fun is not None:
@@ -158,9 +156,8 @@ def bed_eqdist_angles_baseline(
                     torch.save(refine_reconstructor.nn_model.state_dict(),
                                 './{}_acq_{}.pt'.format(model_basename, i+1)
                             )
-                    
                     recons.append(recon.cpu().numpy())
-        
+
                 elif bed_kwargs['use_alternative_recon'] == 'tvadam':
 
                     obs = observation_full.flatten()[np.concatenate(

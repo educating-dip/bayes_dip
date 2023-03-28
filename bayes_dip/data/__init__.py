@@ -14,6 +14,7 @@ from .trafo import (
         get_odl_ray_trafo_parallel_beam_2d_matrix,
         get_parallel_beam_2d_matmul_ray_trafo,
         get_walnut_2d_ray_trafo,
-        get_walnut_3d_ray_trafo)
+        get_walnut_3d_ray_trafo, 
+        get_parallel_beam_2d_matmul_ray_trafos_bayesian_exp_design)
 from .simulation import simulate, SimulatedDataset
 from .utils import get_ray_trafo

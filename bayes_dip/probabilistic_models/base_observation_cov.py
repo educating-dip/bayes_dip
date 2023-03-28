@@ -48,9 +48,10 @@ class BaseObservationCov(nn.Module, ABC):
         """Shape of the (theoretical) matrix representation."""
         return self._shape
 
-    @shape.setter
-    def shape(self, value) -> None:
-        self._shape = value
+    def update_trafo(self, new_trafo):
+        self.trafo = new_trafo
+        self._shape = (np.prod(self.trafo.obs_shape),) * 2
+        assert np.prod(self.trafo.im_shape) == self.image_cov.shape[0]
 
     @abstractmethod
     def forward(self,
