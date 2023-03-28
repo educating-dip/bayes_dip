@@ -283,8 +283,9 @@ def sample_then_optimise(
             if optim_kwargs['verbose']:
                 image_sample = neural_basis_expansion.jvp(weights_posterior_samples).squeeze(dim=1)
                 obs_samples = observation_cov.trafo(image_sample)
+                posterior_obs_samples_sq_mean = obs_samples.pow(2).sum(dim=0) / obs_samples.shape[0]
                 eff_dim = estimate_effective_dimension(
-                    posterior_obs_samples=obs_samples,
+                    posterior_obs_samples_sq_mean=posterior_obs_samples_sq_mean,
                     noise_variance=noise_variance
                     )
                 pbar.set_description(f'approx_eff_dim: {eff_dim.detach().cpu().numpy():.4f}', refresh=False)
@@ -296,11 +297,12 @@ def sample_then_optimise(
             
 
 def estimate_effective_dimension(
-    posterior_obs_samples: Tensor,
+    posterior_obs_samples_sq_mean: Tensor,
     noise_variance: float,
     ) -> float:
 
-    return posterior_obs_samples.pow(2).mean(dim=0).sum()*(1/noise_variance) 
+    return posterior_obs_samples_sq_mean.sum()*(1/noise_variance) 
+
 
 def gprior_variance_mackay_update(
     eff_dim: float, 
