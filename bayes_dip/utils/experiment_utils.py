@@ -8,7 +8,7 @@ from warnings import warn
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset, TensorDataset
-from omegaconf import DictConfig
+from omegaconf import OmegaConf, DictConfig
 from bayes_dip.data import get_ray_trafo, SimulatedDataset, BaseRayTrafo
 from bayes_dip.data import (
         get_mnist_testset, get_kmnist_testset, get_mnist_trainset, get_kmnist_trainset,
@@ -26,16 +26,25 @@ def get_standard_ray_trafo(
     """Return the ray transform by hydra config."""
     kwargs = {}
     kwargs['angular_sub_sampling'] = cfg.trafo.angular_sub_sampling if override_angular_sub_sampling is None else override_angular_sub_sampling
-    if cfg.dataset.name in ('mnist', 'kmnist', 'rectangles'):
+    if cfg.trafo.name == 'simple':  # cfg.dataset.name in ('mnist', 'kmnist', 'rectangles'):
         kwargs['im_shape'] = (cfg.dataset.im_size, cfg.dataset.im_size)
         kwargs['num_angles'] = cfg.trafo.num_angles
-    elif cfg.dataset.name in ('walnut', 'walnut_120_angles'):
+        kwargs['geometry'] = cfg.trafo.geometry
+        kwargs['geometry_specs'] = OmegaConf.to_object(cfg.trafo.geometry_specs)
+        kwargs['impl'] = cfg.trafo.impl
+    elif cfg.trafo.name == 'param_fan_beam':
+        kwargs['im_shape'] = (cfg.dataset.im_size, cfg.dataset.im_size)
+        kwargs['num_angles'] = cfg.trafo.num_angles
+        kwargs['rect_padded'] = cfg.trafo.geometry_specs.rect_padded
+        kwargs['num_det_pixels'] = cfg.trafo.geometry_specs.num_det_pixels
+        kwargs['src_radius'] = cfg.trafo.geometry_specs.src_radius
+    elif cfg.trafo.name in ('walnut', 'walnut_120_angles'):  # cfg.dataset.name in ('walnut', 'walnut_120_angles'):
         kwargs['data_path'] = os.path.join(get_original_cwd(), cfg.dataset.data_path)
         kwargs['matrix_path'] = os.path.join(get_original_cwd(), cfg.dataset.data_path)
         kwargs['walnut_id'] = cfg.dataset.walnut_id
         kwargs['orbit_id'] = cfg.trafo.orbit_id
         kwargs['proj_col_sub_sampling'] = cfg.trafo.proj_col_sub_sampling
-    elif cfg.dataset.name in ('walnut_3d'):
+    elif cfg.trafo.name in ('walnut_3d',):
         kwargs['data_path'] = os.path.join(get_original_cwd(), cfg.dataset.data_path)
         kwargs['matrix_path'] = os.path.join(get_original_cwd(), cfg.dataset.data_path)
         kwargs['walnut_id'] = cfg.dataset.walnut_id
@@ -46,7 +55,7 @@ def get_standard_ray_trafo(
         kwargs['vol_down_sampling'] = cfg.trafo.vol_down_sampling
     else:
         raise ValueError
-    return get_ray_trafo(cfg.dataset.name, kwargs=kwargs, return_full=return_full)
+    return get_ray_trafo(cfg.trafo.name, kwargs=kwargs, return_full=return_full)
 
 
 def get_standard_dataset(
