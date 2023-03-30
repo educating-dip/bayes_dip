@@ -3,7 +3,7 @@ Provides data generation, data access, and the ray transform.
 """
 
 from .datasets import (
-        RectanglesDataset,
+        RectanglesDataset, GeometricDataset,
         get_mnist_testset, get_mnist_trainset,
         get_kmnist_testset, get_kmnist_trainset,
         get_walnut_2d_observation, get_walnut_2d_ground_truth,
