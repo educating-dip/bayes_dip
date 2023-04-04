@@ -8,7 +8,7 @@ from torch import nn, Tensor
 from tqdm import tqdm
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.probabilistic_models import BaseNeuralBasisExpansion
-from ..utils import batch_tv_grad, PSNR, eval_mode  # pylint: disable=unused-import
+from ..utils import batch_tv_grad, batch_tv_grad_3d_mean, PSNR, eval_mode  # pylint: disable=unused-import
 
 def weights_linearization(
         trafo: BaseRayTrafo,
@@ -84,6 +84,8 @@ def weights_linearization(
 
     precision = optim_kwargs['noise_precision']
 
+    tv_grad_fun = batch_tv_grad if len(trafo.im_shape) == 2 else batch_tv_grad_3d_mean
+
     with tqdm(range(optim_kwargs['iterations']),
                 miniters=optim_kwargs['iterations']//100) as pbar, \
             eval_mode(nn_model):
@@ -106,7 +108,8 @@ def weights_linearization(
 
             observation = observation.view(*proj_lin_recon.shape)
             norm_grad = trafo.trafo_adjoint( observation - proj_lin_recon )
-            tv_grad = batch_tv_grad(lin_recon)
+
+            tv_grad = tv_grad_fun(lin_recon)
 
             # loss = (torch.nn.functional.mse_loss(
             #                 proj_lin_recon, observation.view(*proj_lin_recon.shape))
