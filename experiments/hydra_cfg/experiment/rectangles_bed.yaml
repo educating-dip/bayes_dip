@@ -15,7 +15,7 @@ dip:
     use_sigmoid: True  # overrides
 
 log_path: ./
-init_dip_from_mll: True
+init_eval_dip_from_load_path: True
 acquisition:
   total_num_acq_projs: 35
   acq_projs_batch_size: 1

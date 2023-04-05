@@ -151,7 +151,7 @@ def bed_optimal_angles_search(
                 dtype=torch.float32,
                 device=device
                 )
-            recons.append(recon)
+            recons.append(recon.cpu().numpy()[0, 0])
             refined_model.to(dtype=dtype)
             acq_state_tracker.model_update(refined_model=refined_model)
 

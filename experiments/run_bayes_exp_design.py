@@ -67,7 +67,7 @@ def coordinator(cfg : DictConfig) -> None:
         assert load_dip_params_from_path is not None 
         # assert that sample data matches with that from the dip to be loaded
         assert_sample_matches(
-                (observation, ground_truth, filtbackproj), 
+                (observation, ground_truth, filtbackproj),
                 load_dip_params_from_path, i, raise_if_file_not_found=False)
 
         sample_dict = torch.load(
@@ -224,7 +224,7 @@ def coordinator(cfg : DictConfig) -> None:
         
             best_inds, recons = bed_optimal_angles_search(
                 acq_state_tracker=acq_state_tracker,
-                init_state_dict=init_state_dict,
+                init_state_dict=init_state_dict if cfg.init_eval_dip_from_load_path else None,
                 observation_full=observation_full,
                 filtbackproj=filtbackproj,
                 ground_truth=ground_truth,
@@ -251,7 +251,7 @@ def coordinator(cfg : DictConfig) -> None:
                 observation_full=observation_full,
                 filtbackproj=filtbackproj,
                 ground_truth=ground_truth,
-                init_state_dict=reconstructor.nn_model.state_dict() if cfg.init_dip_from_mll else None,
+                init_state_dict=init_state_dict if cfg.init_eval_dip_from_load_path else None,
                 bed_kwargs = {
                     'reconstruct_every_k_step': cfg.acquisition.reconstruct_every_k_step,
                     'use_alternative_recon': cfg.use_alternative_recon,
