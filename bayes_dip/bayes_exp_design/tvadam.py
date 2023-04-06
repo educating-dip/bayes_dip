@@ -81,4 +81,4 @@ class TVAdamReconstructor:
         if log:
             self.writer.close()
 
-        return best_output[0, 0, ...]
+        return best_output

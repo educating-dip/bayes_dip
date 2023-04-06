@@ -5,7 +5,6 @@ import torch
 import socket
 import datetime
 import numpy as np
-import scipy.sparse
 import tensorboardX
 import matplotlib.pyplot as plt
 
@@ -15,16 +14,10 @@ from tqdm import tqdm
 from torch import Tensor
 
 from .sample_observations import sample_observations_shifted_bayes_exp_design
-from .update_cov_obs_mat import update_cov_obs_mat_no_noise
-from .tvadam import TVAdamReconstructor
-from .base_angles_tracker import BaseAnglesTracker
 from .acq_criterions import find_optimal_proj
 from .acq_state_tracker import AcqStateTracker
 from .utils import eval_recon_on_new_acq_observation_data
 
-from bayes_dip.data import MatmulRayTrafo
-from bayes_dip.probabilistic_models import ObservationCov
-from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.utils import normalize, PSNR
 
 # note: observation needs to have shape (len(init_angle_inds), num_projs_per_angle)
@@ -75,7 +68,7 @@ def bed_optimal_angles_search(
                         acq_state_tracker.observation_cov.log_noise_variance) * torch.eye(
                                 acq_state_tracker.cov_obs_mat_no_noise.shape[0], device=device),
                     **bed_kwargs['bayes_exp_design_inference']['cov_obs_mat'])
-            samples, images_samples = sample_observations_shifted_bayes_exp_design(
+            samples, images_samples = sample_observations_shifted_bayes_exp_design(  # pylint: disable=possibly-unused-variable
                 acq_state_tracker.observation_cov, acq_state_tracker.ray_trafo_obj, acq_state_tracker.ray_trafo_comp_obj,
                 torch.linalg.cholesky(
                     acq_state_tracker.cov_obs_mat_no_noise + ( torch.exp(
@@ -85,7 +78,7 @@ def bed_optimal_angles_search(
                 batch_size=bed_kwargs['bayes_exp_design_inference']['batch_size'],
                 device=device
                 )
-            top_projs_idx, obj = find_optimal_proj(
+            top_projs_idx, obj = find_optimal_proj(  # pylint: disable=possibly-unused-variable
                     samples=samples,
                     log_noise_variance=acq_state_tracker.observation_cov.log_noise_variance, 
                     acq_projs_batch_size=acq_state_tracker.angles_tracker.acq_projs_batch_size, 
@@ -138,7 +131,8 @@ def bed_optimal_angles_search(
             acq_noisy_observation = acq_noisy_observation.to(dtype=dtype)
 
             recon, refined_model = eval_recon_on_new_acq_observation_data(
-                acq_state_tracker=acq_state_tracker,
+                ray_trafo=acq_state_tracker.ray_trafo_obj,
+                angles_tracker=acq_state_tracker.angles_tracker,
                 acq_noisy_observation=acq_noisy_observation,
                 filtbackproj=filtbackproj,
                 ground_truth=ground_truth,
@@ -146,8 +140,8 @@ def bed_optimal_angles_search(
                 optim_kwargs=dip_kwargs['optim'],
                 init_state_dict=init_state_dict,
                 use_alternative_recon=bed_kwargs['use_alternative_recon'],
+                alternative_recon_kwargs=bed_kwargs['alternative_recon_kwargs'],
                 hyperparam_fun=hyperparam_fun,
-                tvadam_hyperparam_fun=bed_kwargs['alternative_recon_kwargs']['tvadam_hyperparam_fun'],
                 dtype=torch.float32,
                 device=device
                 )

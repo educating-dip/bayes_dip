@@ -1,20 +1,20 @@
 from typing import Optional, Any, Dict, Callable
 import yaml
-import scipy
 import numpy as np 
 import matplotlib.pyplot as plt
-from omegaconf import DictConfig
 
 from torch import Tensor
 from copy import deepcopy
-from .base_angles_tracker import BaseAnglesTracker
-from .acq_state_tracker import AcqStateTracker
 
-from bayes_dip.data import MatmulRayTrafo
+from .tvadam import TVAdamReconstructor
+from .base_angles_tracker import BaseAnglesTracker
+
+from bayes_dip.data import BaseRayTrafo
 from bayes_dip.dip import DeepImagePriorReconstructor
 
 def eval_recon_on_new_acq_observation_data(
-    acq_state_tracker: AcqStateTracker,
+    ray_trafo: BaseRayTrafo,
+    angles_tracker: BaseAnglesTracker,
     acq_noisy_observation: Tensor,
     filtbackproj: Tensor,
     ground_truth: Tensor,
@@ -22,22 +22,22 @@ def eval_recon_on_new_acq_observation_data(
     optim_kwargs: Dict,
     init_state_dict: Optional[Any] = None,
     use_alternative_recon: Optional[str] = None,
-    tvadam_hyperparam_fun: Optional[Callable] = None,
+    alternative_recon_kwargs: Optional[Dict] = None,
     hyperparam_fun: Optional[Callable] = None,
     dtype: Optional[Any] = None,
     device: Optional[Any] = None
-    ): 
+    ):
 
     filtbackproj, ground_truth = filtbackproj.to(dtype=dtype), ground_truth.to(dtype=dtype)
     if not use_alternative_recon:
         if hyperparam_fun is not None:
             optim_kwargs = deepcopy(optim_kwargs)
             optim_kwargs['gamma'], optim_kwargs['iterations'] = hyperparam_fun(
-                    len(acq_state_tracker.angles_tracker.cur_proj_inds_list)    )
+                    len(angles_tracker.cur_proj_inds_list)    )
         refine_reconstructor = DeepImagePriorReconstructor(
-            acq_state_tracker.ray_trafo_obj,
+            ray_trafo,
             net_kwargs=net_kwargs,
-        device=device   )
+        device=device)
 
         if init_state_dict is not None: 
             refine_reconstructor.nn_model.load_state_dict(init_state_dict)
@@ -51,13 +51,11 @@ def eval_recon_on_new_acq_observation_data(
             )
         refined_model = refine_reconstructor.nn_model
     elif use_alternative_recon == 'tvadam':
-        if bed_kwargs['alternative_recon_kwargs']['tvadam_hyperparam_fun'] is not None:
-            tvadam_kwargs = bed_kwargs['alternative_recon_kwargs']['tvadam_kwargs']
-            tvadam_kwargs['gamma'], tvadam_kwargs['iterations'] = tvadam_hyperparam_fun(
-                    len(angles_tracker.cur_proj_inds_list)  )
-        tvadam_reconstructor = TVAdamReconstructor(
-                ray_trafo_obj,  
-            )
+        if alternative_recon_kwargs['tvadam_hyperparam_fun'] is not None:
+            tvadam_kwargs = deepcopy(alternative_recon_kwargs['tvadam_kwargs'])
+            tvadam_kwargs['gamma'], tvadam_kwargs['iterations'] = alternative_recon_kwargs['tvadam_hyperparam_fun'](
+                    len(angles_tracker.cur_proj_inds_list))
+        tvadam_reconstructor = TVAdamReconstructor(ray_trafo)
         recon = tvadam_reconstructor.reconstruct(
                 acq_noisy_observation,
                 filtbackproj=filtbackproj, 

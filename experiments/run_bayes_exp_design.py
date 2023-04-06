@@ -265,8 +265,7 @@ def coordinator(cfg : DictConfig) -> None:
                 logged_plot_callbacks=logged_plot_callbacks,
                 model_basename='baseline_refined_dip_model_{}'.format(i),
                 log_path=cfg.log_path,
-                device=device,
-                dtype=dtype
+                device=device
                 )
 
         bayes_exp_design_dict = {}
