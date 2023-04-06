@@ -40,6 +40,8 @@ def bed_optimal_angles_search(
         return_recons: bool = True,
     ):
 
+    assert not (bed_kwargs['acquisition']['update_network_params'] and bed_kwargs['use_alternative_recon']), "cannot update network parameters when using alternative reconstruction method"
+
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
     comment = 'bayesian_experimental_design'
     logdir = os.path.join(log_path,
@@ -146,8 +148,10 @@ def bed_optimal_angles_search(
                 device=device
                 )
             recons.append(recon.cpu().numpy()[0, 0])
-            refined_model.to(dtype=dtype)
-            acq_state_tracker.model_update(refined_model=refined_model)
+            if refined_model is not None:
+                refined_model.to(dtype=dtype)
+            if bed_kwargs['acquisition']['update_network_params']:
+                acq_state_tracker.model_update(refined_model=refined_model)
 
             if refined_model is not None:
                 torch.save(
