@@ -1,6 +1,7 @@
 defaults:
   - base_trafo
 
+name: walnut
 orbit_id: 2
 angular_sub_sampling: 20  # 1200 -> 60
 proj_col_sub_sampling: 6  # 768 -> 128

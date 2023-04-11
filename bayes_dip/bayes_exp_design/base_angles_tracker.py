@@ -1,14 +1,14 @@
-from typing import List
+from typing import List, Sequence
 import numpy as np
 from bayes_dip.data import MatmulRayTrafo
 
 class BaseAnglesTracker:
 
     def __init__(self, 
-        ray_trafo: MatmulRayTrafo, 
-        angular_sub_sampling: int = 1,
-        total_num_acq_projs: int = 100,
-        acq_projs_batch_size: int = 5
+            ray_trafo: MatmulRayTrafo, 
+            angular_sub_sampling: int = 1,
+            total_num_acq_projs: int = 100,
+            acq_projs_batch_size: int = 5
         ):
         
         self.ray_trafo = ray_trafo # full ray trafo (all possible acquirable angles)
@@ -40,27 +40,24 @@ class BaseAnglesTracker:
         self.acq_angle_inds = list(self.acq_angle_inds)
         self.acq_proj_inds_list = [self.proj_inds_per_angle[a_ind] for a_ind in self.acq_angle_inds]
 
-    def get_best_inds_acquired(self, ) -> List:
-
+    @property
+    def best_inds_acquired(self, ) -> List:
         return [int(ind) for ind in self.cur_angle_inds if ind not in self.init_angle_inds]
     
-    def update(self, 
-        top_projs_idx: List
-        ) -> List:
+    @property
+    def top_k_acq_proj_inds_list(self, ) -> List:  
+        return [self.proj_inds_per_angle[a_ind] for a_ind in self.top_k_acq_angle_inds]
+
+    def update(self, top_projs_idx: Sequence) -> List:
 
         self.top_k_acq_angle_inds = [self.acq_angle_inds[idx] for idx in top_projs_idx]
-        top_k_acq_proj_inds_list = [self.proj_inds_per_angle[a_ind] for a_ind in self.top_k_acq_angle_inds]
-        
         self.cur_angle_inds += self.top_k_acq_angle_inds
         self.cur_proj_inds_list = [self.proj_inds_per_angle[a_ind] for a_ind in self.cur_angle_inds]
 
         _reduced_acq_inds = np.setdiff1d(
-            np.arange(len(self.acq_proj_inds_list)), 
-            top_projs_idx
-            )
+                np.arange(  len(self.acq_proj_inds_list)    ), top_projs_idx  )
 
         self.acq_angle_inds = [self.acq_angle_inds[idx] for idx in _reduced_acq_inds]
         self.acq_proj_inds_list = [self.proj_inds_per_angle[a_ind] for a_ind in self.acq_angle_inds]
 
-        return top_k_acq_proj_inds_list
 

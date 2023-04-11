@@ -22,7 +22,6 @@ def sample_observations_shifted_bayes_exp_design(
     
     comp_observation_samples = []
     images_samples = []
-
     for _ in tqdm(
         range(num_batches), desc='sample_from_posterior', miniters=num_batches//100):
     

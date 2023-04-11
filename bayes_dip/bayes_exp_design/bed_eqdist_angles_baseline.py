@@ -1,14 +1,11 @@
 from typing import Dict, Optional, Any 
 import os
-import gc
 import io
 import torch
 import socket
 import datetime
 import numpy as np
-import scipy.sparse
 import tensorboardX
-import tensorly as tl
 import matplotlib.pyplot as plt
 
 from copy import deepcopy
@@ -16,16 +13,12 @@ from math import ceil
 from tqdm import tqdm
 from torch import Tensor
 
-from .sample_observations import sample_observations_shifted_bayes_exp_design
-from .update_cov_obs_mat import update_cov_obs_mat_no_noise
-from .tvadam import TVAdamReconstructor
 from .base_angles_tracker import BaseAnglesTracker
 from .acq_state_tracker import _get_ray_trafo_modules
+from .utils import eval_recon_on_new_acq_observation_data
 
 from bayes_dip.data import MatmulRayTrafo
-from bayes_dip.probabilistic_models import ObservationCov
 from bayes_dip.dip import DeepImagePriorReconstructor
-from bayes_dip.marginal_likelihood_optim import marginal_likelihood_hyperparams_optim, get_preconditioner
 from bayes_dip.utils import normalize, PSNR
 
 # note: observation needs to have shape (len(init_angle_inds), num_projs_per_angle)
@@ -44,7 +37,6 @@ def bed_eqdist_angles_baseline(
     logged_plot_callbacks: Optional[Any]  = None,
     log_path: str = './',
     device: Optional[Any] = None,
-    dtype: Optional[Any] = None,
     ):
 
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
@@ -68,7 +60,6 @@ def bed_eqdist_angles_baseline(
     ray_trafo_obj, _ = _get_ray_trafo_modules(
         ray_trafo_full=ray_trafo_full,
         angles_tracker=angles_tracker,
-        dtype=dtype,
         device=device
     )
 
@@ -76,7 +67,7 @@ def bed_eqdist_angles_baseline(
     all_acq_angle_inds = list(angles_tracker.acq_angle_inds)
     num_batches = ceil(angles_tracker.total_num_acq_projs / angles_tracker.acq_projs_batch_size)
     for i in tqdm(range(num_batches), miniters=num_batches//100, desc='bed_eqdist_angles_baseline'):
-        num_add_acq = (i + 1) *angles_tracker.acq_projs_batch_size
+        num_add_acq = (i + 1) * angles_tracker.acq_projs_batch_size
         num_cur = len(angles_tracker.init_angle_inds) + num_add_acq
 
         if (angles_tracker.full_num_angles % num_cur == 0 and num_cur % len(angles_tracker.init_angle_inds) == 0):
@@ -123,66 +114,40 @@ def bed_eqdist_angles_baseline(
             ray_trafo_obj, _ = _get_ray_trafo_modules(
                 ray_trafo_full=ray_trafo_full,
                 angles_tracker=angles_tracker, 
-                dtype=dtype,
                 device=device
             )
         else:
             new_cur_angle_inds = None
 
-        if bed_kwargs['acquisition']['reconstruct_every_k_step'] is not None and (i+1) % bed_kwargs['acquisition']['reconstruct_every_k_step'] == 0:
+        if bed_kwargs['reconstruct_every_k_step'] is not None and (i+1) % bed_kwargs['reconstruct_every_k_step'] == 0:
             if new_cur_angle_inds is not None:
-                if not bed_kwargs['use_alternative_recon']:
-                    if hyperparam_fun is not None:
-                        dip_kwargs['optim']['gamma'], dip_kwargs['optim']['iterations'] = hyperparam_fun(
-                            len(cur_proj_inds_list)
-                        )
-                    refine_reconstructor = DeepImagePriorReconstructor(
-                            deepcopy(ray_trafo_obj).to(
-                                        device=device, 
-                                        dtype=torch.float32),
-                            net_kwargs=dip_kwargs['net'],
-                            device=device
-                        )
-                    refine_reconstructor.nn_model.load_state_dict(init_state_dict)
-                    refine_reconstructor.nn_model.to(dtype=torch.float32)
-                    obs = observation_full.flatten()[np.concatenate(
-                                    cur_proj_inds_list)].view(
-                                        1, 1, *ray_trafo_obj.obs_shape)
 
-                    recon = refine_reconstructor.reconstruct(
-                            noisy_observation=obs.to(dtype=torch.float32), 
-                            filtbackproj=filtbackproj.to(dtype=torch.float32), 
-                            ground_truth=ground_truth.to(dtype=torch.float32),
-                            optim_kwargs=dip_kwargs['optim']
-                        )
-                    torch.save(refine_reconstructor.nn_model.state_dict(),
-                                './{}_acq_{}.pt'.format(model_basename, i+1)
-                            )
-                    
-                    recons.append(recon.cpu().numpy())
-        
-                elif bed_kwargs['use_alternative_recon'] == 'tvadam':
+                acq_noisy_observation = observation_full.flatten()[np.concatenate(
+                                    angles_tracker.cur_proj_inds_list)].view(
+                                                        1, 1, *ray_trafo_obj.obs_shape)
 
-                    obs = observation_full.flatten()[np.concatenate(
-                        cur_proj_inds_list)].view(1, 1, *ray_trafo_obj.obs_shape)
-                    if bed_kwargs['alternative_recon_kwargs']['tvadam_hyperparam_fun'] is not None:
-                        tvadam_hyperparam_fun = bed_kwargs['alternative_recon_kwargs']['tvadam_hyperparam_fun']
-                        bed_kwargs['alternative_recon_kwargs']['tvadam_kwargs']['gamma'], bed_kwargs['alternative_recon_kwargs']['tvadam_kwargs']['iterations'] = tvadam_hyperparam_fun(
-                                len(cur_proj_inds_list)
-                            )
-                    tvadam_reconstructor = TVAdamReconstructor(
-                            deepcopy(ray_trafo_obj).to(dtype=torch.float32), 
-                            )
-                    recon = tvadam_reconstructor.reconstruct(
-                                obs.to(dtype=torch.float32), 
-                                filtbackproj=filtbackproj.to(dtype=torch.float32), 
-                                ground_truth=ground_truth.to(dtype=torch.float32),
-                                optim_kwargs=bed_kwargs['alternative_recon_kwargs']['tvadam_kwargs'],
-                                log=True
-                            )
-                    recons.append(recon.cpu().numpy())
-                else:
-                    raise ValueError
+                recon, refined_model = eval_recon_on_new_acq_observation_data(
+                    ray_trafo=ray_trafo_obj,
+                    angles_tracker=angles_tracker,
+                    acq_noisy_observation=acq_noisy_observation,
+                    filtbackproj=filtbackproj,
+                    ground_truth=ground_truth,
+                    net_kwargs=dip_kwargs['net'],
+                    optim_kwargs=dip_kwargs['optim'],
+                    init_state_dict=init_state_dict,
+                    use_alternative_recon=bed_kwargs['use_alternative_recon'],
+                    alternative_recon_kwargs=bed_kwargs['alternative_recon_kwargs'],
+                    hyperparam_fun=hyperparam_fun,
+                    dtype=torch.float32,
+                    device=device
+                    )
+                recons.append(recon.cpu().numpy()[0, 0])
+
+                if refined_model is not None:
+                    torch.save(
+                            refined_model.state_dict(), 
+                            './{}_acq_{}.pt'.format(model_basename, i+1)
+                        )
 
                 writer.add_image('reco', normalize(recon[0].cpu().numpy()), i)
                 writer.add_image('abs_reco_gt', normalize(np.abs(recon[0].cpu().numpy() - ground_truth[0].cpu().numpy())), i)

@@ -1,48 +1,73 @@
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, Callable
 import yaml
-import scipy
 import numpy as np 
 import matplotlib.pyplot as plt
 
 from torch import Tensor
-from .base_angles_tracker import BaseAnglesTracker
-from .acq_state_tracker import AcqStateTracker
+from copy import deepcopy
 
-from bayes_dip.data import MatmulRayTrafo
+from .tvadam import TVAdamReconstructor
+from .base_angles_tracker import BaseAnglesTracker
+
+from bayes_dip.data import BaseRayTrafo
 from bayes_dip.dip import DeepImagePriorReconstructor
 
-def eval_dip_on_newly_acquired_observation_data(
-    acq_state_tracker: AcqStateTracker,
-    noisy_observation: Tensor,
-    filtbackproj: Tensor, 
+def eval_recon_on_new_acq_observation_data(
+    ray_trafo: BaseRayTrafo,
+    angles_tracker: BaseAnglesTracker,
+    acq_noisy_observation: Tensor,
+    filtbackproj: Tensor,
     ground_truth: Tensor,
     net_kwargs: Dict,
     optim_kwargs: Dict,
     init_state_dict: Optional[Any] = None,
+    use_alternative_recon: Optional[str] = None,
+    alternative_recon_kwargs: Optional[Dict] = None,
+    hyperparam_fun: Optional[Callable] = None,
     dtype: Optional[Any] = None,
     device: Optional[Any] = None
-    ): 
+    ):
 
-    refine_reconstructor = DeepImagePriorReconstructor(
-        acq_state_tracker.ray_trafo_obj,
-        net_kwargs=net_kwargs,
-        device=device
-        )
+    filtbackproj, ground_truth = filtbackproj.to(dtype=dtype), ground_truth.to(dtype=dtype)
+    if not use_alternative_recon:
+        if hyperparam_fun is not None:
+            optim_kwargs = deepcopy(optim_kwargs)
+            optim_kwargs['gamma'], optim_kwargs['iterations'] = hyperparam_fun(
+                    len(angles_tracker.cur_proj_inds_list)    )
+        refine_reconstructor = DeepImagePriorReconstructor(
+            ray_trafo,
+            net_kwargs=net_kwargs,
+        device=device)
 
-    if init_state_dict is not None: 
-        refine_reconstructor.nn_model.load_state_dict(init_state_dict)
-    refine_reconstructor.nn_model.to(
-        device=device, dtype=dtype
-        )
+        if init_state_dict is not None: 
+            refine_reconstructor.nn_model.load_state_dict(init_state_dict)
 
-    recon = refine_reconstructor.reconstruct(
-        noisy_observation=noisy_observation,
-        filtbackproj=filtbackproj,
-        ground_truth=ground_truth,
-        optim_kwargs=optim_kwargs
-        )
+        refine_reconstructor.nn_model.to(device=device, dtype=dtype)
+        recon = refine_reconstructor.reconstruct(
+            noisy_observation=acq_noisy_observation,
+            filtbackproj=filtbackproj,
+            ground_truth=ground_truth,
+            optim_kwargs=optim_kwargs
+            )
+        refined_model = refine_reconstructor.nn_model
+    elif use_alternative_recon == 'tvadam':
+        if alternative_recon_kwargs['tvadam_hyperparam_fun'] is not None:
+            tvadam_kwargs = deepcopy(alternative_recon_kwargs['tvadam_kwargs'])
+            tvadam_kwargs['gamma'], tvadam_kwargs['iterations'] = alternative_recon_kwargs['tvadam_hyperparam_fun'](
+                    len(angles_tracker.cur_proj_inds_list))
+        tvadam_reconstructor = TVAdamReconstructor(ray_trafo)
+        recon = tvadam_reconstructor.reconstruct(
+                acq_noisy_observation,
+                filtbackproj=filtbackproj, 
+                ground_truth=ground_truth,
+                optim_kwargs=tvadam_kwargs,
+                log=True
+                )
+        refined_model = None
+    else:
+        raise ValueError
 
-    return recon, refine_reconstructor.nn_model
+    return recon, refined_model
 
 def get_hyperparam_fun_from_yaml(path, data, noise_stddev):
     
@@ -88,7 +113,11 @@ def plot_obj_callback(all_acq_angle_inds, init_angle_inds, cur_angle_inds, acq_a
 
 def plot_angles_callback(all_acq_angle_inds, init_angle_inds, cur_angle_inds, acq_angle_inds, top_projs_idx, local_vars):
     
-    full_angles = local_vars['acq_state_tracker'].ray_trafo_full.angles
+    acq_state_tracker = local_vars.get('acq_state_tracker', None) 
+    if acq_state_tracker is not None:
+        full_angles = acq_state_tracker.ray_trafo_full.angles
+    else:
+        full_angles = local_vars['ray_trafo_full'].angles
     top_k_acq_angle_inds = [acq_angle_inds[idx] for idx in top_projs_idx]
     if (len(full_angles) % (len(cur_angle_inds) + len(top_k_acq_angle_inds)) == 0
             and (len(cur_angle_inds) + len(top_k_acq_angle_inds)) % len(init_angle_inds) == 0):
