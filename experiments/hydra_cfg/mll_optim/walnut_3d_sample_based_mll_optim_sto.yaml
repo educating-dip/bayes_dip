@@ -1,10 +1,11 @@
 defaults:
   - base_sample_based_mll_optim_sto
 num_samples: 2
+num_samples_per_device: 2
 sampling:
   weights_linearisation: 
     optim_kwargs: #TODO: fine-tune
-      iterations: 500
+      iterations: 1000
       lr: 1e-4
       momentum: 0.9
       clip_grad_norm_value: 1.
@@ -12,9 +13,10 @@ sampling:
         start_factor: 1. 
         end_factor: 0.030
         total_iters_red_pct: 0.95
+      use_warm_start: False
   hyperparams_update:
     optim_kwargs: #TODO: fine-tune
-      iterations: 1000
+      iterations: 2000
       lr: 1e-4
       momentum: 0.9
       verbose: True
@@ -23,6 +25,7 @@ sampling:
         start_factor: 1.
         end_factor: 0.030
         total_iters_red_pct: 0.95
+      use_warm_start: False
 use_sample_then_optimise: True
 use_preconditioner: False
 

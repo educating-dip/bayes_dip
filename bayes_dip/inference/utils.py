@@ -7,8 +7,10 @@ from typing import Optional, Dict, Tuple, List, Iterator, Union
 import numpy as np
 import torch
 from torch import Tensor
+from tqdm import tqdm
+ImageShape = Union[Tuple[int, int], Tuple[int, int, int]]
 
-def get_image_patch_slices(
+def get_image_patch_slices_2d(
         image_shape: Tuple[int, int], patch_size: int) -> Tuple[List[slice], List[slice]]:
     """
     Return slice objects defining patches of an image.
@@ -56,7 +58,101 @@ def get_image_patch_slices(
         patch_slices_1.append(slice(start_1, end_1))
     return patch_slices_0, patch_slices_1
 
+
+def get_image_patch_slices_3d(
+        image_shape: Tuple[int, int, int], patch_size: int) -> Tuple[List[slice], List[slice], List[slice]]:
+    """
+    Return slice objects defining patches of an image.
+
+    The ``i``-th patch of a 3D ``image`` tensor is defined as
+    ``image[patch_slices_0[i], patch_slices_1[i], patch_slices_2[i]]``.
+
+    If an ``image_shape`` dimension is not divisible by ``patch_size``, the last patches along this
+    dimension that would fit in the image are enlarged to also contain the remaining pixels in this
+    dimension; patches can be non-square for this reason.
+
+    Parameters
+    ----------
+    image_shape : 3-tuple of int
+        Image shape.
+    patch_size : int
+        Side length of the patches (patches are usually square).
+        It is clipped to the maximum value ``min(*image_shape)``.
+
+    Returns
+    -------
+    patch_slices_0 : list of slice
+        Slices in image dimension 0. The length is the number of patches.
+    patch_slices_1 : list of slice
+        Slices in image dimension 1. The length is the number of patches.
+    patch_slices_2 : list of slice
+        Slices in image dimension 2. The length is the number of patches.
+    """
+    image_size_0, image_size_1, image_size_2 = image_shape
+    patch_size = min(patch_size, min(*image_shape))
+
+    patch_slices_0 = []
+    for start_0 in range(0, image_size_0 - (patch_size-1), patch_size):
+        if start_0 + patch_size < image_size_0 - (patch_size-1):
+            end_0 = start_0 + patch_size
+        else:
+            # last full patch, also include the remaining pixels
+            end_0 = image_size_0
+        patch_slices_0.append(slice(start_0, end_0))
+    patch_slices_1 = []
+    for start_1 in range(0, image_size_1 - (patch_size-1), patch_size):
+        if start_1 + patch_size < image_size_1 - (patch_size-1):
+            end_1 = start_1 + patch_size
+        else:
+            # last full patch, also include the remaining pixels
+            end_1 = image_size_1
+        patch_slices_1.append(slice(start_1, end_1))
+    patch_slices_2 = []
+    for start_2 in range(0, image_size_2 - (patch_size-1), patch_size):
+        if start_2 + patch_size < image_size_2 - (patch_size-1):
+            end_2 = start_2 + patch_size
+        else:
+            # last full patch, also include the remaining pixels
+            end_2 = image_size_2
+        patch_slices_2.append(slice(start_2, end_2))
+    return patch_slices_0, patch_slices_1, patch_slices_2
+
+
 def get_image_patch_mask_inds(
+    image_shape: ImageShape, patch_size: int, flatten: bool = True) -> List[np.ndarray]:
+    """
+    Return mask indices defining patches of an image.
+
+    The flattened ``i``-th patch of an ``image`` tensor is defined as ``image[patch_mask_inds[i]]``.
+
+    If an ``image_shape`` dimension is not divisible by ``patch_size``, the last patches along this
+    dimension that would fit in the image are enlarged to also contain the remaining pixels in this
+    dimension; patches can be non-square for this reason.
+
+    Parameters
+    ----------
+    image_shape : 2-tuple or 3-tuple of int
+        Image shape.
+    patch_size : int
+        Side length of the patches (patches are usually square).
+        It is clipped to the maximum value ``min(*image_shape)``.
+    flatten : bool, optional
+        Whether to flatten each array in the returned ``patch_mask_inds``. The default is ``True``.
+
+    Returns
+    -------
+    patch_mask_inds : list of array
+        Mask indices for each patch. The length is the number of patches.
+    """
+    if len(image_shape) == 2:
+        return get_image_patch_mask_inds_2d(image_shape, patch_size, flatten)
+    elif len(image_shape) == 3:
+        return get_image_patch_mask_inds_3d(image_shape, patch_size, flatten)
+    else:
+        raise ValueError(f"Invalid image_shape: {image_shape}")
+    
+
+def get_image_patch_mask_inds_2d(
         image_shape: Tuple[int, int], patch_size: int, flatten: bool = True) -> List[np.ndarray]:
     """
     Return mask indices defining patches of an image.
@@ -82,7 +178,7 @@ def get_image_patch_mask_inds(
     patch_mask_inds : list of array
         Mask indices for each patch. The length is the number of patches.
     """
-    patch_slices_0, patch_slices_1 = get_image_patch_slices(image_shape, patch_size)
+    patch_slices_0, patch_slices_1 = get_image_patch_slices_2d(image_shape, patch_size)
 
     patch_mask_inds = []
     for slice_0 in patch_slices_0:
@@ -91,6 +187,45 @@ def get_image_patch_mask_inds(
             if flatten:
                 mask_inds = mask_inds.flatten()
             patch_mask_inds.append(mask_inds)
+    return patch_mask_inds
+
+
+def get_image_patch_mask_inds_3d(
+        image_shape: Tuple[int, int, int], patch_size: int, flatten: bool = True) -> List[np.ndarray]:
+    """
+    Return mask indices defining patches of an image.
+
+    The flattened ``i``-th patch of an ``image`` tensor is defined as ``image[patch_mask_inds[i]]``.
+
+    If an ``image_shape`` dimension is not divisible by ``patch_size``, the last patches along this
+    dimension that would fit in the image are enlarged to also contain the remaining pixels in this
+    dimension; patches can be non-square for this reason.
+
+    Parameters
+    ----------
+    image_shape : 3-tuple of int
+        Image shape.
+    patch_size : int
+        Side length of the patches (patches are usually square).
+        It is clipped to the maximum value ``min(*image_shape)``.
+    flatten : bool, optional
+        Whether to flatten each array in the returned ``patch_mask_inds``. The default is ``True``.
+
+    Returns
+    -------
+    patch_mask_inds : list of array
+        Mask indices for each patch. The length is the number of patches.
+    """
+    patch_slices_0, patch_slices_1, patch_slices_2 = get_image_patch_slices_3d(image_shape, patch_size)
+
+    patch_mask_inds = []
+    for slice_0 in tqdm(patch_slices_0):
+        for slice_1 in patch_slices_1:
+            for slice_2 in patch_slices_2:
+                mask_inds = np.ravel_multi_index(np.mgrid[slice_0, slice_1, slice_2], image_shape)
+                if flatten:
+                    mask_inds = mask_inds.flatten()
+                patch_mask_inds.append(mask_inds)
     return patch_mask_inds
 
 def yield_padded_batched_images_patches(
@@ -138,7 +273,7 @@ def yield_padded_batched_images_patches(
     """
 
     assert images.shape[1] == 1
-    assert images.ndim == 4
+    assert images.ndim in [4, 5]
     patch_kwargs = patch_kwargs or {}
     patch_kwargs.setdefault('patch_size', 1)
     patch_kwargs.setdefault('patch_idx_list', None)

@@ -62,7 +62,7 @@ def sample_based_marginal_likelihood_optim(
         linearized_weights = None
         weight_sample = None
 
-        if posterior_obs_samples_sq_sum is not None:
+        if posterior_obs_samples_sq_sum:
             assert optim_kwargs['iterations'] == 1, 'Only one iteration is allowed when resuming from a checkpoint.'
 
         with tqdm(range(em_start_step, em_start_step + optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
@@ -74,6 +74,7 @@ def sample_based_marginal_likelihood_optim(
                         cg_kwargs=optim_kwargs['sample_kwargs']['cg_kwargs'],
                     )
                 else:
+                    # wd = A = variance_coeff^{-1}
                     wd = observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().pow(-1)
                     optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'].update({'wd': wd})
                     use_warm_start = optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs']['use_warm_start']
@@ -92,7 +93,7 @@ def sample_based_marginal_likelihood_optim(
                 linearized_recon = linearized_recon - recon_offset.squeeze(dim=0)
                 linearized_observation = linearized_observation - observation_offset
                 
-                if posterior_obs_samples_sq_sum is None:
+                if not posterior_obs_samples_sq_sum:
                     if not optim_kwargs['use_sample_then_optimise']:
                         image_samples = predictive_posterior.sample_zero_mean(
                             num_samples=optim_kwargs['num_samples'],

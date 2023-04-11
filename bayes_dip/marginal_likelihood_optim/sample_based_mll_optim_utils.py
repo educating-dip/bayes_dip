@@ -107,7 +107,6 @@ def sample_then_optim_weights_linearization(
         observation: Tensor,
         ):
         
-
         loss_fit = .5 * torch.nn.functional.mse_loss(
                 proj_lin_recon, observation.view(*proj_lin_recon.shape), 
                 reduction='sum'
@@ -200,7 +199,7 @@ def sample_then_optimise(
                 proj_weights_posterior_samples, eps, 
                 reduction='sum'
             ) 
-        loss_prior =  .5 * variance_coeff * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
+        loss_prior =  .5 * (1 / variance_coeff) * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
         loss = loss_fit + loss_prior
     
         return loss, (loss_fit, loss_prior)
@@ -237,22 +236,22 @@ def sample_then_optimise(
         )
     
     weights_sample_from_prior = torch.randn(num_samples, neural_basis_expansion.num_params, 
-            device=observation_cov.device) * torch.sqrt(variance_coeff) # prior sample
+            device=observation_cov.device) * torch.sqrt(variance_coeff) # prior sample  # N(0, A^{-1})
     eps = torch.randn(num_samples, 1, *observation_cov.trafo.obs_shape, 
-            device=observation_cov.device) * torch.sqrt(noise_variance)
-
-    theta_n = weights_sample_from_prior + (1. / variance_coeff) * noise_variance * neural_basis_expansion.vjp(
-            observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])
+            device=observation_cov.device) * torch.sqrt(noise_variance) # N(0, B^{-1})
+    
+    # A = (1 / noise_variance), B = (1 / variance_coeff), A and B are precisions.
+    theta_n = weights_sample_from_prior + variance_coeff * (1. / noise_variance) * neural_basis_expansion.vjp(
+            observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])  # theta_0 + A^{-1} B J^T A^T eps
     
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar:
         for i in pbar:
             
             # We compute gradients exactly, since functorch.vmap and autograd have issues with sparse trafo.
-            sample_linear_recon = observation_cov.trafo.trafo(
-                neural_basis_expansion.jvp(weights_posterior_samples))
-            grad_1 = noise_variance * neural_basis_expansion.vjp(
-                observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
-            grad_2 = (variance_coeff) * (weights_posterior_samples - theta_n)
+            sample_linear_recon = observation_cov.trafo.trafo(neural_basis_expansion.jvp(weights_posterior_samples).squeeze(1))
+            # 
+            grad_1 = (1 / noise_variance) * neural_basis_expansion.vjp(observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
+            grad_2 = (1 / variance_coeff) * (weights_posterior_samples - theta_n)
 
             optimizer.zero_grad()
             weights_posterior_samples.grad = grad_1 + grad_2
@@ -289,7 +288,7 @@ def sample_then_optimise(
                     noise_variance=noise_variance
                     )
                 pbar.set_description(f'approx_eff_dim: {eff_dim.detach().cpu().numpy():.4f}', refresh=False)
-
+    writer.close()
     if factor is not None:
         return polyak_weights_posterior_samples.detach()
     else:

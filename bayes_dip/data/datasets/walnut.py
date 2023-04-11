@@ -8,7 +8,7 @@ from torch import Tensor
 from bayes_dip.data.walnut_utils import (
         get_projection_data, get_single_slice_ray_trafo, get_single_slice_ind,
         get_ground_truth, get_ground_truth_3d, down_sample_vol, VOL_SZ)
-
+import numpy as np
 
 DEFAULT_WALNUT_SCALING_FACTOR = 14.
 
@@ -216,8 +216,10 @@ def get_walnut_3d_ground_truth(
 
 INNER_PART_START_0 = 72
 INNER_PART_START_1 = 72
+INNER_PART_START_2 = 72
 INNER_PART_END_0 = 424
 INNER_PART_END_1 = 424
+INNER_PART_END_2 = 424
 
 def _get_walnut_2d_inner_patch_slices(patch_size: int) -> Tuple[slice, slice]:
     start_patch_0 = INNER_PART_START_0 // patch_size
@@ -227,6 +229,19 @@ def _get_walnut_2d_inner_patch_slices(patch_size: int) -> Tuple[slice, slice]:
     patch_slice_0 = slice(start_patch_0, end_patch_0)
     patch_slice_1 = slice(start_patch_1, end_patch_1)
     return patch_slice_0, patch_slice_1
+
+def _get_walnut_3d_inner_patch_slices(patch_size: int) -> Tuple[slice, slice]:
+    start_patch_0 = INNER_PART_START_0 // patch_size
+    start_patch_1 = INNER_PART_START_1 // patch_size
+    start_patch_2 = INNER_PART_START_2 // patch_size
+
+    end_patch_0 = ceil(INNER_PART_END_0 / patch_size)
+    end_patch_1 = ceil(INNER_PART_END_1 / patch_size)
+    end_patch_2 = ceil(INNER_PART_END_2 / patch_size)
+    patch_slice_0 = slice(start_patch_0, end_patch_0)
+    patch_slice_1 = slice(start_patch_1, end_patch_1)
+    patch_slice_2 = slice(start_patch_2, end_patch_2)
+    return patch_slice_0, patch_slice_1, patch_slice_2
 
 def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
     """
@@ -243,15 +258,65 @@ def get_walnut_2d_inner_patch_indices(patch_size: int) -> List[int]:
     patch_idx_list : list of int
         Indices of the patches.
     """
+    def get_patch_indices(patch_shapes, patch_slices):
+        patch_indices_0, patch_indices_1 = np.meshgrid(
+            np.arange(patch_shapes[0])[patch_slices[0]],
+            np.arange(patch_shapes[1])[patch_slices[1]],
+            indexing='ij'
+        )
+        
+        patch_idx_array = np.ravel_multi_index((patch_indices_0, patch_indices_1), patch_shapes)
+    
+        return patch_idx_array.ravel().tolist()
+
     num_patches_0 = VOL_SZ[1] // patch_size
     num_patches_1 = VOL_SZ[2] // patch_size
     patch_slice_0, patch_slice_1 = _get_walnut_2d_inner_patch_slices(patch_size)
 
-    patch_idx_list = [
-        patch_idx for patch_idx in range(num_patches_0 * num_patches_1)
-        if patch_idx % num_patches_0 in range(num_patches_0)[patch_slice_0] and
-        patch_idx // num_patches_0 in range(num_patches_1)[patch_slice_1]]
+    patch_shapes = (num_patches_0, num_patches_1)
+    patch_slices = (patch_slice_0, patch_slice_1)
 
+    patch_idx_list = get_patch_indices(patch_shapes, patch_slices)
+    
+    return patch_idx_list
+
+def get_walnut_3d_inner_patch_indices(patch_size: int) -> List[int]:
+    """
+    Return patch indices for the inner part of the walnut image (that contains the walnut)
+    into the list returned by :func:`bayes_dip.inference.utils.get_image_patch_slices`.
+
+    Parameters
+    ----------
+    patch_size : int
+        Side length of the patches (patches are usually square).
+
+    Returns
+    -------
+    patch_idx_list : list of int
+        Indices of the patches.
+    """
+    def get_patch_indices(patch_shapes, patch_slices):
+        patch_indices_0, patch_indices_1, patch_indices_2 = np.meshgrid(
+            np.arange(patch_shapes[0])[patch_slices[0]],
+            np.arange(patch_shapes[1])[patch_slices[1]],
+            np.arange(patch_shapes[2])[patch_slices[2]],
+            indexing='ij'
+        )
+        
+        patch_idx_array = np.ravel_multi_index((patch_indices_0, patch_indices_1, patch_indices_2), patch_shapes)
+    
+        return patch_idx_array.ravel().tolist()
+
+    num_patches_0 = VOL_SZ[1] // patch_size
+    num_patches_1 = VOL_SZ[2] // patch_size
+    num_patches_2 = VOL_SZ[0] // patch_size
+    patch_slice_0, patch_slice_1, patch_slice_2 = _get_walnut_3d_inner_patch_slices(patch_size)
+
+    patch_shapes = (num_patches_0, num_patches_1, num_patches_2)
+    patch_slices = (patch_slice_0, patch_slice_1, patch_slice_2)
+
+    patch_idx_list = get_patch_indices(patch_shapes, patch_slices)
+    
     return patch_idx_list
 
 def get_walnut_2d_inner_part_defined_by_patch_size(patch_size: int) -> Tuple[slice, slice]:

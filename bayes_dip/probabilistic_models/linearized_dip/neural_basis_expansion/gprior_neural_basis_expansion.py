@@ -113,8 +113,9 @@ def compute_scale(
         if reduction == 'mean':
             rows /= obs_numel
             if obs_subsample_fct is not None: rows *= obs_subsample_fct
-        elif reduction == 'sum':
-            if use_stochastic_assembly: rows *= assembly_subsample_fact
+        # TODO: Figure out what happens with sum reduction.
+        # elif reduction == 'sum':
+        #     if use_stochastic_assembly: rows *= assembly_subsample_fact
         else:
             raise ValueError(f'unknown reduction kind {reduction}')
 
