@@ -157,7 +157,7 @@ def yield_covariances_patches(
 
         batch_invalid_values = is_invalid(batch_predictive_cov_image_patch)
         batch_invalid_values_patch_inds = (
-                torch.tensor(batch_patch_inds)[batch_invalid_values]).tolist()
+            torch.tensor(batch_patch_inds, device=device)[batch_invalid_values]).tolist()
         if len(batch_invalid_values_patch_inds) > 0:
             raise ValueError(
                     'invalid value occurred in predictive cov for patch indices '

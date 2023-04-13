@@ -2,6 +2,7 @@ defaults:
   - base_sample_based_mll_optim_sto
 num_samples: 2
 num_samples_per_device: 2
+iterations: 1
 sampling:
   weights_linearisation: 
     optim_kwargs: #TODO: fine-tune

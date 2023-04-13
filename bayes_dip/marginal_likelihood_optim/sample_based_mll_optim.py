@@ -148,7 +148,7 @@ def sample_based_marginal_likelihood_optim(
                 writer.add_scalar('effective_dimension', eff_dim.item(), i)
                 writer.add_scalar('se_loss', se_loss.item(), i)
 
-                if optim_kwargs['activate_debugging_mode'] and posterior_obs_samples_sq_sum is None:
+                if optim_kwargs['activate_debugging_mode'] and not posterior_obs_samples_sq_sum:
                     if optim_kwargs['use_sample_then_optimise']:
                         print('Log-likelihood is calculated using previous samples, and only mll_optim.num_samples are used.')
                     loglik_nn_model, image_samples_diagnostic = debugging_loglikelihood_estimation(

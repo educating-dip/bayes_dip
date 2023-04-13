@@ -14,7 +14,7 @@ sampling:
       use_warm_start: False
   hyperparams_update:
     optim_kwargs: #TODO: fine-tune
-      iterations: 5000
+      iterations: 3000
       lr: 1e-3
       momentum: 0.99
       verbose: True

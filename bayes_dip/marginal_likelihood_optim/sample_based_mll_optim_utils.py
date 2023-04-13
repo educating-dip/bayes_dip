@@ -243,6 +243,9 @@ def sample_then_optimise(
     # A = (1 / noise_variance), B = (1 / variance_coeff), A and B are precisions.
     theta_n = weights_sample_from_prior + variance_coeff * (1. / noise_variance) * neural_basis_expansion.vjp(
             observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])  # theta_0 + A^{-1} B J^T A^T eps
+
+    writer.add_scalar('gprior_variance', variance_coeff.item(), 0)
+    writer.add_scalar('clip_norm', optim_kwargs['clip_grad_norm_value'], 0)
     
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar:
         for i in pbar:
@@ -252,9 +255,18 @@ def sample_then_optimise(
             # 
             grad_1 = (1 / noise_variance) * neural_basis_expansion.vjp(observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
             grad_2 = (1 / variance_coeff) * (weights_posterior_samples - theta_n)
+            
+            writer.add_scalar('learning_rate', scheduler.get_last_lr()[0], i)
 
+            writer.add_scalar('grad_1_norm', torch.linalg.matrix_norm(grad_1).item(), i)
+            writer.add_scalar('grad_2_norm', torch.linalg.matrix_norm(grad_2).item(), i)
+            writer.add_scalar('weight_posterior_samples_norm', torch.linalg.matrix_norm(weights_posterior_samples).item(), i)
+            
             optimizer.zero_grad()
             weights_posterior_samples.grad = grad_1 + grad_2
+            
+            # Clip the gradients
+            torch.nn.utils.clip_grad_norm_(weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
 
             # We only use closure to calculate loss for logging purposes and not to compute the gradients.
             _, (loss_fit, loss_prior) = closure(

@@ -1,0 +1,12 @@
+defaults:
+  - walnut_sample_based_mll_optim_sto
+
+num_samples: 8
+num_samples_per_device: 2
+iterations: 1
+hydra:
+  output_subdir: $.{now:%Y-%m-%dT%H:%M:%S.%fZ}_hydra
+  job:
+    chdir: True
+  run:
+    dir: outputs/test_launch

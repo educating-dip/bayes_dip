@@ -6,7 +6,6 @@ from itertools import islice
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
-
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
         ParameterCov, ImageCov, ObservationCov, LowRankObservationCov, 
@@ -156,6 +155,10 @@ def coordinator(cfg : DictConfig) -> None:
                 cfg.mll_optim.noise_variance_init_value
             ).log() # init noise variance
         
+        observation_cov.image_cov.inner_cov.priors.gprior.log_variance = torch.tensor(
+                cfg.priors.gprior.init_prior_variance_value
+            ).log() # init prior variance
+
         prev_weight_sample = None
         if load_previous_em_step_from_path is not None:
             loaded_observation_cov_data = torch.load(
