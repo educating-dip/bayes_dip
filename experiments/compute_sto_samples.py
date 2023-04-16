@@ -184,6 +184,7 @@ def coordinator(cfg : DictConfig) -> None:
             num_samples=cfg.mll_optim.get('num_samples_per_device', 1),
             optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
             init_at_previous_samples=prev_weight_sample,
+            name_prefix=f'weight_sample_{i}_em={em_step}_seed={cfg.seed + i}'
             )
         # Zero mean samples.
         image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)

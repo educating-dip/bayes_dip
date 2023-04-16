@@ -81,6 +81,7 @@ def sample_then_optim_weights_linearization(
         optim_kwargs: dict,
         aux,
         init_at_previous_weights: Optional[Tensor] = None,
+        name_prefix: str = '',
         ) -> Tuple[Tensor, Tensor]:
     # pylint: disable=too-many-locals
 
@@ -120,6 +121,7 @@ def sample_then_optim_weights_linearization(
 
     writer = tensorboardX.SummaryWriter(
             logdir=os.path.join('./', '_'.join((
+                name_prefix,
                 datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
                 socket.gethostname(),
                 'sample_then_optim_weights_linearization')))
@@ -166,6 +168,8 @@ def sample_then_optim_weights_linearization(
             pbar.set_description(f'l2_norm lin_weights and PSNR: {lin_weights.pow(2).sum():.6f}, {psnr:.6f}', 
                     refresh=False
                 )
+            writer.add_scalar('PSNR', psnr.item(), i)
+            writer.add_scalar('lin_weights_l2_norm', lin_weights.pow(2).sum(), i)
     
     return lin_weights.detach(), lin_recon.detach()
 
@@ -177,6 +181,7 @@ def sample_then_optimise(
     num_samples: int,
     optim_kwargs: Dict,
     init_at_previous_samples: Optional[Tensor] = None,
+    name_prefix=''
     ):
     
     '''
@@ -207,6 +212,7 @@ def sample_then_optimise(
     
     writer = tensorboardX.SummaryWriter(
             logdir=os.path.join('./', '_'.join((
+                name_prefix,
                 datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
                 socket.gethostname(),
                 'sample_then_optimise')))
@@ -300,6 +306,7 @@ def sample_then_optimise(
                     noise_variance=noise_variance
                     )
                 pbar.set_description(f'approx_eff_dim: {eff_dim.detach().cpu().numpy():.4f}', refresh=False)
+                writer.add_scalar('approx_eff_dim', eff_dim.detach().cpu().numpy(), i)
     writer.close()
     if factor is not None:
         return polyak_weights_posterior_samples.detach()

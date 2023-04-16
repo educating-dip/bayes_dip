@@ -87,6 +87,7 @@ def sample_based_marginal_likelihood_optim(
                             optim_kwargs=optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'],
                             aux={'ground_truth': ground_truth, 'recon_offset': recon_offset},
                             init_at_previous_weights=linearized_weights if use_warm_start else None,
+                            name_prefix=f'weight_linearisation_em={i}'
                             )
 
                 linearized_observation = observation_cov.trafo.trafo(linearized_recon)
