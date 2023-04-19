@@ -191,7 +191,7 @@ def sample_then_optimise(
         trafo, 
         neural_basis_expansion, 
         weights_posterior_samples: Tensor,
-        weights_sample_from_prior: Tensor,
+        weights_prior_samples: Tensor,
         eps: Tensor,
         noise_variance: Tensor,
         variance_coeff: Tensor 
@@ -203,7 +203,7 @@ def sample_then_optimise(
                 proj_weights_posterior_samples, eps, 
                 reduction='sum'
             ) 
-        loss_prior =  .5 * (1 / variance_coeff) * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
+        loss_prior =  .5 * (1 / variance_coeff) * (weights_posterior_samples - weights_prior_samples).pow(2).sum()
         loss = loss_fit + loss_prior
     
         return loss, (loss_fit, loss_prior)
@@ -271,7 +271,7 @@ def sample_then_optimise(
                 trafo=observation_cov.trafo, 
                 neural_basis_expansion=neural_basis_expansion,
                 weights_posterior_samples=weights_posterior_samples, 
-                weights_sample_from_prior=weights_sample_from_prior, 
+                weights_prior_samples=weights_prior_samples, 
                 eps=eps,
                 noise_variance=noise_variance,
                 variance_coeff=variance_coeff
