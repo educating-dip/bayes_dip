@@ -277,8 +277,9 @@ def sample_then_optimise(
                 variance_coeff=variance_coeff
                 )
             
-            writer.add_scalar('loss_fit', grad_1.norm().item(), i)
-            writer.add_scalar('loss_prior', grad_2.norm().item(), i)
+            writer.add_scalar('loss_fit', loss_fit.item(), i)
+            writer.add_scalar('loss_prior', loss_prior.item(), i)
+
             if optim_kwargs['clip_grad_norm_value'] is not None:
                 torch.nn.utils.clip_grad_norm_(weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
             
