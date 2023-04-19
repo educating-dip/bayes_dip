@@ -19,9 +19,8 @@ from bayes_dip.inference import SampleBasedPredictivePosterior, get_image_patch_
 from bayes_dip.utils import eval_mode, get_mid_slice_if_3d, PSNR
 from bayes_dip.utils.experiment_utils import get_predefined_patch_idx_list
 from bayes_dip.utils.plot_utils import configure_matplotlib, plot_hist
-import functorch
 
-def PCG_based_weights_linearization(
+def PCG_based_linear_map(
     observation_cov: ObservationCov,
     observation: Tensor,
     cg_kwargs: Dict
@@ -73,7 +72,7 @@ def PCG_based_weights_linearization(
 
     return linearized_weights.flatten(), lin_observation, lin_recon
 
-def sample_then_optim_weights_linearization(
+def sample_then_optim_linear_map(
         trafo: BaseRayTrafo,
         neural_basis_expansion: BaseNeuralBasisExpansion,
         map_weights: Tensor,
@@ -112,7 +111,7 @@ def sample_then_optim_weights_linearization(
                 proj_lin_recon, observation.view(*proj_lin_recon.shape), 
                 reduction='sum'
             )
-        loss_prior =  + .5 * optim_kwargs['wd'] * lin_weights.pow(2).sum()
+        loss_prior = .5 * optim_kwargs['wd'] * lin_weights.pow(2).sum()
         loss = loss_fit + loss_prior
         loss.backward()
 
@@ -124,7 +123,7 @@ def sample_then_optim_weights_linearization(
                 name_prefix,
                 datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
                 socket.gethostname(),
-                'sample_then_optim_weights_linearization')))
+                'sample_then_optim_linear_map')))
             )
 
     nn_model = neural_basis_expansion.nn_model
@@ -211,22 +210,18 @@ def sample_then_optimise(
 
     
     writer = tensorboardX.SummaryWriter(
-            logdir=os.path.join('./', '_'.join((
-                name_prefix,
-                datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
-                socket.gethostname(),
-                'sample_then_optimise')))
-            )
-
+        logdir=os.path.join('./', '_'.join((name_prefix,
+            datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                socket.gethostname(), 'sample_then_optimise')   )   )
+        )
+    
+    weights_prior_samples = torch.randn(num_samples, neural_basis_expansion.num_params, 
+                device=observation_cov.device) * torch.sqrt(variance_coeff) # prior sample  # N(0, A^{-1})
+        
     if init_at_previous_samples is not None:
         weights_posterior_samples = nn.Parameter(init_at_previous_samples)
     else:
-        weights_posterior_samples = nn.Parameter(
-            torch.zeros(
-                num_samples, neural_basis_expansion.num_params, 
-                device=observation_cov.device
-                )
-            )
+        weights_posterior_samples = nn.Parameter(weights_prior_samples.clone())
 
     factor = optim_kwargs['polyak_averaging_factor']
     if factor is not None:
@@ -234,6 +229,7 @@ def sample_then_optimise(
 
     optimizer = torch.optim.SGD(
         [weights_posterior_samples], lr=optim_kwargs['lr'], weight_decay=0, momentum=optim_kwargs['momentum'], nesterov=True)
+
     scheduler = torch.optim.lr_scheduler.LinearLR(
         optimizer=optimizer,
         start_factor = optim_kwargs['scheduler_kwargs']['start_factor'], 
@@ -241,29 +237,28 @@ def sample_then_optimise(
         total_iters = int(optim_kwargs['iterations'] * optim_kwargs['scheduler_kwargs']['total_iters_red_pct']),
         )
     
-    weights_sample_from_prior = torch.randn(num_samples, neural_basis_expansion.num_params, 
-            device=observation_cov.device) * torch.sqrt(variance_coeff) # prior sample  # N(0, A^{-1})
     eps = torch.randn(num_samples, 1, *observation_cov.trafo.obs_shape, 
             device=observation_cov.device) * torch.sqrt(noise_variance) # N(0, B^{-1})
     
     # A = (1 / noise_variance), B = (1 / variance_coeff), A and B are precisions.
-    theta_n = weights_sample_from_prior + variance_coeff * (1. / noise_variance) * neural_basis_expansion.vjp(
+    theta_n = weights_prior_samples + variance_coeff * (1. / noise_variance) * neural_basis_expansion.vjp(
             observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])  # theta_0 + A^{-1} B J^T A^T eps
 
     writer.add_scalar('gprior_variance', variance_coeff.item(), 0)
     writer.add_scalar('clip_norm', optim_kwargs['clip_grad_norm_value'], 0)
-    
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar:
         for i in pbar:
-            
             # We compute gradients exactly, since functorch.vmap and autograd have issues with sparse trafo.
-            sample_linear_recon = observation_cov.trafo.trafo(neural_basis_expansion.jvp(weights_posterior_samples).squeeze(1))
-            # 
-            grad_1 = (1 / noise_variance) * neural_basis_expansion.vjp(observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
+            sample_linear_recon = observation_cov.trafo.trafo(
+                neural_basis_expansion.jvp(
+                        weights_posterior_samples
+                    ).squeeze(1)
+                )
+            grad_1 = (1 / noise_variance) * neural_basis_expansion.vjp(
+                observation_cov.trafo.trafo_adjoint(sample_linear_recon)[:, None, ...])
             grad_2 = (1 / variance_coeff) * (weights_posterior_samples - theta_n)
             
             writer.add_scalar('learning_rate', scheduler.get_last_lr()[0], i)
-
             writer.add_scalar('grad_1_norm', torch.linalg.matrix_norm(grad_1).item(), i)
             writer.add_scalar('grad_2_norm', torch.linalg.matrix_norm(grad_2).item(), i)
             writer.add_scalar('weight_posterior_samples_norm', torch.linalg.matrix_norm(weights_posterior_samples).item(), i)
@@ -271,9 +266,6 @@ def sample_then_optimise(
             optimizer.zero_grad()
             weights_posterior_samples.grad = grad_1 + grad_2
             
-            # Clip the gradients
-            torch.nn.utils.clip_grad_norm_(weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
-
             # We only use closure to calculate loss for logging purposes and not to compute the gradients.
             _, (loss_fit, loss_prior) = closure(
                 trafo=observation_cov.trafo, 
@@ -285,14 +277,13 @@ def sample_then_optimise(
                 variance_coeff=variance_coeff
                 )
             
-            writer.add_scalar('loss_fit', loss_fit.item(), i)
-            writer.add_scalar('loss_prior', loss_prior.item(), i)
-
+            writer.add_scalar('loss_fit', grad_1.norm().item(), i)
+            writer.add_scalar('loss_prior', grad_2.norm().item(), i)
             if optim_kwargs['clip_grad_norm_value'] is not None:
-                torch.nn.utils.clip_grad_norm_(
-                    weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
+                torch.nn.utils.clip_grad_norm_(weights_posterior_samples, optim_kwargs['clip_grad_norm_value'])
             
             optimizer.step()
+
             if factor is not None:
                 polyak_weights_posterior_samples = (1. - factor) * polyak_weights_posterior_samples + factor * weights_posterior_samples
             scheduler.step()
@@ -307,6 +298,7 @@ def sample_then_optimise(
                     )
                 pbar.set_description(f'approx_eff_dim: {eff_dim.detach().cpu().numpy():.4f}', refresh=False)
                 writer.add_scalar('approx_eff_dim', eff_dim.detach().cpu().numpy(), i)
+    
     writer.close()
     if factor is not None:
         return polyak_weights_posterior_samples.detach()

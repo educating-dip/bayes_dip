@@ -2,14 +2,13 @@ import os
 import torch
 import hydra
 from glob import glob
-from warnings import warn
 from itertools import islice
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
 
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
-        ParameterCov, ImageCov, ObservationCov, LowRankObservationCov, 
+        ParameterCov, ImageCov, ObservationCov, 
         get_neural_basis_expansion, get_default_unet_gprior_dicts)
 from bayes_dip.marginal_likelihood_optim import (
         get_preconditioner, get_ordered_nn_params_vec, 
@@ -34,8 +33,11 @@ def coordinator(cfg : DictConfig) -> None:
 
     # data: observation, ground_truth, filtbackproj
     dataset = get_standard_dataset(
-            cfg, ray_trafo, use_fixed_seeds_starting_from=cfg.seed,
-            device=device)
+        cfg,
+        ray_trafo,
+        use_fixed_seeds_starting_from=cfg.seed,
+        device=device
+        )
 
     for i, data_sample in enumerate(islice(DataLoader(dataset), cfg.num_images)):
         if i < cfg.get('skip_first_images', 0):
@@ -44,9 +46,16 @@ def coordinator(cfg : DictConfig) -> None:
         if cfg.seed is not None:
             torch.manual_seed(cfg.seed + i)
         
+        # configs needed for 3D UQ estimation
         em_step = cfg.get('em_step', 0)
-        load_previous_em_step_from_path = cfg.get('load_previous_em_step_from_path', None)
-        load_previous_observation_cov_from_path = cfg.get('load_previous_observation_cov_from_path', None)
+        load_previous_em_step_from_path = cfg.get(
+                'load_previous_em_step_from_path',
+                None
+            )
+        load_previous_observation_cov_from_path = cfg.get(
+                'load_previous_observation_cov_from_path',
+                None
+            )
 
         observation, ground_truth, filtbackproj = data_sample
 
@@ -56,19 +65,15 @@ def coordinator(cfg : DictConfig) -> None:
 
         if load_dip_params_from_path is not None:
             # assert that sample data matches with that from the dip to be loaded
-            assert_sample_matches(
-                data_sample, load_dip_params_from_path, i, raise_if_file_not_found=False)
+            assert_sample_matches(data_sample, load_dip_params_from_path, i, raise_if_file_not_found=False)
 
         torch.save(
-            {'observation': observation,
-                'filtbackproj': filtbackproj,
-                'ground_truth': ground_truth},
-            f'sample_{i}.pt')
+            {'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth}, f'sample_{i}.pt')
 
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
         ground_truth = ground_truth.to(dtype=dtype, device=device)
-
+    
         try:
             assert cfg.dip.net.use_sigmoid is False
         except AssertionError:
@@ -108,19 +113,22 @@ def coordinator(cfg : DictConfig) -> None:
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        assert cfg.priors.use_gprior # sample_based_marginal_likelihood_optim needs a gprior
+        assert cfg.priors.use_gprior # sample_based_marginal_likelihood_optim requires the g-prior assumption
+        # https://en.wikipedia.org/wiki/G-prior
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gprior_dicts(
-            nn_model=reconstructor.nn_model)
+            nn_model=reconstructor.nn_model, 
+            gprior_hyperparams_init={'variance': cfg.priors.gprior.init_prior_variance_value})
         parameter_cov = ParameterCov(
             reconstructor.nn_model,
             prior_assignment_dict,
             hyperparams_init_dict,
             device=device
         )
-        
         if cfg.load_gprior_scale_from_path is not None:
+            # 3D requires pre-computing and loading g-prior scale vec
             load_scale_from_path = os.path.join(
-                cfg.load_gprior_scale_from_path, f'gprior_scale_vector_{i}.pt')
+                    cfg.load_gprior_scale_from_path,
+                        f'gprior_scale_vector_{i}.pt')
         else:
             load_scale_from_path = None
 
@@ -129,43 +137,34 @@ def coordinator(cfg : DictConfig) -> None:
             nn_input=filtbackproj,
             ordered_nn_params=parameter_cov.ordered_nn_params,
             nn_out_shape=filtbackproj.shape,
-            use_gprior=True,
+            use_gprior=True, # requires the g-prior assumption
             trafo=ray_trafo,
             load_scale_from_path=load_scale_from_path,
             scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-        )
-        image_cov = ImageCov(
-            parameter_cov=parameter_cov,
-            neural_basis_expansion=neural_basis_expansion
-        )
-        observation_cov = ObservationCov(
-            trafo=ray_trafo,
-            image_cov=image_cov,
-            device=device
-        )
-        
+            )
+        image_cov = ImageCov(parameter_cov=parameter_cov,
+                neural_basis_expansion=neural_basis_expansion
+                )
+        # sample-based MLL based methods do not optimise noise variance, i.e. fixed to 1.
+        observation_cov = ObservationCov(trafo=ray_trafo,
+                image_cov=image_cov, 
+                device=device
+                )
+
+        # if `m_step==0` setting g-prior to init value
         if em_step > 0:
-            if load_previous_observation_cov_from_path is not None:
-                observation_cov = torch.load(
-                    os.path.join(load_previous_observation_cov_from_path, f'observation_cov_iter_{em_step}.pt'))
-        else:
-            observation_cov.image_cov.inner_cov.priors.gprior.log_variance = torch.tensor(
-                    cfg.priors.gprior.init_prior_variance_value
-                ).log() # init prior variance
-        
-        
-        observation_cov.log_noise_variance.data = torch.tensor(
-                cfg.mll_optim.noise_variance_init_value
-            ).log() # init noise variance
+            assert load_previous_observation_cov_from_path is not None
+            # if `m_step>0` overwrite g_prior variance with the `em_step-1` optimised one
+            observation_cov = torch.load(
+                os.path.join(load_previous_observation_cov_from_path, f'observation_cov_iter_{em_step}.pt'))            
 
         optim_kwargs = {
             'iterations': cfg.mll_optim.iterations,
             'activate_debugging_mode': cfg.mll_optim.activate_debugging_mode,
             'num_samples': cfg.mll_optim.num_samples,
             'use_sample_then_optimise': cfg.mll_optim.use_sample_then_optimise
-        }
+            }
         optim_kwargs['sample_kwargs'] = OmegaConf.to_object(cfg.mll_optim.sampling)
-
         precon_kwargs = OmegaConf.to_object(cfg.mll_optim.preconditioner)
         
         if cfg.load_sample_based_precon_state_from_path is not None:
@@ -176,26 +175,20 @@ def coordinator(cfg : DictConfig) -> None:
 
         cg_preconditioner = None
         if cfg.mll_optim.use_preconditioner:
-            cg_preconditioner = get_preconditioner(
-                observation_cov=observation_cov,
-                kwargs=precon_kwargs)
+            cg_preconditioner = get_preconditioner(observation_cov=observation_cov, kwargs=precon_kwargs)
             optim_kwargs['sample_kwargs']['cg_kwargs']['precon_closure'] = cg_preconditioner.get_closure()
         optim_kwargs['cg_preconditioner'] = cg_preconditioner
-
         if cfg.mll_optim.activate_debugging_mode: optim_kwargs['debugging_mode_kwargs'] = OmegaConf.to_object(
-                cfg.mll_optim.debugging_mode_kwargs
-            )
+                cfg.mll_optim.debugging_mode_kwargs)
 
         predictive_posterior = SampleBasedPredictivePosterior(observation_cov)
-        
-        posterior_obs_samples_sq_sum = {}
+        posterior_obs_samples_sq_sum = {} # to compute eff. dims in 3D 
         if load_previous_em_step_from_path is not None:
             post_sample_sq_sum_paths = glob(
                     os.path.join(load_previous_em_step_from_path, f'posterior_obs_samples_sq_sum_{i}_em={em_step}_seed=*.pt'))
             for k, path in enumerate(post_sample_sq_sum_paths):
                 print(f'Loading sample from : ', path)
                 posterior_obs_samples_sq_sum_i = torch.load(path)
-                
                 if k == 0:
                     posterior_obs_samples_sq_sum['value'] = posterior_obs_samples_sq_sum_i['value']
                     posterior_obs_samples_sq_sum['num_samples'] = posterior_obs_samples_sq_sum_i['num_samples']
@@ -203,22 +196,17 @@ def coordinator(cfg : DictConfig) -> None:
                     posterior_obs_samples_sq_sum['value'] += posterior_obs_samples_sq_sum_i['value']
                     posterior_obs_samples_sq_sum['num_samples'] += posterior_obs_samples_sq_sum_i['num_samples']
             
-
         linearized_weights, linearized_recon = sample_based_marginal_likelihood_optim(
             predictive_posterior=predictive_posterior,
-            map_weights=torch.clone(
-                get_ordered_nn_params_vec(parameter_cov)
-            ),
+            map_weights=get_ordered_nn_params_vec(parameter_cov).clone(),
             observation=observation,
             nn_recon=recon,
             ground_truth=ground_truth,
             optim_kwargs=optim_kwargs,
-            log_path=os.path.join(
-                    cfg.mll_optim.log_path, f'mrglik_optim_{i}'
-                ),
+            log_path=os.path.join(  cfg.mll_optim.log_path, f'mrglik_optim_{i}' ),
             posterior_obs_samples_sq_sum=posterior_obs_samples_sq_sum,
             em_start_step=em_step
-        )
+            )
 
         torch.save(linearized_weights, f'linearized_weights_{i}.pt')
         torch.save(linearized_recon, f'linearized_recon_{i}.pt')

@@ -1,27 +1,17 @@
 import os
 import torch
 import hydra
-from warnings import warn
 from itertools import islice
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader
-import torch.multiprocessing as mp
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
-        ParameterCov, ImageCov, ObservationCov, LowRankObservationCov, 
+        ParameterCov, ImageCov, ObservationCov, 
         get_neural_basis_expansion, get_default_unet_gprior_dicts)
-from bayes_dip.marginal_likelihood_optim import (
-        get_preconditioner, get_ordered_nn_params_vec, 
-        sample_based_marginal_likelihood_optim, sample_then_optimise)
-from bayes_dip.inference import SampleBasedPredictivePosterior
+from bayes_dip.marginal_likelihood_optim import sample_then_optimise
 from bayes_dip.utils.experiment_utils import ( 
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
 from bayes_dip.utils import PSNR, SSIM
-
-
-# def main(sample_seed: int):
-#     print(os.getcwd())
-#     print(f'sample_seed: {sample_seed}')
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
@@ -48,11 +38,12 @@ def coordinator(cfg : DictConfig) -> None:
             torch.manual_seed(cfg.seed + i)
         
         em_step = cfg.get('em_step', 0)
-        load_previous_em_step_from_path = cfg.get('load_previous_em_step_from_path', None)
-        load_previous_weight_sample_from_path = cfg.get('load_previous_weight_sample_from_path', None)
+        load_previous_em_step_from_path = cfg.get(
+                'load_previous_em_step_from_path', None)
+        load_previous_weight_sample_from_path = cfg.get(
+                'load_previous_weight_sample_from_path', None)
 
         observation, ground_truth, filtbackproj = data_sample
-
         load_dip_params_from_path = cfg.load_dip_params_from_path
         if cfg.mll_optim.init_load_path is not None and load_dip_params_from_path is None:
             load_dip_params_from_path = cfg.mll_optim.init_load_path
@@ -61,17 +52,12 @@ def coordinator(cfg : DictConfig) -> None:
             # assert that sample data matches with that from the dip to be loaded
             assert_sample_matches(
                 data_sample, load_dip_params_from_path, i, raise_if_file_not_found=False)
-
         torch.save(
-            {'observation': observation,
-                'filtbackproj': filtbackproj,
-                'ground_truth': ground_truth},
-            f'sample_{i}.pt')
+            {'observation': observation, 'filtbackproj': filtbackproj, 'ground_truth': ground_truth}, f'sample_{i}.pt')
 
         observation = observation.to(dtype=dtype, device=device)
         filtbackproj = filtbackproj.to(dtype=dtype, device=device)
         ground_truth = ground_truth.to(dtype=dtype, device=device)
-
         try:
             assert cfg.dip.net.use_sigmoid is False
         except AssertionError:
@@ -101,27 +87,25 @@ def coordinator(cfg : DictConfig) -> None:
             reconstructor.load_params(dip_params_filepath)
             assert not cfg.dip.recon_from_randn  # would need to re-create random input
             recon = reconstructor.nn_model(filtbackproj).detach()  # pylint: disable=not-callable
-        torch.save(reconstructor.nn_model.state_dict(),
-                f'dip_model_{i}.pt')
-        torch.save(recon.cpu(),
-                f'recon_{i}.pt'
-        )
+        torch.save(reconstructor.nn_model.state_dict(), f'dip_model_{i}.pt')
+        torch.save(recon.cpu(), f'recon_{i}.pt')
 
         print(f'DIP reconstruction of sample {i}')
         print('PSNR:', PSNR(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
         print('SSIM:', SSIM(recon[0, 0].cpu().numpy(), ground_truth[0, 0].cpu().numpy()))
 
-        assert cfg.priors.use_gprior # sample_based_marginal_likelihood_optim needs a gprior
+        assert cfg.priors.use_gprior # sample_based_marginal_likelihood_optim needs a g-prior
         prior_assignment_dict, hyperparams_init_dict = get_default_unet_gprior_dicts(
-            nn_model=reconstructor.nn_model)
+                nn_model=reconstructor.nn_model, 
+                gprior_hyperparams_init={'variance': cfg.priors.gprior.init_prior_variance_value})
         parameter_cov = ParameterCov(
             reconstructor.nn_model,
             prior_assignment_dict,
             hyperparams_init_dict,
             device=device
-        )
+            )
     
-        # Overwrite g_prior variance with the optimised.
+        # overwrite g_prior variance with the optimised
         if cfg.load_gprior_scale_from_path is not None:
             load_scale_from_path = os.path.join(
                 cfg.load_gprior_scale_from_path, f'gprior_scale_vector_{i}.pt')
@@ -137,28 +121,11 @@ def coordinator(cfg : DictConfig) -> None:
             trafo=ray_trafo,
             load_scale_from_path=load_scale_from_path,
             scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-        )
-        
+            )
         neural_basis_expansion.save_scale(filepath=f'gprior_scale_vector_{i}')
-
-        image_cov = ImageCov(
-            parameter_cov=parameter_cov,
-            neural_basis_expansion=neural_basis_expansion
-        )
-        observation_cov = ObservationCov(
-            trafo=ray_trafo,
-            image_cov=image_cov,
-            device=device
-        )
-
-        observation_cov.log_noise_variance.data = torch.tensor(
-                cfg.mll_optim.noise_variance_init_value
-            ).log() # init noise variance
-        
-        observation_cov.image_cov.inner_cov.priors.gprior.log_variance = torch.tensor(
-                cfg.priors.gprior.init_prior_variance_value
-            ).log() # init prior variance
-
+        image_cov = ImageCov(parameter_cov=parameter_cov, neural_basis_expansion=neural_basis_expansion)
+        observation_cov = ObservationCov(trafo=ray_trafo, image_cov=image_cov, device=device)
+    
         prev_weight_sample = None
         if load_previous_em_step_from_path is not None:
             loaded_observation_cov_data = torch.load(
@@ -171,9 +138,7 @@ def coordinator(cfg : DictConfig) -> None:
                 prev_weight_sample = torch.load(
                     os.path.join(load_previous_weight_sample_from_path, f'weight_sample_{i}_em={em_step-1}_seed={cfg.seed + i}.pt'))
 
-        optim_kwargs = {
-            'num_samples': cfg.mll_optim.num_samples,
-        }
+        optim_kwargs = {'num_samples': cfg.mll_optim.num_samples}
         optim_kwargs['sample_kwargs'] = OmegaConf.to_object(cfg.mll_optim.sampling)
 
         weight_sample = sample_then_optimise(
@@ -188,7 +153,6 @@ def coordinator(cfg : DictConfig) -> None:
             )
         # Zero mean samples.
         image_samples = observation_cov.image_cov.neural_basis_expansion.jvp(weight_sample).squeeze(dim=1)
-
         obs_samples = observation_cov.trafo(image_samples)
         posterior_obs_samples_sq_sum = {'value': obs_samples.pow(2).sum(dim=0), 'num_samples': cfg.mll_optim.get('num_samples_per_device', 1)}
         

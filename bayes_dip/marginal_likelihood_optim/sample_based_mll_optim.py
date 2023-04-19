@@ -12,7 +12,7 @@ import tensorboardX
 from tqdm import tqdm
 from torch import Tensor
 from .sample_based_mll_optim_utils import (
-        PCG_based_weights_linearization, sample_then_optim_weights_linearization,
+        PCG_based_linear_map, sample_then_optim_linear_map,
         sample_then_optimise, estimate_effective_dimension, gprior_variance_mackay_update,
         debugging_loglikelihood_estimation, debugging_histogram_tensorboard,
         debugging_uqviz_tensorboard
@@ -68,7 +68,7 @@ def sample_based_marginal_likelihood_optim(
         with tqdm(range(em_start_step, em_start_step + optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
             for i in pbar:
                 if not optim_kwargs['use_sample_then_optimise']:
-                    linearized_weights, linearized_observation, linearized_recon = PCG_based_weights_linearization(
+                    linearized_weights, linearized_observation, linearized_recon = PCG_based_linear_map(
                         observation_cov=observation_cov, 
                         observation=observation_for_lin_optim, 
                         cg_kwargs=optim_kwargs['sample_kwargs']['cg_kwargs'],
@@ -79,7 +79,7 @@ def sample_based_marginal_likelihood_optim(
                     optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'].update({'wd': wd})
                     use_warm_start = optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs']['use_warm_start']
                     with torch.enable_grad():
-                        linearized_weights, linearized_recon = sample_then_optim_weights_linearization(
+                        linearized_weights, linearized_recon = sample_then_optim_linear_map(
                             trafo=observation_cov.trafo, 
                             neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
                             map_weights=scale_corrected_map_weights, 
