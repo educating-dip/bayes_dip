@@ -2,14 +2,12 @@ import os
 import hydra
 import torch
 import numpy as np
-import pprint
 
 from gc import callbacks
 from itertools import islice
 from omegaconf import OmegaConf, DictConfig
 from torch.utils.data import DataLoader
 from hydra.utils import get_original_cwd
-from copy import deepcopy
 
 from bayes_dip.utils.experiment_utils import (
         get_standard_ray_trafo, get_standard_dataset, assert_sample_matches)
@@ -17,10 +15,9 @@ from bayes_dip.utils import PSNR, SSIM
 from bayes_dip.dip import DeepImagePriorReconstructor
 from bayes_dip.probabilistic_models import (
         get_default_unet_gaussian_prior_dicts, get_default_unet_gprior_dicts)
-from bayes_dip.marginal_likelihood_optim import get_preconditioner
 from bayes_dip.bayes_exp_design import (
-      bed_optimal_angles_search, bed_eqdist_angles_baseline, BaseAnglesTracker, AcqStateTracker,
-         plot_angles_callback, plot_obj_callback, get_hyperparam_fun_from_yaml, get_save_obj_callback)
+    bed_optimal_angles_search, bed_eqdist_angles_baseline, BaseAnglesTracker, AcqStateTracker,
+        plot_angles_callback, plot_obj_callback, get_hyperparam_fun_from_yaml, get_save_obj_callback)
 
 @hydra.main(config_path='hydra_cfg', config_name='config', version_base='1.2')
 def coordinator(cfg : DictConfig) -> None:
@@ -143,7 +140,7 @@ def coordinator(cfg : DictConfig) -> None:
                 init_load_filepath = os.path.join(
                     cfg.mll_optim.init_load_path, f'observation_cov_{i}.pt')
                 print(f'loading initial MLL hyperparameters from {init_load_filepath}')
-                observation_cov.load_state_dict(torch.load(init_load_filepath))
+                acq_state_tracker.observation_cov.load_state_dict(torch.load(init_load_filepath))
 
         hyperparam_fun = None
         if cfg.hyperparam_path_baseline is not None:
@@ -183,7 +180,6 @@ def coordinator(cfg : DictConfig) -> None:
             predcp_kwargs = OmegaConf.to_object(cfg.mll_optim.predcp)
             predcp_kwargs['gamma'] = cfg.dip.optim.gamma
             assert cfg.mll_optim.include_predcp is False
-            # TODO:add mll optimisation
             marglik_optim_kwargs = {
                     'iterations': cfg.mll_optim.iterations,
                     'lr': cfg.mll_optim.lr,
@@ -247,7 +243,7 @@ def coordinator(cfg : DictConfig) -> None:
         else:
             recons = bed_eqdist_angles_baseline(
                 ray_trafo_full=ray_trafo_full,
-                angles_tracker=angles_tracker, #proj_inds_per_angle, init_angle_inds, acq_angle_inds, total_num_acq_projs, acq_projs_batch_size
+                angles_tracker=angles_tracker, # proj_inds_per_angle, init_angle_inds, acq_angle_inds, total_num_acq_projs, acq_projs_batch_size
                 observation_full=observation_full,
                 filtbackproj=filtbackproj,
                 ground_truth=ground_truth,
