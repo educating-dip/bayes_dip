@@ -65,6 +65,12 @@ def sample_based_marginal_likelihood_optim(
         if posterior_obs_samples_sq_sum:
             assert optim_kwargs['iterations'] == 1, 'Only one iteration is allowed when resuming from a checkpoint.'
 
+        if optim_kwargs['use_sample_then_optimise']:
+            unscaled_weights_sample_from_prior = torch.randn(
+                optim_kwargs['num_samples'], observation_cov.image_cov.neural_basis_expansion.num_params, device=observation_cov.device)
+            unscaled_eps = torch.randn(
+                optim_kwargs['num_samples'], 1, *observation_cov.trafo.obs_shape, device=observation_cov.device)
+
         with tqdm(range(em_start_step, em_start_step + optim_kwargs['iterations']), desc='sample_based_marginal_likelihood_optim') as pbar:
             for i in pbar:
                 if not optim_kwargs['use_sample_then_optimise']:
@@ -109,6 +115,8 @@ def sample_based_marginal_likelihood_optim(
                             variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
                             num_samples=optim_kwargs['num_samples'],
                             optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
+                            unscaled_weights_sample_from_prior=unscaled_weights_sample_from_prior,
+                            unscaled_eps=unscaled_eps,
                             init_at_previous_samples=weight_sample if use_warm_start else None,
                             )
                         

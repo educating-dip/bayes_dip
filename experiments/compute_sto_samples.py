@@ -128,6 +128,7 @@ def coordinator(cfg : DictConfig) -> None:
         else:
             load_scale_from_path = None
 
+        # Load in gprior scale.
         neural_basis_expansion = get_neural_basis_expansion(
             nn_model=reconstructor.nn_model,
             nn_input=filtbackproj,
@@ -136,10 +137,7 @@ def coordinator(cfg : DictConfig) -> None:
             use_gprior=True,
             trafo=ray_trafo,
             load_scale_from_path=load_scale_from_path,
-            scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale)
-        )
-        
-        neural_basis_expansion.save_scale(filepath=f'gprior_scale_vector_{i}')
+            scale_kwargs=OmegaConf.to_object(cfg.priors.gprior.scale))
 
         image_cov = ImageCov(
             parameter_cov=parameter_cov,
@@ -160,6 +158,8 @@ def coordinator(cfg : DictConfig) -> None:
             ).log() # init prior variance
 
         prev_weight_sample = None
+        unscaled_weights_sample_from_prior = None
+        unscaled_eps = None
         if load_previous_em_step_from_path is not None:
             loaded_observation_cov_data = torch.load(
                 os.path.join(load_previous_em_step_from_path, f'observation_cov_iter_{em_step - 1}.pt'))
@@ -170,12 +170,25 @@ def coordinator(cfg : DictConfig) -> None:
                 # TODO: check seeds are matching in this output folder
                 prev_weight_sample = torch.load(
                     os.path.join(load_previous_weight_sample_from_path, f'weight_sample_{i}_em={em_step-1}_seed={cfg.seed + i}.pt'))
-
+                unscaled_weights_sample_from_prior = torch.load(
+                    os.path.join(load_previous_weight_sample_from_path, f'unscaled_weights_sample_from_prior_{i}_seed={cfg.seed + i}.pt'))
+                unscaled_eps = torch.load(
+                    os.path.join(load_previous_weight_sample_from_path, f'unscaled_eps_{i}_seed={cfg.seed + i}.pt'))
         optim_kwargs = {
             'num_samples': cfg.mll_optim.num_samples,
         }
         optim_kwargs['sample_kwargs'] = OmegaConf.to_object(cfg.mll_optim.sampling)
+        
+        if unscaled_weights_sample_from_prior is None:
+            unscaled_weights_sample_from_prior = torch.randn(
+                optim_kwargs['num_samples'], neural_basis_expansion.num_params, device=observation_cov.device)
+        if unscaled_eps is None:
+            unscaled_eps = torch.randn(
+                optim_kwargs['num_samples'], 1, *observation_cov.trafo.obs_shape, device=observation_cov.device)
 
+        torch.save(unscaled_weights_sample_from_prior, f'unscaled_weights_sample_from_prior_{i}_seed={cfg.seed + i}.pt')
+        torch.save(unscaled_eps, f'unscaled_eps_{i}_seed={cfg.seed + i}.pt')
+        
         weight_sample = sample_then_optimise(
             observation_cov=observation_cov,
             neural_basis_expansion=observation_cov.image_cov.neural_basis_expansion, 
@@ -183,6 +196,8 @@ def coordinator(cfg : DictConfig) -> None:
             variance_coeff=observation_cov.image_cov.inner_cov.priors.gprior.log_variance.exp().detach(), 
             num_samples=cfg.mll_optim.get('num_samples_per_device', 1),
             optim_kwargs=optim_kwargs['sample_kwargs']['hyperparams_update']['optim_kwargs'],
+            unscaled_weights_sample_from_prior=unscaled_weights_sample_from_prior,
+            unscaled_eps=unscaled_eps,
             init_at_previous_samples=prev_weight_sample,
             name_prefix=f'weight_sample_{i}_em={em_step}_seed={cfg.seed + i}'
             )

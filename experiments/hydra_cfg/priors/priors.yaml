@@ -8,3 +8,4 @@ gprior:
     max_scale_thresh: 1e5
     obs_subsample_fct: null
     verbose: True
+    use_mc_samples: False

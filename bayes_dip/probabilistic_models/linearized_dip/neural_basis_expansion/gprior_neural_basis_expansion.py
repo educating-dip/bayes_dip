@@ -16,6 +16,39 @@ from bayes_dip.data.trafo.matmul_ray_trafo  import MatmulRayTrafo
 from .neural_basis_expansion import BaseNeuralBasisExpansion
 from .base_neural_basis_expansion import BaseMatmulNeuralBasisExpansion
 
+
+def mc_compute_scale(
+        neural_basis_expansion: BaseNeuralBasisExpansion,
+        trafo: BaseRayTrafo,
+        num_samples: int,
+        reduction: str = 'sum',
+        eps: float = 1e-6,
+        device=None,
+        ) -> Tensor:
+    device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    
+    vjp_no_scale = neural_basis_expansion.vjp
+    
+    # TODO: At some point, pass in noise_variance explicitly.
+    jac_trafo_noise_sq = []
+    for i in tqdm(range(num_samples)):
+        noise = torch.randn(1, 1, *trafo.obs_shape, device=device)
+        jac_trafo_noise_sq.append(vjp_no_scale(trafo.trafo_adjoint(noise)[:, None, ...]) ** 2)
+    
+    jac_trafo_noise_sq = torch.cat(jac_trafo_noise_sq, dim=0)  # (K, M)
+
+    obs_numel = np.prod(trafo.obs_shape)
+    if reduction == 'mean':
+        jac_trafo_noise_sq /= obs_numel
+    
+    inv_scale_vec = jac_trafo_noise_sq.mean(dim=0).pow(0.5).clamp(min=eps)   # (1, M)
+    
+    scale_vec = inv_scale_vec.pow(-1)  # (1, M)
+    
+    return scale_vec
+    
+    
+
 def compute_scale(
         neural_basis_expansion: BaseNeuralBasisExpansion,
         trafo: BaseRayTrafo,
@@ -271,9 +304,19 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         scale : Tensor
             Scale vector. Shape: ``(self.neural_basis_expansion.num_params,)``.
         """
-        scale_vec = compute_scale(
-                neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
-                **scale_kwargs)
+        if scale_kwargs['use_mc_samples']:
+            scale_vec = mc_compute_scale(
+                neural_basis_expansion=self.neural_basis_expansion,
+                trafo=self.trafo,
+                num_samples=scale_kwargs['num_samples'],
+                reduction=scale_kwargs['reduction'],
+                eps=scale_kwargs['eps'],
+                )
+        else:
+            # TODO: Pop the use_mc_samples arg from scale_kwargs.
+            scale_vec = compute_scale(
+                    neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
+                    **scale_kwargs)
         return scale_vec
 
     def jvp(self, v: Tensor) -> Tensor:

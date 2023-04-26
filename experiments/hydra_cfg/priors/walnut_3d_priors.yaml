@@ -3,3 +3,7 @@ defaults:
 use_gprior: True
 gprior:
   init_prior_variance_value: 1e-8
+  scale:
+    reduction: sum
+    num_samples: 8
+    use_mc_samples: False
