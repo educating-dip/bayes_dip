@@ -314,6 +314,7 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
                 )
         else:
             # TODO: Pop the use_mc_samples arg from scale_kwargs.
+            scale_kwargs = scale_kwargs.pop('use_mc_samples')
             scale_vec = compute_scale(
                     neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
                     **scale_kwargs)

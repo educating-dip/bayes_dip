@@ -6,8 +6,8 @@ iterations: 1
 sampling:
   weights_linearisation: 
     optim_kwargs: #TODO: fine-tune
-      iterations: 5000
-      lr: 1e-4
+      iterations: 4000
+      lr: 1e-3
       momentum: 0.9
       clip_grad_norm_value: 0.1
       scheduler_kwargs:
@@ -15,6 +15,7 @@ sampling:
         end_factor: 0.030
         total_iters_red_pct: 0.95
       use_warm_start: False
+      polyak_averaging_factor: 1e-3
   hyperparams_update:
     optim_kwargs: #TODO: fine-tune
       iterations: 3000
@@ -27,6 +28,7 @@ sampling:
         end_factor: 0.030
         total_iters_red_pct: 0.95
       use_warm_start: False
+      polyak_averaging_factor: 1e-3
 use_sample_then_optimise: True
 use_preconditioner: False
 

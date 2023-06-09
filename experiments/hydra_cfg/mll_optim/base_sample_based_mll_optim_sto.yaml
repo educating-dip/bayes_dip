@@ -12,6 +12,7 @@ sampling:
         end_factor: 0.030
         total_iters_red_pct: 0.95
       use_warm_start: False
+      polyak_averaging_factor: null
   hyperparams_update:
     optim_kwargs: #TODO: fine-tune
       iterations: 3000

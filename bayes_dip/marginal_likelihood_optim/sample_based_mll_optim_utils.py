@@ -140,6 +140,8 @@ def sample_then_optim_linear_map(
         total_iters = int(optim_kwargs['iterations'] * optim_kwargs['scheduler_kwargs']['total_iters_red_pct']),
         )
 
+    writer.add_scalar('wd', optim_kwargs['wd'], 0)
+    writer.add_scalar('clip_grad_norm_value', optim_kwargs['clip_grad_norm_value'], 0)
     with tqdm(range(optim_kwargs['iterations']), miniters=optim_kwargs['iterations']//100) as pbar, \
             eval_mode(nn_model):
         for i in pbar:
@@ -150,10 +152,12 @@ def sample_then_optim_linear_map(
             observation = observation.view(*proj_lin_recon.shape)
             
             optimizer.zero_grad()
-            _, (loss_fit, loss_prior) = closure(lin_weights=lin_weights, proj_lin_recon=proj_lin_recon, 
+            loss, (loss_fit, loss_prior) = closure(lin_weights=lin_weights, proj_lin_recon=proj_lin_recon, 
                     observation=observation
                     )
             
+            writer.add_scalar('learning_rate', scheduler.get_last_lr()[0], i)
+            writer.add_scalar('loss', loss.item(), i)
             writer.add_scalar('loss_fit', loss_fit.item(), i)
             writer.add_scalar('loss_prior', loss_prior.item(), i)
 
@@ -201,7 +205,7 @@ def sample_then_optimise(
                 proj_weights_posterior_samples, eps, 
                 reduction='sum'
             ) 
-        loss_prior =  .5 * (1 / variance_coeff) * (weights_posterior_samples - weights_prior_samples).pow(2).sum()
+        loss_prior =  .5 * (1 / variance_coeff) * (weights_posterior_samples - weights_sample_from_prior).pow(2).sum()
         loss = loss_fit + loss_prior
     
         return loss, (loss_fit, loss_prior)
@@ -237,7 +241,7 @@ def sample_then_optimise(
         total_iters = int(optim_kwargs['iterations'] * optim_kwargs['scheduler_kwargs']['total_iters_red_pct']),
         )
     # A = (1 / noise_variance), B = (1 / variance_coeff), A and B are precisions.
-    theta_n = weights_prior_samples + variance_coeff * (1. / noise_variance) * neural_basis_expansion.vjp(
+    theta_n = weights_sample_from_prior + variance_coeff * (1. / noise_variance) * neural_basis_expansion.vjp(
             observation_cov.trafo.trafo_adjoint(eps)[:, None, ...])  # theta_0 + A^{-1} B J^T A^T eps
 
     writer.add_scalar('gprior_variance', variance_coeff.item(), 0)

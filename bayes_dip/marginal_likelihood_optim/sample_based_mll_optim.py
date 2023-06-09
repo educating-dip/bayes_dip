@@ -31,6 +31,7 @@ def sample_based_marginal_likelihood_optim(
     log_path: str = './',
     em_start_step: int = 0,
     posterior_obs_samples_sq_sum: Optional[Dict] = None,
+    prev_linear_weights: Optional[Tensor] = None,
     ):
 
     '''
@@ -64,6 +65,7 @@ def sample_based_marginal_likelihood_optim(
 
         if posterior_obs_samples_sq_sum:
             assert optim_kwargs['iterations'] == 1, 'Only one iteration is allowed when resuming from a checkpoint.'
+            linearized_weights = prev_linear_weights
 
         if optim_kwargs['use_sample_then_optimise']:
             unscaled_weights_sample_from_prior = torch.randn(
@@ -92,7 +94,7 @@ def sample_based_marginal_likelihood_optim(
                             observation=observation_for_lin_optim, 
                             optim_kwargs=optim_kwargs['sample_kwargs']['weights_linearisation']['optim_kwargs'],
                             aux={'ground_truth': ground_truth, 'recon_offset': recon_offset},
-                            init_at_previous_weights=linearized_weights if use_warm_start else None,
+                            init_at_previous_weights=prev_linear_weights if use_warm_start else None,
                             name_prefix=f'weight_linearisation_em={i}'
                             )
 

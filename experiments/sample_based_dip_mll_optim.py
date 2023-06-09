@@ -155,8 +155,8 @@ def coordinator(cfg : DictConfig) -> None:
         if em_step > 0:
             assert load_previous_observation_cov_from_path is not None
             # if `m_step>0` overwrite g_prior variance with the `em_step-1` optimised one
-            observation_cov = torch.load(
-                os.path.join(load_previous_observation_cov_from_path, f'observation_cov_iter_{em_step}.pt'))            
+            observation_cov.load_state_dict(torch.load(
+                os.path.join(load_previous_observation_cov_from_path, f'observation_cov_iter_{em_step - 1}.pt')))           
 
         optim_kwargs = {
             'iterations': cfg.mll_optim.iterations,
@@ -183,6 +183,7 @@ def coordinator(cfg : DictConfig) -> None:
 
         predictive_posterior = SampleBasedPredictivePosterior(observation_cov)
         posterior_obs_samples_sq_sum = {} # to compute eff. dims in 3D 
+        prev_linear_weights = None
         if load_previous_em_step_from_path is not None:
             post_sample_sq_sum_paths = glob(
                     os.path.join(load_previous_em_step_from_path, f'posterior_obs_samples_sq_sum_{i}_em={em_step}_seed=*.pt'))
@@ -196,6 +197,8 @@ def coordinator(cfg : DictConfig) -> None:
                     posterior_obs_samples_sq_sum['value'] += posterior_obs_samples_sq_sum_i['value']
                     posterior_obs_samples_sq_sum['num_samples'] += posterior_obs_samples_sq_sum_i['num_samples']
             
+            prev_linear_weights = torch.load(f'linearized_weights_em={em_step - 1}_{i}.pt')
+    
         linearized_weights, linearized_recon = sample_based_marginal_likelihood_optim(
             predictive_posterior=predictive_posterior,
             map_weights=get_ordered_nn_params_vec(parameter_cov).clone(),
@@ -205,11 +208,12 @@ def coordinator(cfg : DictConfig) -> None:
             optim_kwargs=optim_kwargs,
             log_path=os.path.join(  cfg.mll_optim.log_path, f'mrglik_optim_{i}' ),
             posterior_obs_samples_sq_sum=posterior_obs_samples_sq_sum,
-            em_start_step=em_step
+            em_start_step=em_step,
+            prev_linear_weights=prev_linear_weights
             )
 
-        torch.save(linearized_weights, f'linearized_weights_{i}.pt')
-        torch.save(linearized_recon, f'linearized_recon_{i}.pt')
+        torch.save(linearized_weights, f'linearized_weights_em={em_step}_{i}.pt')
+        torch.save(linearized_recon, f'linearized_recon_em={em_step}_{i}.pt')
 
 if __name__ == '__main__':
     coordinator()

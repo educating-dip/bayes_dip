@@ -9,3 +9,4 @@ gprior:
     obs_subsample_fct: null
     verbose: True
     use_mc_samples: False
+    num_samples: 100

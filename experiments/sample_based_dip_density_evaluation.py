@@ -106,38 +106,6 @@ def coordinator(cfg : DictConfig) -> None:
         
         samples = torch.cat(samples, dim=0)
         
-        # import matplotlib.pyplot as plt
-        # import numpy as np
-        # mid_slice = samples[0, :, 83, :, :].squeeze().numpy()
-        
-        # variance = np.sqrt(samples.var(dim=0)[:, 83, :, :].squeeze().numpy())
-        # plt.imshow(mid_slice, cmap='gray')
-        # plt.colorbar()
-        # plt.savefig(f'/home/sp2058/rds/rds-t2-cs117/dev_bayes_dip/scripts/outputs/launch_3d_final/mid_slice.png')
-        # plt.close()
-        # plt.imshow(variance, cmap='gray')
-        # plt.colorbar()
-        # plt.savefig(f'/home/sp2058/rds/rds-t2-cs117/dev_bayes_dip/scripts/outputs/launch_3d_final/variance.png')
-        # plt.close()
-        # print(f'ground truth shape : {ground_truth.shape}')
-        # error = torch.abs(ground_truth - recon)[:, :, 83, :, :].squeeze().cpu().numpy()
-        # plt.imshow(error, cmap='gray')
-        # plt.colorbar()
-        # plt.savefig(f'/home/sp2058/rds/rds-t2-cs117/dev_bayes_dip/scripts/outputs/launch_3d_final/error.png')
-        # plt.close()
-        # plt.imshow(np.log(error) - np.log(variance), cmap='gray')
-        # plt.colorbar()
-        # plt.savefig(f'/home/sp2058/rds/rds-t2-cs117/dev_bayes_dip/scripts/outputs/launch_3d_final/error_ratio.png')
-        # plt.close()
-        # plt.hist(error.flatten(), bins=100, label='error')
-        # plt.hist(variance.flatten(), bins=100, label='std')
-        # plt.yscale('log')
-        # plt.legend()
-        # plt.savefig(f'/home/sp2058/rds/rds-t2-cs117/dev_bayes_dip/scripts/outputs/launch_3d_final/hists.png')
-        # plt.close()
-        # breakpoint()
-        # # samples = torch.stack(samples)
-        
         image_samples = samples
         image_samples = image_samples[:, :, 73:93, :, :]
         patch_kwargs = {'patch_size': 1, 'batch_size': 1024,}
@@ -148,12 +116,12 @@ def coordinator(cfg : DictConfig) -> None:
             patch_kwargs=patch_kwargs,
             reweight_off_diagonal_entries=False,
             noise_x_correction_term=1e-6,
-            verbose = True,
-            unscaled= False,
+            verbose = False,
+            unscaled = False,
             return_patch_diags = False,
             device = 'cpu'
         )
-        print(log_prob)
+        print(f'mean log prob : ', torch.mean(torch.FloatTensor(log_prob)))
         torch.save(log_prob, f'log_prob_{i}.pt')
 
 if __name__ == '__main__':
