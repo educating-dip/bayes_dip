@@ -18,7 +18,6 @@ preconditioner:
   batch_size: 8
   # used by low_rank_eig:
   oversampling_param: 5
-  rand_approx_method: low_rank_observation_cov_basis # uses Algo. 5.6 from Halko et al.
   # used by incomplete_chol:
   approx_diag_num_samples: 200
   load_state_dict: null
