@@ -215,96 +215,6 @@ class LowRankObservationCov(BaseObservationCov):
                     f'L.num_vals_below_{eps}: {(L.real < eps).sum()}\n')
         return U, L.real.clamp(min=eps)
 
-    def get_nystrom_low_rank_observation_cov_basis(
-        self, 
-        use_cpu: bool = False,
-        verbose: bool = True,
-        batch_size: int = 1,
-        ):
-
-        """
-        Constructs a randomized PSD Nystrom approximation of cov_obs_mat in one pass,
-        i.e. cov_obs_mat_nys = (cov_obs_mat Ω)(Ωᵀ cov_obs_mat Ω)^†(cov_obs_mat Ω)^ᵀ
-        = UΛUᵀ where Ω is test matrix. This method implements Algo. 2.1 from
-        Frangella et al. https://arxiv.org/pdf/2110.02820.pdf or Tropp et al. 
-        https://arxiv.org/pdf/1706.05736.pdf. 
-
-        Parameters
-        ----------
-        use_cpu : bool, optional
-            Whether to compute QR on CPU.
-            The default is ``False``.
-        verbose : bool, optional
-            If ``True``, print eigenvalue information. The default is ``True``.
-        batch_size : int, optional
-            Batch size for multiplying with the observation covariance.
-            The default is ``1``.
-
-        Returns
-        -------
-        U : Tensor
-            Eigenvectors. Shape: ``(np.prod(self.trafo.obs_shape), self.low_rank_rank_dim)``
-        L : Tensor
-            Eigenvalues. Shape: ``(self.low_rank_rank_dim)``
-        """
-
-        num_batches = ceil(self.low_rank_rank_dim / batch_size)
-        cov_obs_mat_sketch = []
-       
-        # ------------------------------------------------------------------------------
-        # |                               Nystrom Sketch                               |
-        # ------------------------------------------------------------------------------
-       
-        # Algorithm 1 sketch Initialization of Tropp et al.
-        
-        # Construct a random orthonormal test matrix
-        ortho_random_matrix, _  = torch.linalg.qr(  # thin QR decomposition of the test matrix Ω
-            self.random_matrix[:self.low_rank_rank_dim, :].cpu().T 
-                if use_cpu else self.random_matrix[:self.low_rank_rank_dim, :].T, mode='reduced')
-
-        # image_cov might require grads (shared module), so disable grads if not self.requires_grad
-        with torch.set_grad_enabled(self.requires_grad):
-            for i in tqdm(range(num_batches), miniters=num_batches//100,
-                    desc='get_low_rank_observation_cov_basis_'):
-                rnd_vect = ortho_random_matrix.T[i * batch_size:(i+1) * batch_size, None, None, :] # last dim is dy
-                eff_batch_size = rnd_vect.shape[0]
-                if eff_batch_size < batch_size:
-                    rnd_vect = torch.cat(
-                        [rnd_vect, torch.zeros(
-                                (batch_size-eff_batch_size, *rnd_vect.shape[1:]),
-                                    dtype=rnd_vect.dtype,
-                                    device=rnd_vect.device)
-                            ]
-                        )
-                # apply observation cov without noise variance term
-                v = self.trafo.trafo_adjoint(rnd_vect)
-                v = self.image_cov(v)
-                v = self.trafo(v)
-                if eff_batch_size < batch_size:
-                    v = v[:eff_batch_size]
-                cov_obs_mat_sketch.append(v)
-        cov_obs_mat_sketch = torch.cat(cov_obs_mat_sketch)
-        cov_obs_mat_sketch = cov_obs_mat_sketch.view(*cov_obs_mat_sketch.shape[:1], -1).T  # new shape: (dy, L)
-
-        # construct the shifted sketch
-        shift = torch.finfo().eps * torch.linalg.matrix_norm(cov_obs_mat_sketch, ord='fro')
-        shifted_cov_obs_mat_sketch = cov_obs_mat_sketch + shift * ortho_random_matrix
-        B = ortho_random_matrix.T @ shifted_cov_obs_mat_sketch
-        C = torch.linalg.cholesky(
-                0.5 * (B + B.T)
-            )
-        E = torch.linalg.solve_triangular(
-            C, shifted_cov_obs_mat_sketch.T, upper=True).T
-        # Compute the (thin) singular value decomposition
-        U, S, _ = torch.linalg.svd(E, full_matrices=False)
-        L = S.real.pow(2) - shift
-        if verbose:
-            print(
-                    f'L.min: {L.min()}, '
-                    f'L.max: {L.max()}, '
-                    f'L.num_vals_below_{0}: {(L < 0).sum()}\n')        
-        return U[:, :self.low_rank_rank_dim], L.clamp(min=0)[:self.low_rank_rank_dim]
-
     def forward(self,
             v: Tensor,
             use_inverse: bool = False,
@@ -372,7 +282,6 @@ class LowRankObservationCov(BaseObservationCov):
         eps: float = 1e-1,
         full_diag_eps: float = 1e-6,
         batch_size: int = 1,
-        rand_approx_method: str = 'low_rank_observation_cov_basis', 
         ) -> None:
         """
         Update the low-rank approximation and other state variables to the current parameter values.
@@ -393,21 +302,10 @@ class LowRankObservationCov(BaseObservationCov):
         batch_size : int, optional
             Batch size for multiplying with the observation covariance.
             The default is ``1``.
-        rand_approx_method : str, optional
-            It uses either a randomised low-rank eigenvalue algorithm or 
-            a randomized PSD Nystrom algorithmn. 
-            The default is ``'low_rank_observation_cov_basis'``.
         """
 
-        if rand_approx_method == 'low_rank_observation_cov_basis':
-            self.U, self.L = self.get_low_rank_observation_cov_basis(
-                    use_cpu=use_cpu, eps=eps, batch_size=batch_size)
-        elif rand_approx_method == 'nystrom_low_rank_observation_cov_basis':
-            self.U, self.L = self.get_nystrom_low_rank_observation_cov_basis(
-                    use_cpu=use_cpu, batch_size=batch_size)
-        else:
-            raise NotImplementedError
-    
+        self.U, self.L = self.get_low_rank_observation_cov_basis(
+                use_cpu=use_cpu, eps=eps, batch_size=batch_size)
         self.noise_stddev = self.log_noise_variance.exp().pow(0.5)  # for self.sample()
         self.noise_variance_obs_and_eps = self.log_noise_variance.exp() + full_diag_eps
         self.sysmat = torch.diag(1 / self.L) + self.U.T @ self.U / self.noise_variance_obs_and_eps

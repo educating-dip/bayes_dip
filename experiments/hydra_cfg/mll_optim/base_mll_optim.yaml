@@ -21,7 +21,6 @@ linear_cg:
     batch_size: 1
     # used by low_rank_eig:
     oversampling_param: 10
-    rand_approx_method: low_rank_observation_cov_basis # uses Algo. 5.6 from Halko et al.
     # used by incomplete_chol:
     approx_diag_num_samples: 200
 min_log_variance: -6.9

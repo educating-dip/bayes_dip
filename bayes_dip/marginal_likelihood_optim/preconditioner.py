@@ -7,7 +7,7 @@ from functools import partial
 import torch
 from torch import Tensor
 from ..probabilistic_models import BaseObservationCov, LowRankObservationCov
-from .preconditioner_utils import pivoted_cholesky, nystrom_preconditioner_matmul
+from .preconditioner_utils import pivoted_cholesky
 
 class BasePreconditioner(ABC):
     """
@@ -135,14 +135,7 @@ class LowRankObservationCovPreconditioner(BasePreconditioner):
             use_inverse: bool = False,
             ) -> Tensor:
         with torch.no_grad():
-            if self.default_update_kwargs['rand_approx_method'] == 'low_rank_observation_cov_basis':
-                v = self.low_rank_observation_cov.matmul(v, use_inverse=use_inverse)
-            elif self.default_update_kwargs['rand_approx_method'] == 'nystrom_low_rank_observation_cov_basis':
-                v = nystrom_preconditioner_matmul(
-                    (self.low_rank_observation_cov.U, self.low_rank_observation_cov.L, 
-                        self.low_rank_observation_cov.noise_variance_obs_and_eps),
-                    v
-                )
+            v = self.low_rank_observation_cov.matmul(v, use_inverse=use_inverse)
         return v
 
     def update(self, **kwargs) -> None:
@@ -310,8 +303,7 @@ def get_preconditioner(observation_cov: BaseObservationCov, kwargs: Dict) -> Bas
         Preconditioner instance.
     """
     if kwargs['name'] == 'low_rank_eig':
-        update_kwargs = {'batch_size': kwargs['batch_size'], 
-            'rand_approx_method': kwargs['rand_approx_method']}
+        update_kwargs = {'batch_size': kwargs['batch_size']}
         low_rank_observation_cov = LowRankObservationCov(
                 trafo=observation_cov.trafo,
                 image_cov=observation_cov.image_cov,
