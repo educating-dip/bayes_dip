@@ -10,13 +10,13 @@ from bayes_dip.data.walnut_utils import (
         get_single_slice_ray_trafo, get_single_slice_ray_trafo_matrix)
 
 
-def _walnut_2d_fdk(observation, walnut_ray_trafo):
+def _walnut_2d_fdk(observation, masked_walnut_ray_trafo):
     # only trivial batch and channel dims supported
     assert observation.shape[0] == 1 and observation.shape[1] == 1
     # observation.shape: (1, 1, 1, obs_numel)
     observation_np = observation.detach().cpu().numpy().squeeze((0, 1, 2))
 
-    fdk = walnut_ray_trafo.apply_fdk(observation_np, squeeze=True)
+    fdk = masked_walnut_ray_trafo.apply_fdk(observation_np, squeeze=True)
     fdk = torch.from_numpy(fdk)[None, None].to(observation.device)
     return fdk
 
@@ -65,19 +65,19 @@ def get_walnut_2d_ray_trafo(
     matrix = get_single_slice_ray_trafo_matrix(
             path=matrix_path, **walnut_kwargs)
 
-    walnut_ray_trafo = get_single_slice_ray_trafo(
+    masked_walnut_ray_trafo = get_single_slice_ray_trafo(
             data_path=data_path, **walnut_kwargs)
 
-    im_shape = walnut_ray_trafo.vol_shape[1:]
-    obs_shape = (1, np.sum(walnut_ray_trafo.proj_mask))
+    im_shape = masked_walnut_ray_trafo.vol_shape[1:]
+    obs_shape = (1, np.sum(masked_walnut_ray_trafo.proj_mask))
 
-    fbp_fun = partial(_walnut_2d_fdk, walnut_ray_trafo=walnut_ray_trafo)
+    fbp_fun = partial(_walnut_2d_fdk, masked_walnut_ray_trafo=masked_walnut_ray_trafo)
 
     ray_trafo = MatmulRayTrafo(im_shape, obs_shape, matrix,
             fbp_fun=fbp_fun, angles=None)
 
     # expose index information via attribute
     ray_trafo.inds_in_flat_projs_per_angle = (
-            walnut_ray_trafo.get_inds_in_flat_projs_per_angle())
+            masked_walnut_ray_trafo.get_inds_in_flat_projs_per_angle())
 
     return ray_trafo

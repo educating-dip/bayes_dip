@@ -1,0 +1,11 @@
+defaults:
+  - base_trafo
+
+name: param_fan_beam
+num_angles: 10
+geometry_specs:
+  rect_padded: True
+  # default values reasonable for 128x128 images
+  src_radius: 1000.
+  num_det_pixels: 196
+angular_sub_sampling: 1

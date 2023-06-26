@@ -1,5 +1,9 @@
 defaults:
   - base_trafo
 
+name: simple
 num_angles: 10
+geometry: parallel
+geometry_specs: {}  # for potential other geometries, such as fan-beam
+impl: astra_cuda_via_matrix
 angular_sub_sampling: 1

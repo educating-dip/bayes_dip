@@ -1,0 +1,35 @@
+defaults:
+  - base_sample_based_mll_optim
+sampling:
+  weights_linearisation: 
+    optim_kwargs: #TODO: fine-tune
+      iterations: 2000
+      lr: 1e-3
+      momentum: 0.99
+      clip_grad_norm_value: 1.
+      scheduler_kwargs:
+        start_factor: 1. 
+        end_factor: 0.030
+        total_iters_red_pct: 0.95
+      use_warm_start: False
+      polyak_averaging_factor: null
+  hyperparams_update:
+    optim_kwargs: #TODO: fine-tune
+      iterations: 3000
+      lr: 1e-3
+      momentum: 0.99
+      verbose: True
+      clip_grad_norm_value: 1.
+      scheduler_kwargs:
+        start_factor: 1.
+        end_factor: 0.030
+        total_iters_red_pct: 0.95
+      polyak_averaging_factor: null
+      use_warm_start: False
+use_sample_then_optimise: True
+use_preconditioner: False
+
+debugging_mode_kwargs:
+  loglikelihood_kwargs:
+    patch_kwargs:
+      patch_idx_list: null

@@ -2,6 +2,7 @@
 Provides neural basis expansion with a scaling in weight space, used for the isotropic g-prior.
 """
 from typing import Dict, Optional, Union, Tuple
+import os
 from abc import ABC, abstractmethod
 from warnings import warn
 import torch
@@ -9,10 +10,44 @@ from torch import Tensor
 import numpy as np
 from tqdm import tqdm
 
+from bayes_dip.utils import get_original_cwd
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.data.trafo.matmul_ray_trafo  import MatmulRayTrafo
 from .neural_basis_expansion import BaseNeuralBasisExpansion
 from .base_neural_basis_expansion import BaseMatmulNeuralBasisExpansion
+
+
+def mc_compute_scale(
+        neural_basis_expansion: BaseNeuralBasisExpansion,
+        trafo: BaseRayTrafo,
+        num_samples: int,
+        reduction: str = 'sum',
+        eps: float = 1e-6,
+        device=None,
+        ) -> Tensor:
+    device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    
+    vjp_no_scale = neural_basis_expansion.vjp
+    
+    # TODO: At some point, pass in noise_variance explicitly.
+    jac_trafo_noise_sq = []
+    for i in tqdm(range(num_samples)):
+        noise = torch.randn(1, 1, *trafo.obs_shape, device=device)
+        jac_trafo_noise_sq.append(vjp_no_scale(trafo.trafo_adjoint(noise)[:, None, ...]) ** 2)
+    
+    jac_trafo_noise_sq = torch.cat(jac_trafo_noise_sq, dim=0)  # (K, M)
+
+    obs_numel = np.prod(trafo.obs_shape)
+    if reduction == 'mean':
+        jac_trafo_noise_sq /= obs_numel
+    
+    inv_scale_vec = jac_trafo_noise_sq.mean(dim=0).pow(0.5).clamp(min=eps)   # (1, M)
+    
+    scale_vec = inv_scale_vec.pow(-1)  # (1, M)
+    
+    return scale_vec
+    
+    
 
 def compute_scale(
         neural_basis_expansion: BaseNeuralBasisExpansion,
@@ -22,6 +57,7 @@ def compute_scale(
         max_scale_thresh: float = 1e5,
         verbose: bool = True,
         batch_size: Optional[int] = 1,
+        obs_subsample_fct: Optional[int] = None,
         use_single_batch: Optional[bool] = None,
         device=None,
         ) -> Tensor:
@@ -54,6 +90,9 @@ def compute_scale(
         matmul implementations.
         If ``True``, a single matmul is used iff ``isinstance(trafo, MatmulRayTrafo)``.
         If ``False``, batched closure evaluations are used.
+    obs_subsample_fct : int, optional
+        Subsample factor of the measured data. If not ``None``, the scaling vector is assembled
+        using an uniformly undersampled subset of the measured data. Default: ``None``.
     device : str or torch.device, optional
         Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
         otherwise.
@@ -65,7 +104,6 @@ def compute_scale(
     """
 
     device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
-
     vjp_no_scale = neural_basis_expansion.vjp
     if use_single_batch is None:
         use_single_batch = isinstance(neural_basis_expansion, BaseMatmulNeuralBasisExpansion)
@@ -85,7 +123,12 @@ def compute_scale(
 
             v = torch.empty((batch_size, 1, *trafo.obs_shape), device=device)
             rows = torch.zeros((neural_basis_expansion.num_params), device=device)
-            for i in tqdm(np.array(range(0, obs_numel, batch_size)),
+            loop_iterable = np.array(range(0, obs_numel, batch_size))
+            if obs_subsample_fct is not None:
+                # permute [0, 1 * batch_sze, ..., obs_numel // batch_size]
+                randinds = torch.randperm(obs_numel // batch_size) * batch_size
+                loop_iterable = randinds[:randinds.shape[0] // obs_subsample_fct].numpy()
+            for i in tqdm(loop_iterable,
                         desc='compute_scale', miniters=obs_numel//batch_size//100
                     ):
                 v[:] = 0.
@@ -102,8 +145,10 @@ def compute_scale(
 
         if reduction == 'mean':
             rows /= obs_numel
-        elif reduction == 'sum':
-            pass
+            if obs_subsample_fct is not None: rows *= obs_subsample_fct
+        # TODO: Figure out what happens with sum reduction.
+        # elif reduction == 'sum':
+        #     if use_stochastic_assembly: rows *= assembly_subsample_fact
         else:
             raise ValueError(f'unknown reduction kind {reduction}')
 
@@ -164,6 +209,7 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
             neural_basis_expansion: BaseNeuralBasisExpansion,
             trafo: BaseRayTrafo,
             scale_kwargs: Dict,
+            load_scale_from_path: Optional[str] = None,
             device=None,
         ) -> None:
         """
@@ -176,6 +222,8 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         scale_kwargs : dict
             Keyword arguments passed to :func:`compute_scale`. Should not include
             ``'neural_basis_expansion'`` and ``'trafo'``, which are passed on from this class.
+        load_scale_from_path : str, optional
+            Path to the scaling vector.
         device : str or torch.device, optional
             Device. If ``None`` (the default), ``'cuda:0'`` is chosen if available or ``'cpu'``
             otherwise.
@@ -189,11 +237,45 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         self.device = device or torch.device(('cuda:0' if torch.cuda.is_available() else 'cpu'))
         self.neural_basis_expansion = neural_basis_expansion
         self.trafo = trafo
-        self.update_scale(**scale_kwargs)
+        if load_scale_from_path is None:
+            self.update_scale(**scale_kwargs)
+        else:
+            self.load_scale(filepath=load_scale_from_path)
 
     @property
     def scale(self) -> Tensor:
         return self._scale
+
+    def load_scale(self, filepath: str) -> None:
+        """
+        Load scale vector from file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the scale vector, either absolute or relative to the original
+            current working directory.
+        """
+        filepath = os.path.join(
+            get_original_cwd(),
+            filepath if filepath.endswith('.pt') \
+                else filepath + '.pt')
+        self._scale = torch.load(filepath, map_location=self.device)
+
+    def save_scale(self, filepath: str) -> None:
+        """
+        Save scale vector.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the scale vector, either absolute or relative to the original
+            current working directory.
+        """
+
+        if not filepath.endswith('.pt'):
+            filepath = filepath + '.pt'
+        torch.save(self._scale.cpu(), filepath)
 
     def update_scale(self, **scale_kwargs) -> None:
         """
@@ -222,9 +304,20 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         scale : Tensor
             Scale vector. Shape: ``(self.neural_basis_expansion.num_params,)``.
         """
-        scale_vec = compute_scale(
-                neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
-                **scale_kwargs)
+        if scale_kwargs['use_mc_samples']:
+            scale_vec = mc_compute_scale(
+                neural_basis_expansion=self.neural_basis_expansion,
+                trafo=self.trafo,
+                num_samples=scale_kwargs['num_samples'],
+                reduction=scale_kwargs['reduction'],
+                eps=scale_kwargs['eps'],
+                )
+        else:
+            # TODO: Pop the use_mc_samples arg from scale_kwargs.
+            scale_kwargs = scale_kwargs.pop('use_mc_samples')
+            scale_vec = compute_scale(
+                    neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
+                    **scale_kwargs)
         return scale_vec
 
     def jvp(self, v: Tensor) -> Tensor:

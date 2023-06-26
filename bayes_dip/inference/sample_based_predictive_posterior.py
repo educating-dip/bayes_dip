@@ -12,6 +12,7 @@ from bayes_dip.inference.utils import is_invalid
 from .base_predictive_posterior import BasePredictivePosterior
 from .utils import yield_padded_batched_images_patches, get_image_patch_mask_inds, is_invalid
 from ..utils import cg
+from tqdm import tqdm
 
 def predictive_cov_image_patch_norm(v : Tensor, predictive_cov_image_patch : Tensor) -> Tensor:
     """
@@ -156,7 +157,7 @@ def yield_covariances_patches(
 
         batch_invalid_values = is_invalid(batch_predictive_cov_image_patch)
         batch_invalid_values_patch_inds = (
-                torch.tensor(batch_patch_inds)[batch_invalid_values]).tolist()
+            torch.tensor(batch_patch_inds, device=device)[batch_invalid_values]).tolist()
         if len(batch_invalid_values_patch_inds) > 0:
             raise ValueError(
                     'invalid value occurred in predictive cov for patch indices '
@@ -226,7 +227,7 @@ def log_prob_patches(
     patch_diags = []
     all_patch_mask_inds = get_image_patch_mask_inds(
             ground_truth.shape[2:], patch_size=patch_kwargs['patch_size'])
-    for batch_patch_inds, batch_predictive_cov_image_patch, batch_len_mask_inds in (
+    for batch_patch_inds, batch_predictive_cov_image_patch, batch_len_mask_inds in tqdm(
             yield_covariances_patches(
                     samples=samples,
                     patch_kwargs=patch_kwargs,
@@ -499,7 +500,7 @@ class SampleBasedPredictivePosterior(BasePredictivePosterior):
             out = sum_log_prob_unscaled
         else:
             all_patch_mask_inds = get_image_patch_mask_inds(
-                    self.observation_cov.trafo.im_shape, patch_size=patch_kwargs['patch_size'])
+                    self.observation_cov.trafo.im_shape[-2:], patch_size=patch_kwargs['patch_size'])
             if patch_kwargs['patch_idx_list'] is None:
                 patch_kwargs['patch_idx_list'] = list(range(len(all_patch_mask_inds)))
             total_num_pixels_in_patches = sum(len(all_patch_mask_inds[patch_idx])

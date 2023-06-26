@@ -1,0 +1,7 @@
+defaults:
+  - base_sample_based_mll_optim_sto
+
+debugging_mode_kwargs:
+  loglikelihood_kwargs:
+    patch_kwargs:
+      patch_idx_list: walnut_inner

@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  - override /dataset: walnut_3d
+  - override /trafo: walnut_3d_trafo
+  - override /dip: unet_3d
+  - override /inference: walnut_inference
+  - override /mll_optim: base_sample_based_mll_optim
+
+load_pretrained_dip_params: null
+load_dip_params_from_path: outputs/2023-01-02T12:04:16.478272Z/ # spec. to obs.

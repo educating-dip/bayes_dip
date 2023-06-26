@@ -102,18 +102,22 @@ class MatmulRayTrafo(BaseRayTrafo):
         raise ValueError('`angles` was not set for `MatmulRayTrafo`')
 
     def trafo_flat(self, x: Tensor) -> Tensor:
+        dtype = x.dtype
+        x = x.to(dtype=self.matrix.dtype)
         if self.matrix.is_sparse:
             observation = torch.sparse.mm(self.matrix, x)
         else:
             observation = torch.matmul(self.matrix, x)
-        return observation
+        return observation.to(dtype=dtype)
 
     def trafo_adjoint_flat(self, observation: Tensor) -> Tensor:
+        dtype = observation.dtype
+        observation = observation.to(dtype=self.matrix.dtype)
         if self.matrix.is_sparse:
             x = torch.sparse.mm(self.matrix_t, observation)
         else:
             x = torch.matmul(self.matrix.T, observation)
-        return x
+        return x.to(dtype=dtype)
 
     def fbp(self, observation: Tensor) -> Tensor:
         return self.fbp_fun(observation)

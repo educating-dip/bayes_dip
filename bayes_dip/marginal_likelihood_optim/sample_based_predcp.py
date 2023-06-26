@@ -8,7 +8,7 @@ from torch import Tensor
 
 from ..probabilistic_models import (
         BaseImageCov, ImageCov, ParameterCov, GPprior, BaseMatmulNeuralBasisExpansion)
-from ..utils import batch_tv_grad
+from ..utils import batch_tv_grad, batch_tv_grad_3d_mean
 
 def sample_based_predcp_grads(
         image_cov: BaseImageCov,
@@ -63,6 +63,8 @@ def sample_based_predcp_grads(
             isinstance(image_cov, ImageCov) and
             isinstance(image_cov.neural_basis_expansion, BaseMatmulNeuralBasisExpansion))
 
+    tv_grad_fun = batch_tv_grad if len(image_cov.neural_basis_expansion.nn_out_shape) == 4 else batch_tv_grad_3d_mean
+
     for prior in prior_list_under_predcp:
         x_samples, weight_samples = image_cov.sample(
             num_samples=num_samples,
@@ -72,7 +74,8 @@ def sample_based_predcp_grads(
             )
 
         with torch.no_grad():
-            tv_x_samples = batch_tv_grad(x_samples)
+            tv_x_samples = tv_grad_fun(x_samples)
+
             if lin_op_supports_sub_slicing:
                 jac_tv_x_samples = image_cov.lin_op_transposed(
                         tv_x_samples, sub_slice=image_cov.inner_cov.params_slices_per_prior[prior])

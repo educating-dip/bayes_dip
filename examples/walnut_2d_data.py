@@ -1,10 +1,10 @@
 """
-Use the walnut data.
+Use the walnut 2d data.
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from bayes_dip.data import get_walnut_2d_ground_truth, get_walnut_2d_ray_trafo
-from bayes_dip.data.datasets.walnut import get_walnut_2d_observation
+from bayes_dip.data import (
+        get_walnut_2d_ground_truth, get_walnut_2d_ray_trafo, get_walnut_2d_observation)
 
 DATA_PATH = '../experiments/walnuts/'
 

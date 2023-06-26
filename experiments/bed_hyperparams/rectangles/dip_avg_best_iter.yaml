@@ -1,0 +1,57 @@
+rectangles:
+  5:
+    0.05:
+      gamma: 3e-3
+      iterations: 19000
+    0.1:
+      gamma: 1e-2
+      iterations: 11000
+  10:
+    0.05:
+      gamma: 3e-3
+      iterations: 9400
+    0.1:
+      gamma: 1e-2
+      iterations: 7500
+  15:
+    0.05:
+      gamma: 3e-3
+      iterations: 9400
+    0.1:
+      gamma: 1e-2
+      iterations: 7500
+  20:
+    0.05:
+      gamma: 3e-3
+      iterations: 12000
+    0.1:
+      gamma: 3e-3
+      iterations: 12000
+  25:
+    0.05:
+      gamma: 3e-3
+      iterations: 12000
+    0.1:
+      gamma: 3e-3
+      iterations: 12000
+  30:
+    0.05:
+      gamma: 3e-3
+      iterations: 12000
+    0.1:
+      gamma: 3e-3
+      iterations: 12000
+  35:
+    0.05:
+      gamma: 1e-3
+      iterations: 13000
+    0.1:
+      gamma: 3e-3
+      iterations: 7100
+  40:
+    0.05:
+      gamma: 1e-3
+      iterations: 13000
+    0.1:
+      gamma: 3e-3
+      iterations: 7100

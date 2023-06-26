@@ -2,7 +2,7 @@ defaults:
   - dataset: ???
   - trafo: ???
   - dip: ???
-  - mll_optim: mll_optim
+  - mll_optim: ???
   - inference: ???
   - priors: priors
   - _self_
@@ -18,5 +18,8 @@ hydra:
     dir: outputs/${now:%Y-%m-%dT%H:%M:%S.%fZ}
   sweep:
     dir: multirun/${now:%Y-%m-%dT%H:%M:%S.%fZ}
+  output_subdir: .${now:%Y-%m-%dT%H:%M:%S.%fZ}_hydra
 load_pretrained_dip_params: null  # from pretraining
 load_dip_params_from_path: null  # spec. to obs.
+load_sample_based_precon_state_from_path: null  # spec. to obs.
+load_gprior_scale_from_path: null  # spec. to obs.

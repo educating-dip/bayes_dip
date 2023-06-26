@@ -6,3 +6,7 @@ from .preconditioner import (
         BasePreconditioner, LowRankObservationCovPreconditioner, get_preconditioner)
 from .weights_linearization import weights_linearization
 from .utils import get_ordered_nn_params_vec
+from .sample_based_mll_optim import sample_based_marginal_likelihood_optim
+from .sample_based_mll_optim_utils import (
+        PCG_based_linear_map, sample_then_optim_linear_map, gprior_variance_mackay_update, 
+        estimate_effective_dimension, sample_then_optimise)

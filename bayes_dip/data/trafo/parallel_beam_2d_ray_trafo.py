@@ -9,6 +9,7 @@ import numpy as np
 from odl.contrib.torch import OperatorModule
 import odl
 from tqdm import tqdm
+from copy import deepcopy
 from bayes_dip.data.trafo.base_ray_trafo import BaseRayTrafo
 from bayes_dip.data.trafo.matmul_ray_trafo import MatmulRayTrafo
 
@@ -158,10 +159,10 @@ def get_odl_ray_trafo_parallel_beam_2d_matrix(
     odl_ray_trafo_full = get_odl_ray_trafo_parallel_beam_2d(
                 im_shape, num_angles, first_angle_zero=first_angle_zero,
                 impl=impl)
-    odl_ray_trafo = odl.tomo.RayTransform(
-            odl_ray_trafo_full.domain,
-            odl_ray_trafo_full.geometry[::angular_sub_sampling], impl=impl)
-    obs_shape = odl_ray_trafo.range.shape
+    # odl_ray_trafo = odl.tomo.RayTransform(
+    #         odl_ray_trafo_full.domain,
+    #         odl_ray_trafo_full.geometry[::angular_sub_sampling], impl=impl)
+    obs_shape = odl_ray_trafo_full.range.shape
 
     matrix = np.zeros(obs_shape + im_shape, dtype=np.float32)
     x = np.zeros(im_shape, dtype=np.float32)
@@ -218,3 +219,56 @@ def get_parallel_beam_2d_matmul_ray_trafo(
     ray_trafo = MatmulRayTrafo(im_shape, obs_shape, matrix, fbp_fun=fbp_module, angles=angles)
 
     return ray_trafo
+
+def get_parallel_beam_2d_matmul_ray_trafos_bayesian_exp_design(
+        im_shape: Tuple[int, int],
+        num_angles: int,
+        angular_sub_sampling: int = 1,
+        impl: str = 'astra_cuda') -> Tuple[MatmulRayTrafo,MatmulRayTrafo]:
+    
+    """
+    Return a pair of :class:`bayes_dip.data.MatmulRayTrafo`, the first one 
+    with the full matrix representation of an ODL 2D parallel beam ray transform, 
+    the second one with a `angular_sub_sampling`.
+ 
+    See documentation of :class:`ParallelBeam2DRayTrafo` for
+    documentation of the parameters.
+    """
+
+    # `first_angle_zero = True` to ensure matching angles
+    odl_ray_trafo_full = get_odl_ray_trafo_parallel_beam_2d(
+            im_shape, num_angles, first_angle_zero=True,
+            impl=impl)
+    odl_fbp_full = odl.tomo.fbp_op(odl_ray_trafo_full)
+    fbp_full_module = OperatorModule(odl_fbp_full)
+
+    obs_shape_full = odl_ray_trafo_full.range.shape
+    angles_full = odl_ray_trafo_full.geometry.angles
+
+    # `first_angle_zero = True` to ensure matching angles  
+    matrix_full = get_odl_ray_trafo_parallel_beam_2d_matrix(
+            im_shape, num_angles, first_angle_zero=True,
+            angular_sub_sampling=1, impl=impl, flatten=True
+            )
+
+    ray_trafo_full = MatmulRayTrafo(im_shape, obs_shape_full,
+            matrix_full, fbp_fun=fbp_full_module, angles=angles_full)
+
+    odl_ray_trafo = odl.tomo.RayTransform(
+                odl_ray_trafo_full.domain,
+                odl_ray_trafo_full.geometry[::angular_sub_sampling], impl=impl
+            )
+    odl_fbp = odl.tomo.fbp_op(odl_ray_trafo)
+    fbp_module = OperatorModule(odl_fbp)
+
+    obs_shape = odl_ray_trafo.range.shape
+    angles = odl_ray_trafo.geometry.angles
+    matrix = matrix_full.reshape(
+                    obs_shape_full + im_shape)
+    matrix = deepcopy(matrix[::angular_sub_sampling].reshape(
+                                        -1, im_shape[0] * im_shape[1])
+                                )
+    
+    ray_trafo = MatmulRayTrafo(im_shape, obs_shape, matrix, fbp_fun=fbp_module, angles=angles)
+
+    return ray_trafo_full, ray_trafo
