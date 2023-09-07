@@ -9,6 +9,7 @@ dependencies:
     - torch>=1.12
     - torchvision
     - tensorboardx
+    - matplotlib
     - scikit-image
     - imageio
     - opt_einsum
