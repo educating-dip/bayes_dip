@@ -1,4 +1,4 @@
-from typing import Union, Tuple, Callable
+from typing import Union, Tuple, Callable, Any
 import torch
 from torch import nn, Tensor
 try:
