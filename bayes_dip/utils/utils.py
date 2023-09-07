@@ -337,3 +337,24 @@ class CustomAutogradModule(nn.Module):
     def forward(self, x: Any) -> Any:
         """Apply ``forward_fun``, saving ``backward_fun`` for the backward pass."""
         return CustomAutogradFunction.apply(x, self.forward_fun, self.backward_fun)
+
+def get_mid_slice_if_3d(image: Tensor) -> Tensor:
+    """
+    If image is 3D, return the middle slice.
+
+    Parameters
+    ----------
+    image : Tensor
+        4D or 5D image tensor
+
+	Returns
+    -------
+    image_slice : Tensor
+        If `image` is a 5D tensor, a 4D tensor obtained by taking the middle
+        index along axis 2 is returned; otherwise, `image` is returned as is.
+    """
+    if image.dim() == 5:
+        mid_slice = image.shape[2] // 2
+        return image[:, :, mid_slice, ...]
+    else:
+        return image

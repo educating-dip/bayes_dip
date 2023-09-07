@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 
+from .utils import get_mid_slice_if_3d  # alias here for backward compatibility
+
 def configure_matplotlib():
     """
     Configure common matplotlib settings that should be shared by plotting script.
@@ -244,14 +246,3 @@ def plot_qq(ax, data, label_list, title='', color_list=None, zorder_list=None, y
         ax.legend(**(legend_kwargs or {}))
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-
-
-def get_mid_slice_if_3d(image):
-    """
-    If image is 3D, return the middle slice.
-    """
-    if image.dim() == 5:
-        mid_slice = image.shape[2] // 2   
-        return image[:, :, mid_slice, ...]
-    else:
-        return image
