@@ -3,8 +3,10 @@ import torch
 from torch import nn, Tensor
 try:
     import tomosipo as ts
+    ts_operator_type = Union[ts.Operator.Operator, ts.Operator.BackprojectionOperator]
 except ImportError:
     ts = None
+    ts_operator_type = Any
 
 # clone from tomosipo.torch_support, but with
 # @torch.cuda.amp.custom_fwd and @torch.cuda.amp.custom_bwd in order to enforce
@@ -15,7 +17,7 @@ class OperatorFunctionFloat32(torch.autograd.Function):
     def forward(
             ctx,
             input: Tensor,
-            operator: Union[ts.Operator.Operator, ts.Operator.BackprojectionOperator],
+            operator: ts_operator_type,
             ) -> Tensor:
         # if input.requires_grad:  # seems to be always False if custom_fwd is
         # used, even if grad of the original input is required
@@ -51,7 +53,7 @@ class OperatorFunctionFloat32(torch.autograd.Function):
 
 # clone from tomosipo.torch_support, but using OperatorFunctionFloat32
 def to_autograd_float32(
-        operator: Union[ts.Operator.Operator, ts.Operator.BackprojectionOperator],
+        operator: ts_operator_type],
         ) -> Callable[[Tensor], Tensor]:
 
     def f(x):
