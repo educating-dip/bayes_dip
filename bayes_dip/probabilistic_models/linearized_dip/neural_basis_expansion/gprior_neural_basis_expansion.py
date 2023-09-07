@@ -304,17 +304,18 @@ class GpriorNeuralBasisExpansion(BaseNeuralBasisExpansion, MixinGpriorNeuralBasi
         scale : Tensor
             Scale vector. Shape: ``(self.neural_basis_expansion.num_params,)``.
         """
-        if scale_kwargs['use_mc_samples']:
+        scale_kwargs = scale_kwargs.copy()
+        use_mc_samples = scale_kwargs.pop('use_mc_samples')
+        if use_mc_samples:
+            num_samples = scale_kwargs.pop('num_samples')
             scale_vec = mc_compute_scale(
                 neural_basis_expansion=self.neural_basis_expansion,
                 trafo=self.trafo,
-                num_samples=scale_kwargs['num_samples'],
+                num_samples=num_samples,
                 reduction=scale_kwargs['reduction'],
                 eps=scale_kwargs['eps'],
                 )
         else:
-            # TODO: Pop the use_mc_samples arg from scale_kwargs.
-            scale_kwargs = scale_kwargs.pop('use_mc_samples')
             scale_vec = compute_scale(
                     neural_basis_expansion=self.neural_basis_expansion, trafo=self.trafo,
                     **scale_kwargs)
