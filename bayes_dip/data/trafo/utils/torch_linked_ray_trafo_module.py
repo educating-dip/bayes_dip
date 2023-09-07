@@ -53,7 +53,7 @@ class OperatorFunctionFloat32(torch.autograd.Function):
 
 # clone from tomosipo.torch_support, but using OperatorFunctionFloat32
 def to_autograd_float32(
-        operator: ts_operator_type],
+        operator: ts_operator_type,
         ) -> Callable[[Tensor], Tensor]:
 
     def f(x):
