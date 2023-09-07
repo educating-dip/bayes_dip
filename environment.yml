@@ -11,6 +11,7 @@ dependencies:
   - torchvision
   - tensorboardx
   - matplotlib
+  - omegaconf
   - scikit-image
   - imageio
   - opt_einsum
